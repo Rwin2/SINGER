@@ -1,6 +1,5 @@
 import os
-# os.environ["ACADOS_SOURCE_DIR"] = "/data/madang/StanfordMSL/SousVide-Semantic/FiGS-Semantic/acados"
-# os.environ["LD_LIBRARY_PATH"] = os.getenv("LD_LIBRARY_PATH", "") + "/data/madang/StanfordMSL/SousVide-Semantic/FiGS-Semantic/acados/lib"
+
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"  # Disable Albumentations update check
 
 import typer
