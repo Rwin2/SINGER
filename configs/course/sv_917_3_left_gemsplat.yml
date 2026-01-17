@@ -1,0 +1,58 @@
+# queries: ["microwave","ladder","armchair"]
+# queries: ["microwave", "armchair"]
+# queries: ["nothing"]
+queries: ["ladder"]
+# queries: ["armchair"]
+# semantic_target: "mannequin"
+
+# Set the default parameters for semantic objective
+# r1: 0.75 # distance to the pointcloud centroid
+# r2: 0.2 # collision check distance from point at end of r1 vector
+
+radii:
+  # - [ 1.75,  0.4]   # for "microwave"
+  - [ 1.75,  0.4]   # for "ladder"
+  # - [ 1.75,  0.4]   # for "armchair"
+
+altitudes:
+  # - -1.0            # flight height for “microwave”
+  - -1.1            # flight height for "ladder”
+  # - -1.0            # flight height for "armchair"
+
+similarities:
+  # - [ 0.90, 0.025 ]  # threshold, filter radius
+  - [ 0.90, 0.025 ]
+  # - [ 0.75, 0.075 ]
+
+nbranches:
+  # - 110
+  - 110
+  # - 110
+
+hoverMode: False
+numTraj: all
+
+visualize: False
+
+# Set the default parameters for the RRT algorithm
+algorithm: 'RRT*'
+N: 1000
+dimension: '2'
+prevent_edge_overlap: 'y'
+exact_step: 'n'
+bounded_step: 'y'
+obj_exclusion_radius: 0.5
+obstacle_exclusion_radius: 0.5
+step_size: 1.0
+
+# BBox parameters
+# minbound: [None, None, 0.0]
+# maxbound: [None, None, 2.2]
+minbound: [-5, -2.5, -2]
+maxbound: [5, 2.5, 0]
+# minpbound: [2.0, 2.0, 2.0]
+# maxpbound: [2.0, 2.0, 2.0]
+
+# altitude: -1.1
+
+gif: False

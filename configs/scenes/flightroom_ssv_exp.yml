@@ -1,0 +1,60 @@
+queries: ["green clock", "green and pink leafblower", "yellow handheld cordless drill on two boxes"]
+# queries: ["mannequin", "textbook on stool", "water barrel"]
+# queries: ["mannequin", "water barrel", ""]
+# queries: ["mannequin", "water barrel"]
+# queries: ["microwave on a stool"]
+# queries: ["mannequin"]
+# queries: ["water barrel in a wagon"]
+# semantic_target: "mannequin"
+
+radii:
+  - [ 2.0,  0.4]   # for "mannequin"
+  - [ 2.0,  0.4]   # for "ladder"
+  - [ 2.0,  0.4]   # for "microwave"
+  # - [ 1.0,  0.4]   # for "mannequin"
+altitudes:
+  - -1.0            # flight height for "mannequin"
+  - -1.0           # flight height for "ladder”
+  - -1.0            # flight height for "water barrel"
+  # - -1.0
+
+similarities:
+  - [ 0.90, 0.025 ]  # threshold, filter radius
+  - [ 0.90, 0.025 ]
+  - [ 0.90, 0.025 ]
+  # - [ 0.90, 0.025 ]
+
+nbranches:
+  - 110
+  - 110
+  - 110
+  # - 110
+
+hoverMode: False
+numTraj: all
+
+visualize: False
+
+# Set the default parameters for the RRT algorithm
+algorithm: 'RRT*'
+N: 2500
+dimension: '2'
+prevent_edge_overlap: 'y'
+exact_step: 'n'
+bounded_step: 'y'
+step_size: 1.0
+
+#Set the parameters for the semantic objective
+minbound: [-3.7, -8, -2]
+maxbound: [3.7, 8, 0]
+# minbound: [-4.5, -2.0, -2.0]
+# maxbound: [4.5, 2.0, 0.0]
+# minpbound: [2.0, 2.0, 2.0]
+# maxpbound: [2.0, 2.0, 2.0]
+
+# r1: 1.5
+# r2: 0.5
+
+# altitude: -1.1
+
+gif: False

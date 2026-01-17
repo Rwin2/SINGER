@@ -1,0 +1,55 @@
+# queries: ["guy wearing jacket","spheres", "small rectangular wallet"]
+queries: ["park bench"]
+# queries: ["guy wearing jacket", "spheres"]
+# queries: ["small rectangular wallet"]
+# queries: ["guy wearing jacket"]
+# semantic_target: "mannequin"
+
+radii:
+  - [ 3.0,  0.4]   # for "microwave"
+  # - [ 2.0,  0.4]   # for "ladder"
+  # - [ 2.0,  0.4]   # for "armchair"
+
+altitudes:
+  - -1.1            # flight height for “microwave”
+  # - -1.4            # flight height for "ladder”
+  # - -0.8            # flight height for "armchair"
+
+similarities:
+  - [ 0.90, 0.025 ]  # threshold, filter radius
+  # - [ 0.90, 0.025 ]
+  # - [ 0.90, 0.025 ]
+
+nbranches:
+  # - 110
+  # - 110
+  - 110
+
+hoverMode: False
+numTraj: all
+
+visualize: False
+
+# Set the default parameters for the RRT algorithm
+algorithm: 'RRT*'
+N: 10000
+dimension: '2'
+prevent_edge_overlap: 'y'
+exact_step: 'n'
+bounded_step: 'y'
+step_size: 1.0
+
+#Set the parameters for the semantic objective
+minbound: [-10, -10, -4]
+maxbound: [10, 2, 0]
+# minbound: [-4.5, -2.0, -2.0]
+# maxbound: [4.5, 2.0, 0.0]
+# minpbound: [2.0, 2.0, 2.0]
+# maxpbound: [2.0, 2.0, 2.0]
+
+# r1: 1.5 # object radius
+# r2: 0.7 # collision radius
+# altitude: -1.4
+
+# Visualization parameters
+gif: False

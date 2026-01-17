@@ -1,0 +1,49 @@
+queries: ["park bench", "traffic cone", "bicycles"]
+# queries: ["traffic cone"]
+# queries: ["parkbench"]
+# semantic_target: "mannequin"
+
+radii:
+  - [ 2.5,  0.3]   # for "microwave"
+  - [ 2.5,  0.5]   # for "computer"
+  - [ 2.5,  0.5]   # for "armchair"
+
+altitudes:
+  - -0.9            # flight height for “microwave”
+  - -0.8            # flight height for "ladder”
+  - -1.1            # flight height for "armchair"
+
+similarities:
+  - [ 0.90, 0.025 ]  # threshold, filter radius
+  - [ 0.90, 0.025 ]
+  - [ 0.90, 0.025 ]
+
+nbranches:
+  - 110
+  - 110
+  - 110
+
+hoverMode: False
+numTraj: all
+
+visualize: False
+
+# Set the default parameters for the RRT algorithm
+algorithm: 'RRT*'
+N: 10000
+dimension: '2'
+prevent_edge_overlap: 'y'
+exact_step: 'n'
+bounded_step: 'y'
+
+#Set the parameters for the semantic objective
+minbound: [-4.0, -6.0, -2.0]
+maxbound: [2.5, 6.0, 0.0]
+
+# r1: 1.75
+# r2: 0.5
+
+# altitude: -0.5
+
+# Visualization parameters
+gif: False

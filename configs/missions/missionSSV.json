@@ -1,0 +1,19 @@
+{
+    "cohort": "ssv_CLIPSEG_NORMAL",
+    "pilot" : "InstinctJester",
+    "drone" : "drone4",
+    "scene": "flightroom_any",
+    "frame" : "carl",
+    "failsafes": {
+        "attitude_tolerance": 0.10,
+        "height_tolerance": 0.10      
+    },
+
+    "prompt": "ladder",
+    "hf_model": "CIDAS/clipseg-rd64-refined",
+    "onnx_model_path": "/home/coop/StanfordMSL/SousVide-Semantic/notebooks/clipseg_model.onnx",
+
+    
+    "linger": 5.0,
+    "images_per_second": 30
+}

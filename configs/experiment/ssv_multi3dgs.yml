@@ -1,0 +1,33 @@
+# Test Campaign Settings and Identifiers
+# cohort: "ssv_multi_CLIPSEG_Overlay_coruscant"
+# cohort: "ssv_multi_CLIPSEG_Only"
+# cohort: "ssv_GSPLAT_loiter"
+cohort: "ssv_CLIPSEG_NORMAL"
+# cohort: "ssv_CLIPSEG_ONE-ENV-FOUR-OBJ"
+# cohort: "ssv_CLIPSEG_LOITER_V2"
+# cohort: "ssv_CLIPSEG_LOITER_900k"
+# cohort: "ssv_CLIPSEG_SIGMOID_ALPHA_100"
+# cohort: "ssv_CLIPSEG_NORMAL_4M"
+# cohort: "ssv_CLIPSEG_SIGMOID"
+# cohort: "ssv_CLIPSEG_SUPERPIXELS"
+method: "rrt"
+
+review: false
+
+# Number of episodes for history/command training
+Nep_his: 100
+Nep_com: 150 #250 already done
+
+# Each entry is a (scene, course) pair
+flights:
+  # - ["flightroom_lowres", "flightroom_lowres"]
+  # - ["spheres", "spheres"]
+  # - ["indooroutdoor", "indooroutdoor"]
+  # - ["packardpark", "packardpark"]
+  - ["sv_917_3_left_gemsplat", "sv_917_3_left_gemsplat"]
+  # - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+# List of policy identifiers
+roster: []
+  # - "InstinctJester"
+  

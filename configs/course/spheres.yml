@@ -1,0 +1,35 @@
+queries: ["guy wearing jacket","park bench", "small rectangular wallet"]
+# queries: ["park bench"]
+# queries: ["small rectangular wallet"]
+# queries: ["guy wearing jacket"]
+# semantic_target: "mannequin"
+
+hoverMode: False
+numTraj: all
+
+visualize: True
+
+visualize: True
+
+# Set the default parameters for the RRT algorithm
+algorithm: 'RRT*'
+N: 1000
+dimension: '2'
+prevent_edge_overlap: 'y'
+exact_step: 'n'
+bounded_step: 'y'
+
+#Set the parameters for the semantic objective
+minbound: [-10, -10, -4]
+maxbound: [10, 2, 0]
+# minbound: [-4.5, -2.0, -2.0]
+# maxbound: [4.5, 2.0, 0.0]
+# minpbound: [2.0, 2.0, 2.0]
+# maxpbound: [2.0, 2.0, 2.0]
+
+r1: 1.5 # object radius
+r2: 0.7 # collision radius
+altitude: -1.4
+
+# Visualization parameters
+gif: True

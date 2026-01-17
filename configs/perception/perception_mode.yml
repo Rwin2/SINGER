@@ -1,0 +1,6 @@
+visual_mode: "semantic_depth"
+perception_type: "clipseg"
+# perception_type: "similarity"
+
+# visual_mode: "rgb"
+# perception_mode: "similarity"

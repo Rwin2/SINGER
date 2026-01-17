@@ -1,0 +1,6 @@
+{
+  "input_video_path": "/home/admin/StanfordMSL/SousVide-Semantic/notebooks/test_space/sim_video_packardpark_traffic cone_expert_rgb.mp4",
+  "prompt": "bicycles",
+  "hf_model": "CIDAS/clipseg-rd64-refined",
+  "onnx_model_path": "/home/admin/StanfordMSL/SousVide-Semantic/notebooks/clipseg_model.onnx"
+}
