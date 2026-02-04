@@ -18,6 +18,7 @@ import plotly.graph_objects as go
 import sousvide.synthesize.rollout_generator as rg
 import sousvide.synthesize.observation_generator as og
 import sousvide.instruct.train_policy as tp
+import sousvide.instruct.train_policy_unified as tpu
 import sousvide.visualize.plot_synthesize as ps
 import sousvide.visualize.plot_learning as pl
 import sousvide.flight.deploy_ssv as df
@@ -181,6 +182,88 @@ def train_command(
         fig = pl.plot_losses(cfg["cohort"], cfg["roster"], "Commander")
         if cfg["use_wandb"]:
             wandb.log({"command_loss_plot": fig})
+
+@app.command("train-rl")
+def train_rl(
+    config_file: Path = typer.Option(..., exists=True),
+    plot: bool = typer.Option(False),
+    use_wandb: bool = typer.Option(False),
+    wandb_project: Optional[str] = typer.Option(None),
+    wandb_run_name: Optional[str] = typer.Option(None),
+    wandb_run_id: Optional[str] = typer.Option(None, help="Existing W&B run ID to resume"),
+    wandb_resume: Optional[str] = typer.Option("allow", help="resume mode: allow|must")
+):
+    """
+    Fine-tune behavior-cloned pilots with RL for collision avoidance.
+
+    This command:
+    1. Collects rollouts using current policy
+    2. Detects collisions and computes clearance metrics
+    3. Generates rewards based on collision avoidance
+    4. Updates policy with hybrid loss (RL + BC + KL regularization)
+
+    Original BC policy (model.pth) remains unchanged.
+    RL models saved to rl_model.pth and rl_best_model.pth.
+    """
+    import json
+
+    cfg = common_options(  # type: ignore
+        config_file, plot, use_wandb, wandb_project, wandb_run_name,
+        wandb_run_id, wandb_resume
+    )
+    init_wandb(cfg, "train_rl")
+
+    # Load RL preset if specified
+    if "rl_preset" in cfg:
+        preset_name = cfg["rl_preset"]
+        workspace_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        preset_path = os.path.join(workspace_path, "configs", "rl_presets", f"{preset_name}.json")
+
+        if os.path.exists(preset_path):
+            with open(preset_path) as f:
+                preset = json.load(f)
+            print(f"[INFO] Loading RL preset: {preset.get('name', preset_name)}")
+            print(f"       {preset.get('description', '')}")
+            # Merge preset into cfg (preset values override defaults but yaml overrides preset)
+            for key, value in preset.items():
+                if key not in ["name", "description"] and key not in cfg:
+                    cfg[key] = value
+        else:
+            print(f"[WARNING] RL preset not found: {preset_path}")
+            print(f"          Available presets: vanilla_bc_failures, advantage_weighted_bc, onset_weighted_bc, mc_collision_only")
+
+    tpu.train_rl_policy(
+        cohort_name=cfg["cohort"],
+        roster=cfg["roster"],
+        method_name=cfg["method"],
+        flights=cfg["flights"],
+        Neps=cfg.get("Nep_rl", 50),
+        lim_sv=cfg.get("lim_sv", 10),
+        lr_rl=cfg.get("rl_lr_rl", 1e-4),
+        lr_value=cfg.get("rl_lr_value", 1e-4),
+        batch_size=cfg.get("rl_batch_size", 64),
+        collision_penalty=cfg.get("rl_collision_penalty", 5.0),
+        clearance_threshold=cfg.get("rl_clearance_threshold", 0.3),
+        lambda_bc=cfg.get("rl_lambda_bc", 2.0),
+        lambda_ref=cfg.get("rl_lambda_ref", 1.0),
+        lambda_value=cfg.get("rl_lambda_value", 0.5),
+        gamma=cfg.get("rl_gamma", 0.95),
+        gae_lambda=cfg.get("rl_gae_lambda", 0.95),
+        lambda_contrastive=cfg.get("rl_lambda_contrastive", 0.5),
+        contrastive_margin=cfg.get("rl_contrastive_margin", 1.0),
+        lambda_dpg=cfg.get("rl_lambda_dpg", 1.0),
+        train_on_failures_only=cfg.get("rl_train_on_failures_only", False),
+        bc_weighting_mode=cfg.get("rl_bc_weighting_mode", "onset"),
+        advantage_method=cfg.get("rl_advantage_method", "gae"),
+        mc_reward_config=cfg.get("mc_reward_components", None),
+        validation_config=cfg.get("validation", None),
+        max_trajectories=cfg.get("max_trajectories", 20),
+        validation_percentage=cfg.get("validation_percentage", 0.5)
+    )
+    if cfg["plot"]:
+        fig = pl.plot_rl_losses(cfg["cohort"], cfg["roster"])
+        if cfg["use_wandb"]:
+            wandb.log({"rl_loss_plot": fig})
 
 @app.command()
 def simulate(

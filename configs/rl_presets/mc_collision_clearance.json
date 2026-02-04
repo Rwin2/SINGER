@@ -1,0 +1,38 @@
+{
+    "name": "MC AWBC - Collision + Clearance",
+    "description": "Monte Carlo AWBC with collision and clearance-based shaping. Tests continuous clearance penalty.",
+    
+    "Nep_rl": 50,
+    "lim_sv": 10,
+    "rl_batch_size": 64,
+    
+    "rl_lr_rl": 1e-5,
+    "rl_lr_value": 1e-4,
+    
+    "rl_lambda_dpg": 0.0,
+    "rl_lambda_value": 0.0,
+    "rl_lambda_bc": 2.0,
+    "rl_lambda_ref": 1.0,
+    "rl_lambda_contrastive": 0.0,
+    "rl_contrastive_margin": 1.0,
+    
+    "rl_bc_weighting_mode": "advantage",
+    "rl_advantage_method": "monte_carlo",
+    "rl_train_on_failures_only": true,
+    "rl_gamma": 0.95,
+    "rl_gae_lambda": 0.95,
+    
+    "rl_collision_penalty": 5.0,
+    "rl_clearance_threshold": 0.3,
+    
+    "mc_reward_components": {
+        "use_collision": true,
+        "use_clearance": true,
+        "use_query_in_view": false,
+        "collision_penalty": 5.0,
+        "clearance_weight": 1.0,
+        "query_reward": 0.0,
+        "clearance_threshold": 0.3,
+        "success_reward": 10.0
+    }
+}

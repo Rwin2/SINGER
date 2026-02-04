@@ -1,0 +1,27 @@
+{
+    "name": "Full DPG with Q-Network",
+    "description": "Original approach: DPG with Q-network, onset weights, all trajectories. Most complex.",
+    
+    "Nep_rl": 50,
+    "lim_sv": 10,
+    "rl_batch_size": 64,
+    
+    "rl_lr_rl": 1e-5,
+    "rl_lr_value": 1e-4,
+    
+    "rl_lambda_dpg": 1.0,
+    "rl_lambda_value": 0.5,
+    "rl_lambda_bc": 2.0,
+    "rl_lambda_ref": 1.0,
+    "rl_lambda_contrastive": 0.5,
+    "rl_contrastive_margin": 1.0,
+    
+    "rl_bc_weighting_mode": "onset",
+    "rl_advantage_method": "gae",
+    "rl_train_on_failures_only": false,
+    "rl_gamma": 0.95,
+    "rl_gae_lambda": 0.95,
+    
+    "rl_collision_penalty": 5.0,
+    "rl_clearance_threshold": 0.3
+}

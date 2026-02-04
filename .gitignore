@@ -12,3 +12,5 @@
 **/*.onnx
 **/configs/scenes/*.pkl
 /outputs/
+*.md
+!README.md
