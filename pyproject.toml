@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "sousvide"
 version = "0.2.0"
 description = "Scene Understanding via Synthesized Visual Inertial Data from Experts"
-authors = [{ name = "JunEn Low", email = "lowjunen@gmail.com" }, { name = "Maximilian Adang", email = "maximilian.adang@gmail.com}]
+authors = [{ name = "JunEn Low", email = "lowjunen@gmail.com" }, { name = "Maximilian Adang", email = "maximilian.adang@gmail.com"}]
 license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.10,<3.11"
