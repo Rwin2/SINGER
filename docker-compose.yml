@@ -1,0 +1,45 @@
+version: '3.8'
+
+# SINGER development environment
+# Uses the FiGS base image and mounts SINGER for editable development
+
+services:
+  singer:
+    image: figs:latest
+    # To build the base image if needed:
+    # docker build -f /path/to/FiGS-Standalone/Dockerfile.FiGS -t figs:latest /path/to/FiGS-Standalone
+    volumes:
+      # Mount SINGER (this repo) for editable install
+      - .:/workspace/SINGER
+      # Mount FiGS-Standalone for editable install (adjust path as needed)
+      - ${FIGS_PATH:-../FiGS-Standalone}:/workspace/FiGS-Standalone
+      # Mount data directory at same path as host so symlinks work
+      - ${DATA_PATH:-/media/admin/data/StanfordMSL/nerf_data}:${DATA_PATH:-/media/admin/data/StanfordMSL/nerf_data}
+      # Persist site-packages across container recreations
+      - site-packages:/usr/local/lib/python3.10/dist-packages
+    working_dir: /workspace/SINGER
+    environment:
+      - DISPLAY=${DISPLAY:-}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+    runtime: nvidia
+    network_mode: host
+    stdin_open: true
+    tty: true
+    command: >
+      bash -c "
+        HOST_UID=$$(stat -c '%u' /workspace/SINGER)
+        HOST_GID=$$(stat -c '%g' /workspace/SINGER)
+        if ! getent passwd $$HOST_UID >/dev/null 2>&1; then
+          groupadd -g $$HOST_GID singer 2>/dev/null || true
+          useradd -u $$HOST_UID -g $$HOST_GID -m -s /bin/bash singer 2>/dev/null || true
+        fi
+        USERNAME=$$(getent passwd $$HOST_UID | cut -d: -f1)
+        # Install editable packages
+        python -c 'import figs' 2>/dev/null || python -m pip install -e /workspace/FiGS-Standalone --no-deps
+        python -c 'import gemsplat' 2>/dev/null || python -m pip install -e /workspace/FiGS-Standalone/gemsplat --no-deps
+        python -c 'import sousvide' 2>/dev/null || python -m pip install -e /workspace/SINGER --no-deps
+        exec runuser -u $$USERNAME -- bash -l
+      "
+
+volumes:
+  site-packages:
