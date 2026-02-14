@@ -12,3 +12,41 @@
 **/*.onnx
 **/configs/scenes/*.pkl
 /outputs/
+# -------------------
+# Logs
+# -------------------
+logs/
+*.log
+
+# -------------------
+# Generated rollout / observation data
+# -------------------
+cohorts/
+*.pt
+*.pkl
+*.npz
+
+# -------------------
+# Large model artifacts
+# -------------------
+checkpoints/
+wandb/
+*.ckpt
+
+# -------------------
+# 3DGS / workspace outputs
+# -------------------
+workspace/
+outputs/
+
+# -------------------
+# Temp / cache
+# -------------------
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# -------------------
+# System
+# -------------------
+.DS_Store
