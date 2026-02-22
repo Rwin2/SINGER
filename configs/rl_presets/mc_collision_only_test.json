@@ -1,0 +1,44 @@
+{
+    "name": "MC AWBC - Collision Only",
+    "description": "Monte Carlo AWBC with only collision penalty. Tests if collision signal alone is sufficient.",
+    
+    "_comment_training": "=== Training Control ===",
+    "Nep_rl": 10,
+    "lim_sv": 1,
+    "rl_batch_size": 64,
+    
+    "_comment_lr": "=== Learning Rates ===",
+    "rl_lr_rl": 1e-5,
+    "rl_lr_value": 1e-4,
+    
+    "_comment_loss": "=== Loss Weights ===",
+    "rl_lambda_dpg": 0.0,
+    "rl_lambda_value": 0.0,
+    "rl_lambda_bc": 2.0,
+    "rl_lambda_ref": 1.0,
+    "rl_lambda_contrastive": 0.0,
+    "rl_contrastive_margin": 1.0,
+    
+    "_comment_algo": "=== Algorithm Settings ===",
+    "rl_bc_weighting_mode": "advantage_u_shaped",
+    "rl_advantage_method": "monte_carlo",
+    "rl_train_on_failures_only": true,
+    "rl_gamma": 0.95,
+    "rl_gae_lambda": 0.95,
+    
+    "_comment_reward": "=== Reward Shaping ===",
+    "rl_collision_penalty": 5.0,
+    "rl_clearance_threshold": 0.3,
+    
+    "_comment_mc": "=== Monte Carlo Reward Components ===",
+    "mc_reward_components": {
+        "use_collision": true,
+        "use_clearance": false,
+        "use_query_in_view": false,
+        "collision_penalty": 5.0,
+        "clearance_weight": 0.0,
+        "query_reward": 0.0,
+        "clearance_threshold": 0.3,
+        "success_reward": 10.0
+    }
+}
