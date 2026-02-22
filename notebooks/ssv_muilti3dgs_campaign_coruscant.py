@@ -1,7 +1,7 @@
 import os
-os.environ["ACADOS_SOURCE_DIR"] = "/home/data/<username>/SousVide-Semantic/FiGS-Semantic/acados"
-os.environ["LD_LIBRARY_PATH"] = os.getenv("LD_LIBRARY_PATH", "") + "/home/data/<username>/SousVide-Semantic/FiGS-Semantic/acados/lib"
-os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"  # Disable Albumentations update check
+os.environ["ACADOS_SOURCE_DIR"] = "/home/erwinpi/data/FiGS-Standalone/acados"
+os.environ["LD_LIBRARY_PATH"] = os.getenv("LD_LIBRARY_PATH", "") + ":/home/erwinpi/data/FiGS-Standalone/acados/lib"
+os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"
 
 import typer
 import yaml
@@ -26,14 +26,26 @@ import sousvide.flight.deploy_ssv as df
 
 app = typer.Typer()
 
-# Monkey-patch Plotly.show to capture figures
-_all_plotly_figs: List[go.Figure] = []
-_original_show = go.Figure.show
+# # Monkey-patch Plotly.show to capture figures
+# _all_plotly_figs: List[go.Figure] = []
+# #_original_show = go.Figure.show
+# go.Figure.show = lambda self, *args, **kwargs: _all_plotly_figs.append(self)
 
-def _capture_and_show(self, *args, **kwargs):
+
+# def _capture_and_show(self, *args, **kwargs):
+#     _all_plotly_figs.append(self)
+#     #return _original_show(self, *args, **kwargs)
+#     return 
+# go.Figure.show = _capture_and_show
+# Monkey-patch Plotly.show to capture figures (HEADLESS-safe)
+_all_plotly_figs: List[go.Figure] = []
+
+def _capture_only(self, *args, **kwargs):
     _all_plotly_figs.append(self)
-    return _original_show(self, *args, **kwargs)
-go.Figure.show = _capture_and_show
+    return None
+
+go.Figure.show = _capture_only
+
 
 
 def load_yaml(path: Path) -> dict:

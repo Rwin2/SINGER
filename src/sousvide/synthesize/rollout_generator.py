@@ -694,20 +694,32 @@ def rollout_trajectories(all_trajectories, objectives, Nro_tp,
                   f"for course '{course}', query: {orig_name[base]}")
 
             for traj_idx, tXUi in enumerate(all_trajectories[course]):
-                for _batch in compute_batches(tXUi, reps, Tdt_ro, Ntp_sc, Nro_sv, validation_mode=validation_mode):
+                for batch_times in compute_batches(tXUi, reps, Tdt_ro, Ntp_sc, Nro_sv, validation_mode=validation_mode):
                     # shared frame generation
                     Frames = generate_frames(
-                        Tsps=Trep,
-                        base_frame_config=base_frame_config,
-                        frame_set_config=frame_set_config
-                    )
-                    # pick correct perturbation config
+                    Tsps=batch_times,
+                    base_frame_config=base_frame_config,
+                    frame_set_config=frame_set_config
+                )
                     cfg = loiter_set_config if is_loiter else trajectory_set_config
                     Perturbations = generate_perturbations(
-                        Tsps=Trep,
+                        Tsps=batch_times,
                         tXUi=tXUi,
                         trajectory_set_config=cfg
                     )
+
+                    # Frames = generate_frames(
+                    #     Tsps=Trep,
+                    #     base_frame_config=base_frame_config,
+                    #     frame_set_config=frame_set_config
+                    # )
+                    # # pick correct perturbation config
+                    # cfg = loiter_set_config if is_loiter else trajectory_set_config
+                    # Perturbations = generate_perturbations(
+                    #     Tsps=Trep,
+                    #     tXUi=tXUi,
+                    #     trajectory_set_config=cfg
+                    # )
 
                     # actual rollout + save
                     Trajectories, Images, Img_data = generate_rollouts(
@@ -1059,7 +1071,8 @@ def generate_rollouts(
             Tro, Xro, Uro, Imgs, Tsol, Adv = sim.simulate(
                 ctl, t0, tf, x0,
                 query=objective,
-                clipseg=vision_processor,
+                #clipseg=vision_processor,
+                vision_processor=vision_processor,
                 validation=validation_mode
             )
 

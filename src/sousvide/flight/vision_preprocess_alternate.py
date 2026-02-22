@@ -3,6 +3,8 @@ import time
 
 import numpy as np
 import matplotlib.pyplot as plt
+
+
 import matplotlib.cm as cm
 
 from shapely import area
@@ -117,6 +119,40 @@ class CLIPSegHFModel:
             self._io_binding = None
             self._input_gpu  = None
             self._output_gpu = None
+            
+    # ======================================================================================
+    # PATCH: Add a `.process()` API to CLIPSegHFModel + make clipseg_hf_inference consistent.
+    # Why: FiGS Simulator expects `vision_processor.process(image=..., prompt=...) -> (img, aux)`
+    #      and your current class only defines `clipseg_hf_inference()`.
+    #      Also: your "reuse" path returns only `overlayed` (1 value) while normal path returns
+    #      `(overlayed, scaled)` (2 values). That breaks unpacking and multiprocessing.
+    # HOW TO USE:
+    #   1) Paste the "process" method INSIDE class CLIPSegHFModel.
+    #   2) Replace your current "reuse path" return in clipseg_hf_inference with the block below.
+    # ======================================================================================
+
+    # ---------- (1) Paste this INSIDE class CLIPSegHFModel ----------
+    def process(self, image, prompt: str, **kwargs):
+        """
+        Compatibility wrapper expected by FiGS.
+
+        Returns:
+            overlayed (np.ndarray uint8): HxWx3 overlay image
+            aux (np.ndarray | None): additional map (e.g., scaled logits), or None in reuse mode
+        """
+        out = self.clipseg_hf_inference(image=image, prompt=prompt, **kwargs)
+
+        # Ensure we always return a 2-tuple (overlayed, aux)
+        if isinstance(out, tuple) and len(out) == 2:
+            overlayed, aux = out
+        else:
+            overlayed, aux = out, None
+
+        return overlayed, aux
+
+
+ 
+
 
     def _export_onnx(self, onnx_path: str):
         """
@@ -307,14 +343,28 @@ class CLIPSegHFModel:
             should_reuse = ssim_score >= scene_change_threshold
             log(f"[DEBUG] SSIM = {ssim_score:.4f}, Threshold = {scene_change_threshold}, Reuse = {should_reuse}")
 
-        # --- Step 3: Reuse path (warp previous mask) ---
+        # # --- Step 3: Reuse path (warp previous mask) ---
+        # if should_reuse:
+        #     mask_u8 = warp_mask(self.prev_image, image_np, self.prev_output)
+        #     # Optional: fast filtering
+        #     mask_u8 = cv2.bilateralFilter(mask_u8, d=7, sigmaColor=75, sigmaSpace=75)
+        #     colorized = colorize_mask_fast(mask_u8, self.lut)
+        #     overlayed = blend_overlay_gpu(image_np, colorized)
+        #     return overlayed
+   # ---------- (2) In clipseg_hf_inference(), REPLACE your "should_reuse" block with this ----------
+    # --- Step 3: Reuse path (warp previous mask) ---
         if should_reuse:
             mask_u8 = warp_mask(self.prev_image, image_np, self.prev_output)
-            # Optional: fast filtering
+
+            # Optional fast filtering
             mask_u8 = cv2.bilateralFilter(mask_u8, d=7, sigmaColor=75, sigmaSpace=75)
+
             colorized = colorize_mask_fast(mask_u8, self.lut)
             overlayed = blend_overlay_gpu(image_np, colorized)
-            return overlayed
+
+            # IMPORTANT: Always return two values to match the non-reuse path.
+            # We don't have "scaled" in reuse mode, so return None.
+            return overlayed, None
 
         # --- Step 4: Run inference (scene has changed) ---
         start = time.time()
