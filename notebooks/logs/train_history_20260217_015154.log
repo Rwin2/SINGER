@@ -1,0 +1,1386 @@
+/home/erwinpi/FiGS-Standalone/gemsplat/gemsplat/clip/clip.py:6: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import packaging
+╭─────────────────────────── Traceback (most recent call last) ────────────────────────────╮
+│ /data/erwinpi/SINGER/notebooks/ssv_multi3dgs_campaign.py:153 in train_history            │
+│                                                                                          │
+│   150 │   cfg = common_options(  # type: ignore                                          │
+│   151 │   │   config_file, plot, use_wandb, wandb_project, wandb_run_name                │
+│   152 │   )                                                                              │
+│ ❱ 153 │   init_wandb(cfg, "train_history")                                               │
+│   154 │   tp.train_roster(                                                               │
+│   155 │   │   cfg["cohort"], cfg["roster"], "Parameter", cfg["Nep_his"], lim_sv=cfg.get( │
+│   156 │   )                                                                              │
+│                                                                                          │
+│ ╭──────────────────────────────────── locals ─────────────────────────────────────╮      │
+│ │            cfg = {                                                              │      │
+│ │                  │   'cohort': 'ssv_CLIPSEG_NORMAL',                            │      │
+│ │                  │   'method': 'rrt',                                           │      │
+│ │                  │   'review': False,                                           │      │
+│ │                  │   'Nep_his': 100,                                            │      │
+│ │                  │   'Nep_com': 150,                                            │      │
+│ │                  │   'flights': [                                               │      │
+│ │                  │   │   ['flightroom_ssv_exp', 'flightroom_ssv_exp']           │      │
+│ │                  │   ],                                                         │      │
+│ │                  │   'roster': ['InstinctJester'],                              │      │
+│ │                  │   'plot': False,                                             │      │
+│ │                  │   'use_wandb': True,                                         │      │
+│ │                  │   'wandb_project': 'SINGER',                                 │      │
+│ │                  │   ... +3                                                     │      │
+│ │                  }                                                              │      │
+│ │    config_file = PosixPath('../configs/experiment/ssv_multi3dgs.yml')           │      │
+│ │           plot = False                                                          │      │
+│ │      use_wandb = True                                                           │      │
+│ │  wandb_project = 'SINGER'                                                       │      │
+│ │ wandb_run_name = 'history_ssv_clipseg'                                          │      │
+│ ╰─────────────────────────────────────────────────────────────────────────────────╯      │
+│                                                                                          │
+│ /data/erwinpi/SINGER/notebooks/ssv_multi3dgs_campaign.py:56 in init_wandb                │
+│                                                                                          │
+│    53 │   │   init_args["id"] = run_id                                                   │
+│    54 │   │   init_args["resume"] = cfg.get("wandb_resume", "allow")                     │
+│    55 │                                                                                  │
+│ ❱  56 │   wandb.init(**init_args)                                                        │
+│    57                                                                                    │
+│    58 def common_options(                                                                │
+│    59 │   config_file: Path,                                                             │
+│                                                                                          │
+│ ╭──────────────────────────────────── locals ────────────────────────────────────╮       │
+│ │       cfg = {                                                                  │       │
+│ │             │   'cohort': 'ssv_CLIPSEG_NORMAL',                                │       │
+│ │             │   'method': 'rrt',                                               │       │
+│ │             │   'review': False,                                               │       │
+│ │             │   'Nep_his': 100,                                                │       │
+│ │             │   'Nep_com': 150,                                                │       │
+│ │             │   'flights': [['flightroom_ssv_exp', 'flightroom_ssv_exp']],     │       │
+│ │             │   'roster': ['InstinctJester'],                                  │       │
+│ │             │   'plot': False,                                                 │       │
+│ │             │   'use_wandb': True,                                             │       │
+│ │             │   'wandb_project': 'SINGER',                                     │       │
+│ │             │   ... +3                                                         │       │
+│ │             }                                                                  │       │
+│ │ init_args = {                                                                  │       │
+│ │             │   'project': 'SINGER',                                           │       │
+│ │             │   'name': 'history_ssv_clipseg',                                 │       │
+│ │             │   'config': {                                                    │       │
+│ │             │   │   'cohort': 'ssv_CLIPSEG_NORMAL',                            │       │
+│ │             │   │   'method': 'rrt',                                           │       │
+│ │             │   │   'review': False,                                           │       │
+│ │             │   │   'Nep_his': 100,                                            │       │
+│ │             │   │   'Nep_com': 150,                                            │       │
+│ │             │   │   'flights': [                                               │       │
+│ │             │   │   │   ['flightroom_ssv_exp', 'flightroom_ssv_exp']           │       │
+│ │             │   │   ],                                                         │       │
+│ │             │   │   'roster': ['InstinctJester'],                              │       │
+│ │             │   │   'plot': False,                                             │       │
+│ │             │   │   'use_wandb': True,                                         │       │
+│ │             │   │   'wandb_project': 'SINGER',                                 │       │
+│ │             │   │   ... +3                                                     │       │
+│ │             │   }                                                              │       │
+│ │             }                                                                  │       │
+│ │       job = 'train_history'                                                    │       │
+│ │    run_id = None                                                               │       │
+│ ╰────────────────────────────────────────────────────────────────────────────────╯       │
+│                                                                                          │
+│ /home/erwinpi/miniconda3/envs/FiGS/lib/python3.10/site-packages/wandb/sdk/wandb_init.py: │
+│ 1597 in init                                                                             │
+│                                                                                          │
+│   1594 │   │   if wl:                                                                    │
+│   1595 │   │   │   wl._get_logger().exception("error in wandb.init()", exc_info=e)       │
+│   1596 │   │                                                                             │
+│ ❱ 1597 │   │   get_sentry().reraise(e)                                                   │
+│   1598                                                                                   │
+│                                                                                          │
+│ ╭─────────────────────────────────────── locals ───────────────────────────────────────╮ │
+│ │    allow_val_change = None                                                           │ │
+│ │           anonymous = <object object at 0x743750189e30>                              │ │
+│ │              config = {                                                              │ │
+│ │                       │   'cohort': 'ssv_CLIPSEG_NORMAL',                            │ │
+│ │                       │   'method': 'rrt',                                           │ │
+│ │                       │   'review': False,                                           │ │
+│ │                       │   'Nep_his': 100,                                            │ │
+│ │                       │   'Nep_com': 150,                                            │ │
+│ │                       │   'flights': [                                               │ │
+│ │                       │   │   ['flightroom_ssv_exp', 'flightroom_ssv_exp']           │ │
+│ │                       │   ],                                                         │ │
+│ │                       │   'roster': ['InstinctJester'],                              │ │
+│ │                       │   'plot': False,                                             │ │
+│ │                       │   'use_wandb': True,                                         │ │
+│ │                       │   'wandb_project': 'SINGER',                                 │ │
+│ │                       │   ... +3                                                     │ │
+│ │                       }                                                              │ │
+│ │ config_exclude_keys = None                                                           │ │
+│ │ config_include_keys = None                                                           │ │
+│ │                 dir = None                                                           │ │
+│ │              entity = None                                                           │ │
+│ │               force = None                                                           │ │
+│ │           fork_from = None                                                           │ │
+│ │               group = None                                                           │ │
+│ │                  id = None                                                           │ │
+│ │       init_settings = Settings(                                                      │ │
+│ │                       │   allow_offline_artifacts=True,                              │ │
+│ │                       │   allow_val_change=False,                                    │ │
+│ │                       │   anonymous=<object object at 0x743750189e30>,               │ │
+│ │                       │   api_key=None,                                              │ │
+│ │                       │   azure_account_url_to_access_key=None,                      │ │
+│ │                       │   app_url_override=None,                                     │ │
+│ │                       │   base_url='https://api.wandb.ai',                           │ │
+│ │                       │   code_dir=None,                                             │ │
+│ │                       │   config_paths=None,                                         │ │
+│ │                       │   console='wrap',                                            │ │
+│ │                       │   console_multipart=False,                                   │ │
+│ │                       │   console_chunk_max_bytes=0,                                 │ │
+│ │                       │   console_chunk_max_seconds=0,                               │ │
+│ │                       │                                                              │ │
+│ │                       credentials_file='/home/erwinpi/.config/wandb/credentials.jso… │ │
+│ │                       │   disable_code=False,                                        │ │
+│ │                       │   disable_git=False,                                         │ │
+│ │                       │   disable_job_creation=True,                                 │ │
+│ │                       │   docker=None,                                               │ │
+│ │                       │   email=None,                                                │ │
+│ │                       │   entity=None,                                               │ │
+│ │                       │   organization=None,                                         │ │
+│ │                       │   force=False,                                               │ │
+│ │                       │   fork_from=None,                                            │ │
+│ │                       │   git_commit=None,                                           │ │
+│ │                       │   git_remote='origin',                                       │ │
+│ │                       │   git_remote_url=None,                                       │ │
+│ │                       │   git_root=None,                                             │ │
+│ │                       │   heartbeat_seconds=30,                                      │ │
+│ │                       │   host=None,                                                 │ │
+│ │                       │   http_proxy=None,                                           │ │
+│ │                       │   https_proxy=None,                                          │ │
+│ │                       │   identity_token_file=None,                                  │ │
+│ │                       │   ignore_globs=(),                                           │ │
+│ │                       │   init_timeout=90.0,                                         │ │
+│ │                       │   insecure_disable_ssl=False,                                │ │
+│ │                       │   job_name=None,                                             │ │
+│ │                       │   job_source=None,                                           │ │
+│ │                       │   label_disable=False,                                       │ │
+│ │                       │   launch=False,                                              │ │
+│ │                       │   launch_config_path=None,                                   │ │
+│ │                       │   login_timeout=None,                                        │ │
+│ │                       │   mode='online',                                             │ │
+│ │                       │   notebook_name=None,                                        │ │
+│ │                       │   program=None,                                              │ │
+│ │                       │   program_abspath=None,                                      │ │
+│ │                       │   program_relpath=None,                                      │ │
+│ │                       │   project='SINGER',                                          │ │
+│ │                       │   quiet=False,                                               │ │
+│ │                       │   reinit='default',                                          │ │
+│ │                       │   relogin=False,                                             │ │
+│ │                       │   resume=None,                                               │ │
+│ │                       │   resume_from=None,                                          │ │
+│ │                       │   resumed=False,                                             │ │
+│ │                       │   root_dir='/data/erwinpi/SINGER/notebooks',                 │ │
+│ │                       │   run_group=None,                                            │ │
+│ │                       │   run_id=None,                                               │ │
+│ │                       │   run_job_type=None,                                         │ │
+│ │                       │   run_name='history_ssv_clipseg',                            │ │
+│ │                       │   run_notes=None,                                            │ │
+│ │                       │   run_tags=None,                                             │ │
+│ │                       │   sagemaker_disable=False,                                   │ │
+│ │                       │   save_code=None,                                            │ │
+│ │                       │   settings_system=None,                                      │ │
+│ │                       │   max_end_of_run_history_metrics=10,                         │ │
+│ │                       │   max_end_of_run_summary_metrics=10,                         │ │
+│ │                       │   show_colors=None,                                          │ │
+│ │                       │   show_emoji=None,                                           │ │
+│ │                       │   show_errors=True,                                          │ │
+│ │                       │   show_info=True,                                            │ │
+│ │                       │   show_warnings=True,                                        │ │
+│ │                       │   silent=False,                                              │ │
+│ │                       │   start_method=None,                                         │ │
+│ │                       │   strict=None,                                               │ │
+│ │                       │   summary_timeout=60,                                        │ │
+│ │                       │   summary_warnings=5,                                        │ │
+│ │                       │   sweep_id=None,                                             │ │
+│ │                       │   sweep_param_path=None,                                     │ │
+│ │                       │   symlink=True,                                              │ │
+│ │                       │   sync_tensorboard=None,                                     │ │
+│ │                       │   table_raise_on_max_row_limit_exceeded=False,               │ │
+│ │                       │   use_dot_wandb=None,                                        │ │
+│ │                       │   username=None,                                             │ │
+│ │                       │   x_cli_only_mode=False,                                     │ │
+│ │                       │   x_disable_meta=False,                                      │ │
+│ │                       │   x_disable_stats=False,                                     │ │
+│ │                       │   x_disable_viewer=False,                                    │ │
+│ │                       │   x_disable_machine_info=False,                              │ │
+│ │                       │   x_executable=None,                                         │ │
+│ │                       │   x_extra_http_headers=None,                                 │ │
+│ │                       │   x_file_stream_max_bytes=None,                              │ │
+│ │                       │   x_file_stream_max_line_bytes=None,                         │ │
+│ │                       │   x_file_stream_transmit_interval=None,                      │ │
+│ │                       │   x_file_stream_retry_max=None,                              │ │
+│ │                       │   x_file_stream_retry_wait_min_seconds=None,                 │ │
+│ │                       │   x_file_stream_retry_wait_max_seconds=None,                 │ │
+│ │                       │   x_file_stream_timeout_seconds=None,                        │ │
+│ │                       │   x_file_transfer_retry_max=None,                            │ │
+│ │                       │   x_file_transfer_retry_wait_min_seconds=None,               │ │
+│ │                       │   x_file_transfer_retry_wait_max_seconds=None,               │ │
+│ │                       │   x_file_transfer_timeout_seconds=None,                      │ │
+│ │                       │   x_files_dir=None,                                          │ │
+│ │                       │   x_flow_control_custom=None,                                │ │
+│ │                       │   x_flow_control_disabled=None,                              │ │
+│ │                       │   x_graphql_retry_max=None,                                  │ │
+│ │                       │   x_graphql_retry_wait_min_seconds=None,                     │ │
+│ │                       │   x_graphql_retry_wait_max_seconds=None,                     │ │
+│ │                       │   x_graphql_timeout_seconds=None,                            │ │
+│ │                       │   x_internal_check_process=8.0,                              │ │
+│ │                       │   x_jupyter_name=None,                                       │ │
+│ │                       │   x_jupyter_path=None,                                       │ │
+│ │                       │   x_jupyter_root=None,                                       │ │
+│ │                       │   x_label=None,                                              │ │
+│ │                       │   x_live_policy_rate_limit=None,                             │ │
+│ │                       │   x_live_policy_wait_time=None,                              │ │
+│ │                       │   x_log_level=20,                                            │ │
+│ │                       │   x_network_buffer=None,                                     │ │
+│ │                       │   x_primary=True,                                            │ │
+│ │                       │   x_proxies=None,                                            │ │
+│ │                       │   x_runqueue_item_id=None,                                   │ │
+│ │                       │   x_save_requirements=True,                                  │ │
+│ │                       │   x_server_side_derived_summary=False,                       │ │
+│ │                       │   x_server_side_expand_glob_metrics=True,                    │ │
+│ │                       │   x_service_transport=None,                                  │ │
+│ │                       │   x_service_wait=30.0,                                       │ │
+│ │                       │   x_skip_transaction_log=False,                              │ │
+│ │                       │   x_start_time=None,                                         │ │
+│ │                       │   x_stats_pid=2182055,                                       │ │
+│ │                       │   x_stats_sampling_interval=15.0,                            │ │
+│ │                       │   x_stats_neuron_monitor_config_path=None,                   │ │
+│ │                       │   x_stats_dcgm_exporter=None,                                │ │
+│ │                       │   x_stats_open_metrics_endpoints=None,                       │ │
+│ │                       │   x_stats_open_metrics_filters=None,                         │ │
+│ │                       │   x_stats_open_metrics_http_headers=None,                    │ │
+│ │                       │   x_stats_disk_paths=('/',),                                 │ │
+│ │                       │   x_stats_cpu_count=None,                                    │ │
+│ │                       │   x_stats_cpu_logical_count=None,                            │ │
+│ │                       │   x_stats_gpu_count=None,                                    │ │
+│ │                       │   x_stats_gpu_type=None,                                     │ │
+│ │                       │   x_stats_gpu_device_ids=None,                               │ │
+│ │                       │   x_stats_buffer_size=0,                                     │ │
+│ │                       │                                                              │ │
+│ │                       x_stats_coreweave_metadata_base_url='http://169.254.169.254',  │ │
+│ │                       │                                                              │ │
+│ │                       x_stats_coreweave_metadata_endpoint='/api/v2/cloud-init/meta-… │ │
+│ │                       │   x_stats_track_process_tree=False,                          │ │
+│ │                       │   x_sync=False,                                              │ │
+│ │                       │   x_sync_dir_suffix='',                                      │ │
+│ │                       │   x_update_finish_state=True,                                │ │
+│ │                       │   app_url='https://wandb.ai',                                │ │
+│ │                       │   colab_url=None,                                            │ │
+│ │                       │   deployment='cloud',                                        │ │
+│ │                       │                                                              │ │
+│ │                       files_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/fil… │ │
+│ │                       │   is_local=False,                                            │ │
+│ │                       │                                                              │ │
+│ │                       log_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs', │ │
+│ │                       │                                                              │ │
+│ │                       log_internal='/data/erwinpi/SINGER/notebooks/wandb/run--None/… │ │
+│ │                       │                                                              │ │
+│ │                       log_symlink_internal='/data/erwinpi/SINGER/notebooks/wandb/de… │ │
+│ │                       │                                                              │ │
+│ │                       log_symlink_user='/data/erwinpi/SINGER/notebooks/wandb/debug.… │ │
+│ │                       │                                                              │ │
+│ │                       log_user='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs… │ │
+│ │                       │   project_url='',                                            │ │
+│ │                       │                                                              │ │
+│ │                       resume_fname='/data/erwinpi/SINGER/notebooks/wandb/wandb-resu… │ │
+│ │                       │   run_mode='run',                                            │ │
+│ │                       │   run_url='',                                                │ │
+│ │                       │                                                              │ │
+│ │                       settings_workspace='/data/erwinpi/SINGER/notebooks/wandb/sett… │ │
+│ │                       │   sweep_url='',                                              │ │
+│ │                       │   sync_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None', │ │
+│ │                       │                                                              │ │
+│ │                       sync_file='/data/erwinpi/SINGER/notebooks/wandb/run--None/run… │ │
+│ │                       │                                                              │ │
+│ │                       sync_symlink_latest='/data/erwinpi/SINGER/notebooks/wandb/lat… │ │
+│ │                       │   timespec='',                                               │ │
+│ │                       │   wandb_dir='/data/erwinpi/SINGER/notebooks/wandb'           │ │
+│ │                       )                                                              │ │
+│ │      init_telemetry = feature {                                                      │ │
+│ │                         set_init_config: true                                        │ │
+│ │                       }                                                              │ │
+│ │            job_type = None                                                           │ │
+│ │                mode = None                                                           │ │
+│ │         monitor_gym = None                                                           │ │
+│ │                name = 'history_ssv_clipseg'                                          │ │
+│ │               notes = None                                                           │ │
+│ │             project = 'SINGER'                                                       │ │
+│ │              reinit = None                                                           │ │
+│ │              resume = None                                                           │ │
+│ │         resume_from = None                                                           │ │
+│ │           save_code = None                                                           │ │
+│ │            settings = None                                                           │ │
+│ │    sync_tensorboard = None                                                           │ │
+│ │                tags = None                                                           │ │
+│ │         tensorboard = None                                                           │ │
+│ │                  wi = <wandb.sdk.wandb_init._WandbInit object at 0x74333ab46a70>     │ │
+│ │                  wl = <wandb.sdk.wandb_setup._WandbSetup object at 0x74333ab46980>   │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                          │
+│ /home/erwinpi/miniconda3/envs/FiGS/lib/python3.10/site-packages/wandb/analytics/sentry.p │
+│ y:190 in reraise                                                                         │
+│                                                                                          │
+│   187 │   │   finally:                                                                   │
+│   188 │   │   │   _, _, tb = sys.exc_info()                                              │
+│   189 │   │   │   if tb is not None and hasattr(exc, "with_traceback"):                  │
+│ ❱ 190 │   │   │   │   raise exc.with_traceback(tb)                                       │
+│   191 │   │   │   raise exc                                                              │
+│   192 │                                                                                  │
+│   193 │   @_guard                                                                        │
+│                                                                                          │
+│ ╭───────────────────────────────── locals ─────────────────────────────────╮             │
+│ │    _ = UsageError('No API key configured. Use `wandb login` to log in.') │             │
+│ │  exc = UsageError('No API key configured. Use `wandb login` to log in.') │             │
+│ │ self = <wandb.analytics.sentry.Sentry object at 0x74333aac8a60>          │             │
+│ │   tb = <traceback object at 0x74333a941200>                              │             │
+│ ╰──────────────────────────────────────────────────────────────────────────╯             │
+│                                                                                          │
+│ /home/erwinpi/miniconda3/envs/FiGS/lib/python3.10/site-packages/wandb/sdk/wandb_init.py: │
+│ 1518 in init                                                                             │
+│                                                                                          │
+│   1515 │   │                                                                             │
+│   1516 │   │   wi = _WandbInit(wl, init_telemetry)                                       │
+│   1517 │   │                                                                             │
+│ ❱ 1518 │   │   wi.maybe_login(init_settings)                                             │
+│   1519 │   │   run_settings, show_warnings = wi.make_run_settings(init_settings)         │
+│   1520 │   │                                                                             │
+│   1521 │   │   if isinstance(run_settings.reinit, bool):                                 │
+│                                                                                          │
+│ ╭─────────────────────────────────────── locals ───────────────────────────────────────╮ │
+│ │    allow_val_change = None                                                           │ │
+│ │           anonymous = <object object at 0x743750189e30>                              │ │
+│ │              config = {                                                              │ │
+│ │                       │   'cohort': 'ssv_CLIPSEG_NORMAL',                            │ │
+│ │                       │   'method': 'rrt',                                           │ │
+│ │                       │   'review': False,                                           │ │
+│ │                       │   'Nep_his': 100,                                            │ │
+│ │                       │   'Nep_com': 150,                                            │ │
+│ │                       │   'flights': [                                               │ │
+│ │                       │   │   ['flightroom_ssv_exp', 'flightroom_ssv_exp']           │ │
+│ │                       │   ],                                                         │ │
+│ │                       │   'roster': ['InstinctJester'],                              │ │
+│ │                       │   'plot': False,                                             │ │
+│ │                       │   'use_wandb': True,                                         │ │
+│ │                       │   'wandb_project': 'SINGER',                                 │ │
+│ │                       │   ... +3                                                     │ │
+│ │                       }                                                              │ │
+│ │ config_exclude_keys = None                                                           │ │
+│ │ config_include_keys = None                                                           │ │
+│ │                 dir = None                                                           │ │
+│ │              entity = None                                                           │ │
+│ │               force = None                                                           │ │
+│ │           fork_from = None                                                           │ │
+│ │               group = None                                                           │ │
+│ │                  id = None                                                           │ │
+│ │       init_settings = Settings(                                                      │ │
+│ │                       │   allow_offline_artifacts=True,                              │ │
+│ │                       │   allow_val_change=False,                                    │ │
+│ │                       │   anonymous=<object object at 0x743750189e30>,               │ │
+│ │                       │   api_key=None,                                              │ │
+│ │                       │   azure_account_url_to_access_key=None,                      │ │
+│ │                       │   app_url_override=None,                                     │ │
+│ │                       │   base_url='https://api.wandb.ai',                           │ │
+│ │                       │   code_dir=None,                                             │ │
+│ │                       │   config_paths=None,                                         │ │
+│ │                       │   console='wrap',                                            │ │
+│ │                       │   console_multipart=False,                                   │ │
+│ │                       │   console_chunk_max_bytes=0,                                 │ │
+│ │                       │   console_chunk_max_seconds=0,                               │ │
+│ │                       │                                                              │ │
+│ │                       credentials_file='/home/erwinpi/.config/wandb/credentials.jso… │ │
+│ │                       │   disable_code=False,                                        │ │
+│ │                       │   disable_git=False,                                         │ │
+│ │                       │   disable_job_creation=True,                                 │ │
+│ │                       │   docker=None,                                               │ │
+│ │                       │   email=None,                                                │ │
+│ │                       │   entity=None,                                               │ │
+│ │                       │   organization=None,                                         │ │
+│ │                       │   force=False,                                               │ │
+│ │                       │   fork_from=None,                                            │ │
+│ │                       │   git_commit=None,                                           │ │
+│ │                       │   git_remote='origin',                                       │ │
+│ │                       │   git_remote_url=None,                                       │ │
+│ │                       │   git_root=None,                                             │ │
+│ │                       │   heartbeat_seconds=30,                                      │ │
+│ │                       │   host=None,                                                 │ │
+│ │                       │   http_proxy=None,                                           │ │
+│ │                       │   https_proxy=None,                                          │ │
+│ │                       │   identity_token_file=None,                                  │ │
+│ │                       │   ignore_globs=(),                                           │ │
+│ │                       │   init_timeout=90.0,                                         │ │
+│ │                       │   insecure_disable_ssl=False,                                │ │
+│ │                       │   job_name=None,                                             │ │
+│ │                       │   job_source=None,                                           │ │
+│ │                       │   label_disable=False,                                       │ │
+│ │                       │   launch=False,                                              │ │
+│ │                       │   launch_config_path=None,                                   │ │
+│ │                       │   login_timeout=None,                                        │ │
+│ │                       │   mode='online',                                             │ │
+│ │                       │   notebook_name=None,                                        │ │
+│ │                       │   program=None,                                              │ │
+│ │                       │   program_abspath=None,                                      │ │
+│ │                       │   program_relpath=None,                                      │ │
+│ │                       │   project='SINGER',                                          │ │
+│ │                       │   quiet=False,                                               │ │
+│ │                       │   reinit='default',                                          │ │
+│ │                       │   relogin=False,                                             │ │
+│ │                       │   resume=None,                                               │ │
+│ │                       │   resume_from=None,                                          │ │
+│ │                       │   resumed=False,                                             │ │
+│ │                       │   root_dir='/data/erwinpi/SINGER/notebooks',                 │ │
+│ │                       │   run_group=None,                                            │ │
+│ │                       │   run_id=None,                                               │ │
+│ │                       │   run_job_type=None,                                         │ │
+│ │                       │   run_name='history_ssv_clipseg',                            │ │
+│ │                       │   run_notes=None,                                            │ │
+│ │                       │   run_tags=None,                                             │ │
+│ │                       │   sagemaker_disable=False,                                   │ │
+│ │                       │   save_code=None,                                            │ │
+│ │                       │   settings_system=None,                                      │ │
+│ │                       │   max_end_of_run_history_metrics=10,                         │ │
+│ │                       │   max_end_of_run_summary_metrics=10,                         │ │
+│ │                       │   show_colors=None,                                          │ │
+│ │                       │   show_emoji=None,                                           │ │
+│ │                       │   show_errors=True,                                          │ │
+│ │                       │   show_info=True,                                            │ │
+│ │                       │   show_warnings=True,                                        │ │
+│ │                       │   silent=False,                                              │ │
+│ │                       │   start_method=None,                                         │ │
+│ │                       │   strict=None,                                               │ │
+│ │                       │   summary_timeout=60,                                        │ │
+│ │                       │   summary_warnings=5,                                        │ │
+│ │                       │   sweep_id=None,                                             │ │
+│ │                       │   sweep_param_path=None,                                     │ │
+│ │                       │   symlink=True,                                              │ │
+│ │                       │   sync_tensorboard=None,                                     │ │
+│ │                       │   table_raise_on_max_row_limit_exceeded=False,               │ │
+│ │                       │   use_dot_wandb=None,                                        │ │
+│ │                       │   username=None,                                             │ │
+│ │                       │   x_cli_only_mode=False,                                     │ │
+│ │                       │   x_disable_meta=False,                                      │ │
+│ │                       │   x_disable_stats=False,                                     │ │
+│ │                       │   x_disable_viewer=False,                                    │ │
+│ │                       │   x_disable_machine_info=False,                              │ │
+│ │                       │   x_executable=None,                                         │ │
+│ │                       │   x_extra_http_headers=None,                                 │ │
+│ │                       │   x_file_stream_max_bytes=None,                              │ │
+│ │                       │   x_file_stream_max_line_bytes=None,                         │ │
+│ │                       │   x_file_stream_transmit_interval=None,                      │ │
+│ │                       │   x_file_stream_retry_max=None,                              │ │
+│ │                       │   x_file_stream_retry_wait_min_seconds=None,                 │ │
+│ │                       │   x_file_stream_retry_wait_max_seconds=None,                 │ │
+│ │                       │   x_file_stream_timeout_seconds=None,                        │ │
+│ │                       │   x_file_transfer_retry_max=None,                            │ │
+│ │                       │   x_file_transfer_retry_wait_min_seconds=None,               │ │
+│ │                       │   x_file_transfer_retry_wait_max_seconds=None,               │ │
+│ │                       │   x_file_transfer_timeout_seconds=None,                      │ │
+│ │                       │   x_files_dir=None,                                          │ │
+│ │                       │   x_flow_control_custom=None,                                │ │
+│ │                       │   x_flow_control_disabled=None,                              │ │
+│ │                       │   x_graphql_retry_max=None,                                  │ │
+│ │                       │   x_graphql_retry_wait_min_seconds=None,                     │ │
+│ │                       │   x_graphql_retry_wait_max_seconds=None,                     │ │
+│ │                       │   x_graphql_timeout_seconds=None,                            │ │
+│ │                       │   x_internal_check_process=8.0,                              │ │
+│ │                       │   x_jupyter_name=None,                                       │ │
+│ │                       │   x_jupyter_path=None,                                       │ │
+│ │                       │   x_jupyter_root=None,                                       │ │
+│ │                       │   x_label=None,                                              │ │
+│ │                       │   x_live_policy_rate_limit=None,                             │ │
+│ │                       │   x_live_policy_wait_time=None,                              │ │
+│ │                       │   x_log_level=20,                                            │ │
+│ │                       │   x_network_buffer=None,                                     │ │
+│ │                       │   x_primary=True,                                            │ │
+│ │                       │   x_proxies=None,                                            │ │
+│ │                       │   x_runqueue_item_id=None,                                   │ │
+│ │                       │   x_save_requirements=True,                                  │ │
+│ │                       │   x_server_side_derived_summary=False,                       │ │
+│ │                       │   x_server_side_expand_glob_metrics=True,                    │ │
+│ │                       │   x_service_transport=None,                                  │ │
+│ │                       │   x_service_wait=30.0,                                       │ │
+│ │                       │   x_skip_transaction_log=False,                              │ │
+│ │                       │   x_start_time=None,                                         │ │
+│ │                       │   x_stats_pid=2182055,                                       │ │
+│ │                       │   x_stats_sampling_interval=15.0,                            │ │
+│ │                       │   x_stats_neuron_monitor_config_path=None,                   │ │
+│ │                       │   x_stats_dcgm_exporter=None,                                │ │
+│ │                       │   x_stats_open_metrics_endpoints=None,                       │ │
+│ │                       │   x_stats_open_metrics_filters=None,                         │ │
+│ │                       │   x_stats_open_metrics_http_headers=None,                    │ │
+│ │                       │   x_stats_disk_paths=('/',),                                 │ │
+│ │                       │   x_stats_cpu_count=None,                                    │ │
+│ │                       │   x_stats_cpu_logical_count=None,                            │ │
+│ │                       │   x_stats_gpu_count=None,                                    │ │
+│ │                       │   x_stats_gpu_type=None,                                     │ │
+│ │                       │   x_stats_gpu_device_ids=None,                               │ │
+│ │                       │   x_stats_buffer_size=0,                                     │ │
+│ │                       │                                                              │ │
+│ │                       x_stats_coreweave_metadata_base_url='http://169.254.169.254',  │ │
+│ │                       │                                                              │ │
+│ │                       x_stats_coreweave_metadata_endpoint='/api/v2/cloud-init/meta-… │ │
+│ │                       │   x_stats_track_process_tree=False,                          │ │
+│ │                       │   x_sync=False,                                              │ │
+│ │                       │   x_sync_dir_suffix='',                                      │ │
+│ │                       │   x_update_finish_state=True,                                │ │
+│ │                       │   app_url='https://wandb.ai',                                │ │
+│ │                       │   colab_url=None,                                            │ │
+│ │                       │   deployment='cloud',                                        │ │
+│ │                       │                                                              │ │
+│ │                       files_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/fil… │ │
+│ │                       │   is_local=False,                                            │ │
+│ │                       │                                                              │ │
+│ │                       log_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs', │ │
+│ │                       │                                                              │ │
+│ │                       log_internal='/data/erwinpi/SINGER/notebooks/wandb/run--None/… │ │
+│ │                       │                                                              │ │
+│ │                       log_symlink_internal='/data/erwinpi/SINGER/notebooks/wandb/de… │ │
+│ │                       │                                                              │ │
+│ │                       log_symlink_user='/data/erwinpi/SINGER/notebooks/wandb/debug.… │ │
+│ │                       │                                                              │ │
+│ │                       log_user='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs… │ │
+│ │                       │   project_url='',                                            │ │
+│ │                       │                                                              │ │
+│ │                       resume_fname='/data/erwinpi/SINGER/notebooks/wandb/wandb-resu… │ │
+│ │                       │   run_mode='run',                                            │ │
+│ │                       │   run_url='',                                                │ │
+│ │                       │                                                              │ │
+│ │                       settings_workspace='/data/erwinpi/SINGER/notebooks/wandb/sett… │ │
+│ │                       │   sweep_url='',                                              │ │
+│ │                       │   sync_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None', │ │
+│ │                       │                                                              │ │
+│ │                       sync_file='/data/erwinpi/SINGER/notebooks/wandb/run--None/run… │ │
+│ │                       │                                                              │ │
+│ │                       sync_symlink_latest='/data/erwinpi/SINGER/notebooks/wandb/lat… │ │
+│ │                       │   timespec='',                                               │ │
+│ │                       │   wandb_dir='/data/erwinpi/SINGER/notebooks/wandb'           │ │
+│ │                       )                                                              │ │
+│ │      init_telemetry = feature {                                                      │ │
+│ │                         set_init_config: true                                        │ │
+│ │                       }                                                              │ │
+│ │            job_type = None                                                           │ │
+│ │                mode = None                                                           │ │
+│ │         monitor_gym = None                                                           │ │
+│ │                name = 'history_ssv_clipseg'                                          │ │
+│ │               notes = None                                                           │ │
+│ │             project = 'SINGER'                                                       │ │
+│ │              reinit = None                                                           │ │
+│ │              resume = None                                                           │ │
+│ │         resume_from = None                                                           │ │
+│ │           save_code = None                                                           │ │
+│ │            settings = None                                                           │ │
+│ │    sync_tensorboard = None                                                           │ │
+│ │                tags = None                                                           │ │
+│ │         tensorboard = None                                                           │ │
+│ │                  wi = <wandb.sdk.wandb_init._WandbInit object at 0x74333ab46a70>     │ │
+│ │                  wl = <wandb.sdk.wandb_setup._WandbSetup object at 0x74333ab46980>   │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                          │
+│ /home/erwinpi/miniconda3/envs/FiGS/lib/python3.10/site-packages/wandb/sdk/wandb_init.py: │
+│ 196 in maybe_login                                                                       │
+│                                                                                          │
+│    193 │   │   # to ensure correct messaging in _login().                                │
+│    194 │   │   explicit_key = init_settings.api_key                                      │
+│    195 │   │                                                                             │
+│ ❱  196 │   │   wandb_login._login(                                                       │
+│    197 │   │   │   host=run_settings.base_url,                                           │
+│    198 │   │   │   force=run_settings.force,                                             │
+│    199 │   │   │   _silent=run_settings.quiet or run_settings.silent,                    │
+│                                                                                          │
+│ ╭─────────────────────────────────────── locals ───────────────────────────────────────╮ │
+│ │  explicit_key = None                                                                 │ │
+│ │ init_settings = Settings(                                                            │ │
+│ │                 │   allow_offline_artifacts=True,                                    │ │
+│ │                 │   allow_val_change=False,                                          │ │
+│ │                 │   anonymous=<object object at 0x743750189e30>,                     │ │
+│ │                 │   api_key=None,                                                    │ │
+│ │                 │   azure_account_url_to_access_key=None,                            │ │
+│ │                 │   app_url_override=None,                                           │ │
+│ │                 │   base_url='https://api.wandb.ai',                                 │ │
+│ │                 │   code_dir=None,                                                   │ │
+│ │                 │   config_paths=None,                                               │ │
+│ │                 │   console='wrap',                                                  │ │
+│ │                 │   console_multipart=False,                                         │ │
+│ │                 │   console_chunk_max_bytes=0,                                       │ │
+│ │                 │   console_chunk_max_seconds=0,                                     │ │
+│ │                 │   credentials_file='/home/erwinpi/.config/wandb/credentials.json', │ │
+│ │                 │   disable_code=False,                                              │ │
+│ │                 │   disable_git=False,                                               │ │
+│ │                 │   disable_job_creation=True,                                       │ │
+│ │                 │   docker=None,                                                     │ │
+│ │                 │   email=None,                                                      │ │
+│ │                 │   entity=None,                                                     │ │
+│ │                 │   organization=None,                                               │ │
+│ │                 │   force=False,                                                     │ │
+│ │                 │   fork_from=None,                                                  │ │
+│ │                 │   git_commit=None,                                                 │ │
+│ │                 │   git_remote='origin',                                             │ │
+│ │                 │   git_remote_url=None,                                             │ │
+│ │                 │   git_root=None,                                                   │ │
+│ │                 │   heartbeat_seconds=30,                                            │ │
+│ │                 │   host=None,                                                       │ │
+│ │                 │   http_proxy=None,                                                 │ │
+│ │                 │   https_proxy=None,                                                │ │
+│ │                 │   identity_token_file=None,                                        │ │
+│ │                 │   ignore_globs=(),                                                 │ │
+│ │                 │   init_timeout=90.0,                                               │ │
+│ │                 │   insecure_disable_ssl=False,                                      │ │
+│ │                 │   job_name=None,                                                   │ │
+│ │                 │   job_source=None,                                                 │ │
+│ │                 │   label_disable=False,                                             │ │
+│ │                 │   launch=False,                                                    │ │
+│ │                 │   launch_config_path=None,                                         │ │
+│ │                 │   login_timeout=None,                                              │ │
+│ │                 │   mode='online',                                                   │ │
+│ │                 │   notebook_name=None,                                              │ │
+│ │                 │   program=None,                                                    │ │
+│ │                 │   program_abspath=None,                                            │ │
+│ │                 │   program_relpath=None,                                            │ │
+│ │                 │   project='SINGER',                                                │ │
+│ │                 │   quiet=False,                                                     │ │
+│ │                 │   reinit='default',                                                │ │
+│ │                 │   relogin=False,                                                   │ │
+│ │                 │   resume=None,                                                     │ │
+│ │                 │   resume_from=None,                                                │ │
+│ │                 │   resumed=False,                                                   │ │
+│ │                 │   root_dir='/data/erwinpi/SINGER/notebooks',                       │ │
+│ │                 │   run_group=None,                                                  │ │
+│ │                 │   run_id=None,                                                     │ │
+│ │                 │   run_job_type=None,                                               │ │
+│ │                 │   run_name='history_ssv_clipseg',                                  │ │
+│ │                 │   run_notes=None,                                                  │ │
+│ │                 │   run_tags=None,                                                   │ │
+│ │                 │   sagemaker_disable=False,                                         │ │
+│ │                 │   save_code=None,                                                  │ │
+│ │                 │   settings_system=None,                                            │ │
+│ │                 │   max_end_of_run_history_metrics=10,                               │ │
+│ │                 │   max_end_of_run_summary_metrics=10,                               │ │
+│ │                 │   show_colors=None,                                                │ │
+│ │                 │   show_emoji=None,                                                 │ │
+│ │                 │   show_errors=True,                                                │ │
+│ │                 │   show_info=True,                                                  │ │
+│ │                 │   show_warnings=True,                                              │ │
+│ │                 │   silent=False,                                                    │ │
+│ │                 │   start_method=None,                                               │ │
+│ │                 │   strict=None,                                                     │ │
+│ │                 │   summary_timeout=60,                                              │ │
+│ │                 │   summary_warnings=5,                                              │ │
+│ │                 │   sweep_id=None,                                                   │ │
+│ │                 │   sweep_param_path=None,                                           │ │
+│ │                 │   symlink=True,                                                    │ │
+│ │                 │   sync_tensorboard=None,                                           │ │
+│ │                 │   table_raise_on_max_row_limit_exceeded=False,                     │ │
+│ │                 │   use_dot_wandb=None,                                              │ │
+│ │                 │   username=None,                                                   │ │
+│ │                 │   x_cli_only_mode=False,                                           │ │
+│ │                 │   x_disable_meta=False,                                            │ │
+│ │                 │   x_disable_stats=False,                                           │ │
+│ │                 │   x_disable_viewer=False,                                          │ │
+│ │                 │   x_disable_machine_info=False,                                    │ │
+│ │                 │   x_executable=None,                                               │ │
+│ │                 │   x_extra_http_headers=None,                                       │ │
+│ │                 │   x_file_stream_max_bytes=None,                                    │ │
+│ │                 │   x_file_stream_max_line_bytes=None,                               │ │
+│ │                 │   x_file_stream_transmit_interval=None,                            │ │
+│ │                 │   x_file_stream_retry_max=None,                                    │ │
+│ │                 │   x_file_stream_retry_wait_min_seconds=None,                       │ │
+│ │                 │   x_file_stream_retry_wait_max_seconds=None,                       │ │
+│ │                 │   x_file_stream_timeout_seconds=None,                              │ │
+│ │                 │   x_file_transfer_retry_max=None,                                  │ │
+│ │                 │   x_file_transfer_retry_wait_min_seconds=None,                     │ │
+│ │                 │   x_file_transfer_retry_wait_max_seconds=None,                     │ │
+│ │                 │   x_file_transfer_timeout_seconds=None,                            │ │
+│ │                 │   x_files_dir=None,                                                │ │
+│ │                 │   x_flow_control_custom=None,                                      │ │
+│ │                 │   x_flow_control_disabled=None,                                    │ │
+│ │                 │   x_graphql_retry_max=None,                                        │ │
+│ │                 │   x_graphql_retry_wait_min_seconds=None,                           │ │
+│ │                 │   x_graphql_retry_wait_max_seconds=None,                           │ │
+│ │                 │   x_graphql_timeout_seconds=None,                                  │ │
+│ │                 │   x_internal_check_process=8.0,                                    │ │
+│ │                 │   x_jupyter_name=None,                                             │ │
+│ │                 │   x_jupyter_path=None,                                             │ │
+│ │                 │   x_jupyter_root=None,                                             │ │
+│ │                 │   x_label=None,                                                    │ │
+│ │                 │   x_live_policy_rate_limit=None,                                   │ │
+│ │                 │   x_live_policy_wait_time=None,                                    │ │
+│ │                 │   x_log_level=20,                                                  │ │
+│ │                 │   x_network_buffer=None,                                           │ │
+│ │                 │   x_primary=True,                                                  │ │
+│ │                 │   x_proxies=None,                                                  │ │
+│ │                 │   x_runqueue_item_id=None,                                         │ │
+│ │                 │   x_save_requirements=True,                                        │ │
+│ │                 │   x_server_side_derived_summary=False,                             │ │
+│ │                 │   x_server_side_expand_glob_metrics=True,                          │ │
+│ │                 │   x_service_transport=None,                                        │ │
+│ │                 │   x_service_wait=30.0,                                             │ │
+│ │                 │   x_skip_transaction_log=False,                                    │ │
+│ │                 │   x_start_time=None,                                               │ │
+│ │                 │   x_stats_pid=2182055,                                             │ │
+│ │                 │   x_stats_sampling_interval=15.0,                                  │ │
+│ │                 │   x_stats_neuron_monitor_config_path=None,                         │ │
+│ │                 │   x_stats_dcgm_exporter=None,                                      │ │
+│ │                 │   x_stats_open_metrics_endpoints=None,                             │ │
+│ │                 │   x_stats_open_metrics_filters=None,                               │ │
+│ │                 │   x_stats_open_metrics_http_headers=None,                          │ │
+│ │                 │   x_stats_disk_paths=('/',),                                       │ │
+│ │                 │   x_stats_cpu_count=None,                                          │ │
+│ │                 │   x_stats_cpu_logical_count=None,                                  │ │
+│ │                 │   x_stats_gpu_count=None,                                          │ │
+│ │                 │   x_stats_gpu_type=None,                                           │ │
+│ │                 │   x_stats_gpu_device_ids=None,                                     │ │
+│ │                 │   x_stats_buffer_size=0,                                           │ │
+│ │                 │   x_stats_coreweave_metadata_base_url='http://169.254.169.254',    │ │
+│ │                 │                                                                    │ │
+│ │                 x_stats_coreweave_metadata_endpoint='/api/v2/cloud-init/meta-data',  │ │
+│ │                 │   x_stats_track_process_tree=False,                                │ │
+│ │                 │   x_sync=False,                                                    │ │
+│ │                 │   x_sync_dir_suffix='',                                            │ │
+│ │                 │   x_update_finish_state=True,                                      │ │
+│ │                 │   app_url='https://wandb.ai',                                      │ │
+│ │                 │   colab_url=None,                                                  │ │
+│ │                 │   deployment='cloud',                                              │ │
+│ │                 │                                                                    │ │
+│ │                 files_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/files',    │ │
+│ │                 │   is_local=False,                                                  │ │
+│ │                 │   log_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs',   │ │
+│ │                 │                                                                    │ │
+│ │                 log_internal='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs/d… │ │
+│ │                 │                                                                    │ │
+│ │                 log_symlink_internal='/data/erwinpi/SINGER/notebooks/wandb/debug-in… │ │
+│ │                 │                                                                    │ │
+│ │                 log_symlink_user='/data/erwinpi/SINGER/notebooks/wandb/debug.log',   │ │
+│ │                 │                                                                    │ │
+│ │                 log_user='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs/debug… │ │
+│ │                 │   project_url='',                                                  │ │
+│ │                 │                                                                    │ │
+│ │                 resume_fname='/data/erwinpi/SINGER/notebooks/wandb/wandb-resume.jso… │ │
+│ │                 │   run_mode='run',                                                  │ │
+│ │                 │   run_url='',                                                      │ │
+│ │                 │                                                                    │ │
+│ │                 settings_workspace='/data/erwinpi/SINGER/notebooks/wandb/settings',  │ │
+│ │                 │   sweep_url='',                                                    │ │
+│ │                 │   sync_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None',       │ │
+│ │                 │                                                                    │ │
+│ │                 sync_file='/data/erwinpi/SINGER/notebooks/wandb/run--None/run-None.… │ │
+│ │                 │                                                                    │ │
+│ │                 sync_symlink_latest='/data/erwinpi/SINGER/notebooks/wandb/latest-ru… │ │
+│ │                 │   timespec='',                                                     │ │
+│ │                 │   wandb_dir='/data/erwinpi/SINGER/notebooks/wandb'                 │ │
+│ │                 )                                                                    │ │
+│ │  run_settings = Settings(                                                            │ │
+│ │                 │   allow_offline_artifacts=True,                                    │ │
+│ │                 │   allow_val_change=False,                                          │ │
+│ │                 │   anonymous=<object object at 0x743750189e30>,                     │ │
+│ │                 │   api_key=None,                                                    │ │
+│ │                 │   azure_account_url_to_access_key=None,                            │ │
+│ │                 │   app_url_override=None,                                           │ │
+│ │                 │   base_url='https://api.wandb.ai',                                 │ │
+│ │                 │   code_dir=None,                                                   │ │
+│ │                 │   config_paths=None,                                               │ │
+│ │                 │   console='wrap',                                                  │ │
+│ │                 │   console_multipart=False,                                         │ │
+│ │                 │   console_chunk_max_bytes=0,                                       │ │
+│ │                 │   console_chunk_max_seconds=0,                                     │ │
+│ │                 │   credentials_file='/home/erwinpi/.config/wandb/credentials.json', │ │
+│ │                 │   disable_code=False,                                              │ │
+│ │                 │   disable_git=False,                                               │ │
+│ │                 │   disable_job_creation=True,                                       │ │
+│ │                 │   docker=None,                                                     │ │
+│ │                 │   email=None,                                                      │ │
+│ │                 │   entity=None,                                                     │ │
+│ │                 │   organization=None,                                               │ │
+│ │                 │   force=False,                                                     │ │
+│ │                 │   fork_from=None,                                                  │ │
+│ │                 │   git_commit=None,                                                 │ │
+│ │                 │   git_remote='origin',                                             │ │
+│ │                 │   git_remote_url=None,                                             │ │
+│ │                 │   git_root=None,                                                   │ │
+│ │                 │   heartbeat_seconds=30,                                            │ │
+│ │                 │   host='coruscant.stanford.edu',                                   │ │
+│ │                 │   http_proxy=None,                                                 │ │
+│ │                 │   https_proxy=None,                                                │ │
+│ │                 │   identity_token_file=None,                                        │ │
+│ │                 │   ignore_globs=(),                                                 │ │
+│ │                 │   init_timeout=90.0,                                               │ │
+│ │                 │   insecure_disable_ssl=False,                                      │ │
+│ │                 │   job_name=None,                                                   │ │
+│ │                 │   job_source=None,                                                 │ │
+│ │                 │   label_disable=False,                                             │ │
+│ │                 │   launch=False,                                                    │ │
+│ │                 │   launch_config_path=None,                                         │ │
+│ │                 │   login_timeout=None,                                              │ │
+│ │                 │   mode='online',                                                   │ │
+│ │                 │   notebook_name=None,                                              │ │
+│ │                 │                                                                    │ │
+│ │                 program='/data/erwinpi/SINGER/notebooks/ssv_multi3dgs_campaign.py',  │ │
+│ │                 │                                                                    │ │
+│ │                 program_abspath='/data/erwinpi/SINGER/notebooks/ssv_multi3dgs_campa… │ │
+│ │                 │   program_relpath='notebooks/ssv_multi3dgs_campaign.py',           │ │
+│ │                 │   project='SINGER',                                                │ │
+│ │                 │   quiet=False,                                                     │ │
+│ │                 │   reinit='default',                                                │ │
+│ │                 │   relogin=False,                                                   │ │
+│ │                 │   resume=None,                                                     │ │
+│ │                 │   resume_from=None,                                                │ │
+│ │                 │   resumed=False,                                                   │ │
+│ │                 │   root_dir='/data/erwinpi/SINGER/notebooks',                       │ │
+│ │                 │   run_group=None,                                                  │ │
+│ │                 │   run_id=None,                                                     │ │
+│ │                 │   run_job_type=None,                                               │ │
+│ │                 │   run_name='history_ssv_clipseg',                                  │ │
+│ │                 │   run_notes=None,                                                  │ │
+│ │                 │   run_tags=None,                                                   │ │
+│ │                 │   sagemaker_disable=False,                                         │ │
+│ │                 │   save_code=None,                                                  │ │
+│ │                 │   settings_system='/home/erwinpi/.config/wandb/settings',          │ │
+│ │                 │   max_end_of_run_history_metrics=10,                               │ │
+│ │                 │   max_end_of_run_summary_metrics=10,                               │ │
+│ │                 │   show_colors=None,                                                │ │
+│ │                 │   show_emoji=None,                                                 │ │
+│ │                 │   show_errors=True,                                                │ │
+│ │                 │   show_info=True,                                                  │ │
+│ │                 │   show_warnings=True,                                              │ │
+│ │                 │   silent=False,                                                    │ │
+│ │                 │   start_method=None,                                               │ │
+│ │                 │   strict=None,                                                     │ │
+│ │                 │   summary_timeout=60,                                              │ │
+│ │                 │   summary_warnings=5,                                              │ │
+│ │                 │   sweep_id=None,                                                   │ │
+│ │                 │   sweep_param_path=None,                                           │ │
+│ │                 │   symlink=True,                                                    │ │
+│ │                 │   sync_tensorboard=None,                                           │ │
+│ │                 │   table_raise_on_max_row_limit_exceeded=False,                     │ │
+│ │                 │   use_dot_wandb=None,                                              │ │
+│ │                 │   username=None,                                                   │ │
+│ │                 │   x_cli_only_mode=False,                                           │ │
+│ │                 │   x_disable_meta=False,                                            │ │
+│ │                 │   x_disable_stats=False,                                           │ │
+│ │                 │   x_disable_viewer=False,                                          │ │
+│ │                 │   x_disable_machine_info=False,                                    │ │
+│ │                 │   x_executable='/home/erwinpi/miniconda3/envs/FiGS/bin/python',    │ │
+│ │                 │   x_extra_http_headers=None,                                       │ │
+│ │                 │   x_file_stream_max_bytes=None,                                    │ │
+│ │                 │   x_file_stream_max_line_bytes=None,                               │ │
+│ │                 │   x_file_stream_transmit_interval=None,                            │ │
+│ │                 │   x_file_stream_retry_max=None,                                    │ │
+│ │                 │   x_file_stream_retry_wait_min_seconds=None,                       │ │
+│ │                 │   x_file_stream_retry_wait_max_seconds=None,                       │ │
+│ │                 │   x_file_stream_timeout_seconds=None,                              │ │
+│ │                 │   x_file_transfer_retry_max=None,                                  │ │
+│ │                 │   x_file_transfer_retry_wait_min_seconds=None,                     │ │
+│ │                 │   x_file_transfer_retry_wait_max_seconds=None,                     │ │
+│ │                 │   x_file_transfer_timeout_seconds=None,                            │ │
+│ │                 │   x_files_dir=None,                                                │ │
+│ │                 │   x_flow_control_custom=None,                                      │ │
+│ │                 │   x_flow_control_disabled=None,                                    │ │
+│ │                 │   x_graphql_retry_max=None,                                        │ │
+│ │                 │   x_graphql_retry_wait_min_seconds=None,                           │ │
+│ │                 │   x_graphql_retry_wait_max_seconds=None,                           │ │
+│ │                 │   x_graphql_timeout_seconds=None,                                  │ │
+│ │                 │   x_internal_check_process=8.0,                                    │ │
+│ │                 │   x_jupyter_name=None,                                             │ │
+│ │                 │   x_jupyter_path=None,                                             │ │
+│ │                 │   x_jupyter_root=None,                                             │ │
+│ │                 │   x_label=None,                                                    │ │
+│ │                 │   x_live_policy_rate_limit=None,                                   │ │
+│ │                 │   x_live_policy_wait_time=None,                                    │ │
+│ │                 │   x_log_level=20,                                                  │ │
+│ │                 │   x_network_buffer=None,                                           │ │
+│ │                 │   x_primary=True,                                                  │ │
+│ │                 │   x_proxies=None,                                                  │ │
+│ │                 │   x_runqueue_item_id=None,                                         │ │
+│ │                 │   x_save_requirements=True,                                        │ │
+│ │                 │   x_server_side_derived_summary=False,                             │ │
+│ │                 │   x_server_side_expand_glob_metrics=True,                          │ │
+│ │                 │   x_service_transport=None,                                        │ │
+│ │                 │   x_service_wait=30.0,                                             │ │
+│ │                 │   x_skip_transaction_log=False,                                    │ │
+│ │                 │   x_start_time=None,                                               │ │
+│ │                 │   x_stats_pid=2182055,                                             │ │
+│ │                 │   x_stats_sampling_interval=15.0,                                  │ │
+│ │                 │   x_stats_neuron_monitor_config_path=None,                         │ │
+│ │                 │   x_stats_dcgm_exporter=None,                                      │ │
+│ │                 │   x_stats_open_metrics_endpoints=None,                             │ │
+│ │                 │   x_stats_open_metrics_filters=None,                               │ │
+│ │                 │   x_stats_open_metrics_http_headers=None,                          │ │
+│ │                 │   x_stats_disk_paths=('/',),                                       │ │
+│ │                 │   x_stats_cpu_count=None,                                          │ │
+│ │                 │   x_stats_cpu_logical_count=None,                                  │ │
+│ │                 │   x_stats_gpu_count=None,                                          │ │
+│ │                 │   x_stats_gpu_type=None,                                           │ │
+│ │                 │   x_stats_gpu_device_ids=None,                                     │ │
+│ │                 │   x_stats_buffer_size=0,                                           │ │
+│ │                 │   x_stats_coreweave_metadata_base_url='http://169.254.169.254',    │ │
+│ │                 │                                                                    │ │
+│ │                 x_stats_coreweave_metadata_endpoint='/api/v2/cloud-init/meta-data',  │ │
+│ │                 │   x_stats_track_process_tree=False,                                │ │
+│ │                 │   x_sync=False,                                                    │ │
+│ │                 │   x_sync_dir_suffix='',                                            │ │
+│ │                 │   x_update_finish_state=True,                                      │ │
+│ │                 │   app_url='https://wandb.ai',                                      │ │
+│ │                 │   colab_url=None,                                                  │ │
+│ │                 │   deployment='cloud',                                              │ │
+│ │                 │                                                                    │ │
+│ │                 files_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/files',    │ │
+│ │                 │   is_local=False,                                                  │ │
+│ │                 │   log_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs',   │ │
+│ │                 │                                                                    │ │
+│ │                 log_internal='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs/d… │ │
+│ │                 │                                                                    │ │
+│ │                 log_symlink_internal='/data/erwinpi/SINGER/notebooks/wandb/debug-in… │ │
+│ │                 │                                                                    │ │
+│ │                 log_symlink_user='/data/erwinpi/SINGER/notebooks/wandb/debug.log',   │ │
+│ │                 │                                                                    │ │
+│ │                 log_user='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs/debug… │ │
+│ │                 │   project_url='',                                                  │ │
+│ │                 │                                                                    │ │
+│ │                 resume_fname='/data/erwinpi/SINGER/notebooks/wandb/wandb-resume.jso… │ │
+│ │                 │   run_mode='run',                                                  │ │
+│ │                 │   run_url='',                                                      │ │
+│ │                 │                                                                    │ │
+│ │                 settings_workspace='/data/erwinpi/SINGER/notebooks/wandb/settings',  │ │
+│ │                 │   sweep_url='',                                                    │ │
+│ │                 │   sync_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None',       │ │
+│ │                 │                                                                    │ │
+│ │                 sync_file='/data/erwinpi/SINGER/notebooks/wandb/run--None/run-None.… │ │
+│ │                 │                                                                    │ │
+│ │                 sync_symlink_latest='/data/erwinpi/SINGER/notebooks/wandb/latest-ru… │ │
+│ │                 │   timespec='',                                                     │ │
+│ │                 │   wandb_dir='/data/erwinpi/SINGER/notebooks/wandb'                 │ │
+│ │                 )                                                                    │ │
+│ │          self = <wandb.sdk.wandb_init._WandbInit object at 0x74333ab46a70>           │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                          │
+│ /home/erwinpi/miniconda3/envs/FiGS/lib/python3.10/site-packages/wandb/sdk/wandb_login.py │
+│ :190 in _login                                                                           │
+│                                                                                          │
+│   187 │   │   │   silent=_silent,                                                        │
+│   188 │   │   )                                                                          │
+│   189 │   else:                                                                          │
+│ ❱ 190 │   │   auth = _find_or_prompt_for_key(                                            │
+│   191 │   │   │   settings,                                                              │
+│   192 │   │   │   host=host_url,                                                         │
+│   193 │   │   │   force=force,                                                           │
+│                                                                                          │
+│ ╭─────────────────────────────────────── locals ───────────────────────────────────────╮ │
+│ │        _silent = False                                                               │ │
+│ │          force = False                                                               │ │
+│ │           host = 'https://api.wandb.ai'                                              │ │
+│ │       host_url = HostUrl('https://api.wandb.ai')                                     │ │
+│ │            key = None                                                                │ │
+│ │       referrer = 'models'                                                            │ │
+│ │        relogin = False                                                               │ │
+│ │       settings = Settings(                                                           │ │
+│ │                  │   allow_offline_artifacts=True,                                   │ │
+│ │                  │   allow_val_change=False,                                         │ │
+│ │                  │   anonymous=<object object at 0x743750189e30>,                    │ │
+│ │                  │   api_key=None,                                                   │ │
+│ │                  │   azure_account_url_to_access_key=None,                           │ │
+│ │                  │   app_url_override=None,                                          │ │
+│ │                  │   base_url='https://api.wandb.ai',                                │ │
+│ │                  │   code_dir=None,                                                  │ │
+│ │                  │   config_paths=None,                                              │ │
+│ │                  │   console='wrap',                                                 │ │
+│ │                  │   console_multipart=False,                                        │ │
+│ │                  │   console_chunk_max_bytes=0,                                      │ │
+│ │                  │   console_chunk_max_seconds=0,                                    │ │
+│ │                  │                                                                   │ │
+│ │                  credentials_file='/home/erwinpi/.config/wandb/credentials.json',    │ │
+│ │                  │   disable_code=False,                                             │ │
+│ │                  │   disable_git=False,                                              │ │
+│ │                  │   disable_job_creation=True,                                      │ │
+│ │                  │   docker=None,                                                    │ │
+│ │                  │   email=None,                                                     │ │
+│ │                  │   entity=None,                                                    │ │
+│ │                  │   organization=None,                                              │ │
+│ │                  │   force=False,                                                    │ │
+│ │                  │   fork_from=None,                                                 │ │
+│ │                  │   git_commit=None,                                                │ │
+│ │                  │   git_remote='origin',                                            │ │
+│ │                  │   git_remote_url=None,                                            │ │
+│ │                  │   git_root=None,                                                  │ │
+│ │                  │   heartbeat_seconds=30,                                           │ │
+│ │                  │   host='coruscant.stanford.edu',                                  │ │
+│ │                  │   http_proxy=None,                                                │ │
+│ │                  │   https_proxy=None,                                               │ │
+│ │                  │   identity_token_file=None,                                       │ │
+│ │                  │   ignore_globs=(),                                                │ │
+│ │                  │   init_timeout=90.0,                                              │ │
+│ │                  │   insecure_disable_ssl=False,                                     │ │
+│ │                  │   job_name=None,                                                  │ │
+│ │                  │   job_source=None,                                                │ │
+│ │                  │   label_disable=False,                                            │ │
+│ │                  │   launch=False,                                                   │ │
+│ │                  │   launch_config_path=None,                                        │ │
+│ │                  │   login_timeout=None,                                             │ │
+│ │                  │   mode='online',                                                  │ │
+│ │                  │   notebook_name=None,                                             │ │
+│ │                  │                                                                   │ │
+│ │                  program='/data/erwinpi/SINGER/notebooks/ssv_multi3dgs_campaign.py', │ │
+│ │                  │                                                                   │ │
+│ │                  program_abspath='/data/erwinpi/SINGER/notebooks/ssv_multi3dgs_camp… │ │
+│ │                  │   program_relpath='notebooks/ssv_multi3dgs_campaign.py',          │ │
+│ │                  │   project=None,                                                   │ │
+│ │                  │   quiet=False,                                                    │ │
+│ │                  │   reinit='default',                                               │ │
+│ │                  │   relogin=False,                                                  │ │
+│ │                  │   resume=None,                                                    │ │
+│ │                  │   resume_from=None,                                               │ │
+│ │                  │   resumed=False,                                                  │ │
+│ │                  │   root_dir='/data/erwinpi/SINGER/notebooks',                      │ │
+│ │                  │   run_group=None,                                                 │ │
+│ │                  │   run_id=None,                                                    │ │
+│ │                  │   run_job_type=None,                                              │ │
+│ │                  │   run_name=None,                                                  │ │
+│ │                  │   run_notes=None,                                                 │ │
+│ │                  │   run_tags=None,                                                  │ │
+│ │                  │   sagemaker_disable=False,                                        │ │
+│ │                  │   save_code=None,                                                 │ │
+│ │                  │   settings_system='/home/erwinpi/.config/wandb/settings',         │ │
+│ │                  │   max_end_of_run_history_metrics=10,                              │ │
+│ │                  │   max_end_of_run_summary_metrics=10,                              │ │
+│ │                  │   show_colors=None,                                               │ │
+│ │                  │   show_emoji=None,                                                │ │
+│ │                  │   show_errors=True,                                               │ │
+│ │                  │   show_info=True,                                                 │ │
+│ │                  │   show_warnings=True,                                             │ │
+│ │                  │   silent=False,                                                   │ │
+│ │                  │   start_method=None,                                              │ │
+│ │                  │   strict=None,                                                    │ │
+│ │                  │   summary_timeout=60,                                             │ │
+│ │                  │   summary_warnings=5,                                             │ │
+│ │                  │   sweep_id=None,                                                  │ │
+│ │                  │   sweep_param_path=None,                                          │ │
+│ │                  │   symlink=True,                                                   │ │
+│ │                  │   sync_tensorboard=None,                                          │ │
+│ │                  │   table_raise_on_max_row_limit_exceeded=False,                    │ │
+│ │                  │   use_dot_wandb=None,                                             │ │
+│ │                  │   username=None,                                                  │ │
+│ │                  │   x_cli_only_mode=False,                                          │ │
+│ │                  │   x_disable_meta=False,                                           │ │
+│ │                  │   x_disable_stats=False,                                          │ │
+│ │                  │   x_disable_viewer=False,                                         │ │
+│ │                  │   x_disable_machine_info=False,                                   │ │
+│ │                  │   x_executable='/home/erwinpi/miniconda3/envs/FiGS/bin/python',   │ │
+│ │                  │   x_extra_http_headers=None,                                      │ │
+│ │                  │   x_file_stream_max_bytes=None,                                   │ │
+│ │                  │   x_file_stream_max_line_bytes=None,                              │ │
+│ │                  │   x_file_stream_transmit_interval=None,                           │ │
+│ │                  │   x_file_stream_retry_max=None,                                   │ │
+│ │                  │   x_file_stream_retry_wait_min_seconds=None,                      │ │
+│ │                  │   x_file_stream_retry_wait_max_seconds=None,                      │ │
+│ │                  │   x_file_stream_timeout_seconds=None,                             │ │
+│ │                  │   x_file_transfer_retry_max=None,                                 │ │
+│ │                  │   x_file_transfer_retry_wait_min_seconds=None,                    │ │
+│ │                  │   x_file_transfer_retry_wait_max_seconds=None,                    │ │
+│ │                  │   x_file_transfer_timeout_seconds=None,                           │ │
+│ │                  │   x_files_dir=None,                                               │ │
+│ │                  │   x_flow_control_custom=None,                                     │ │
+│ │                  │   x_flow_control_disabled=None,                                   │ │
+│ │                  │   x_graphql_retry_max=None,                                       │ │
+│ │                  │   x_graphql_retry_wait_min_seconds=None,                          │ │
+│ │                  │   x_graphql_retry_wait_max_seconds=None,                          │ │
+│ │                  │   x_graphql_timeout_seconds=None,                                 │ │
+│ │                  │   x_internal_check_process=8.0,                                   │ │
+│ │                  │   x_jupyter_name=None,                                            │ │
+│ │                  │   x_jupyter_path=None,                                            │ │
+│ │                  │   x_jupyter_root=None,                                            │ │
+│ │                  │   x_label=None,                                                   │ │
+│ │                  │   x_live_policy_rate_limit=None,                                  │ │
+│ │                  │   x_live_policy_wait_time=None,                                   │ │
+│ │                  │   x_log_level=20,                                                 │ │
+│ │                  │   x_network_buffer=None,                                          │ │
+│ │                  │   x_primary=True,                                                 │ │
+│ │                  │   x_proxies=None,                                                 │ │
+│ │                  │   x_runqueue_item_id=None,                                        │ │
+│ │                  │   x_save_requirements=True,                                       │ │
+│ │                  │   x_server_side_derived_summary=False,                            │ │
+│ │                  │   x_server_side_expand_glob_metrics=True,                         │ │
+│ │                  │   x_service_transport=None,                                       │ │
+│ │                  │   x_service_wait=30.0,                                            │ │
+│ │                  │   x_skip_transaction_log=False,                                   │ │
+│ │                  │   x_start_time=None,                                              │ │
+│ │                  │   x_stats_pid=2182055,                                            │ │
+│ │                  │   x_stats_sampling_interval=15.0,                                 │ │
+│ │                  │   x_stats_neuron_monitor_config_path=None,                        │ │
+│ │                  │   x_stats_dcgm_exporter=None,                                     │ │
+│ │                  │   x_stats_open_metrics_endpoints=None,                            │ │
+│ │                  │   x_stats_open_metrics_filters=None,                              │ │
+│ │                  │   x_stats_open_metrics_http_headers=None,                         │ │
+│ │                  │   x_stats_disk_paths=('/',),                                      │ │
+│ │                  │   x_stats_cpu_count=None,                                         │ │
+│ │                  │   x_stats_cpu_logical_count=None,                                 │ │
+│ │                  │   x_stats_gpu_count=None,                                         │ │
+│ │                  │   x_stats_gpu_type=None,                                          │ │
+│ │                  │   x_stats_gpu_device_ids=None,                                    │ │
+│ │                  │   x_stats_buffer_size=0,                                          │ │
+│ │                  │   x_stats_coreweave_metadata_base_url='http://169.254.169.254',   │ │
+│ │                  │                                                                   │ │
+│ │                  x_stats_coreweave_metadata_endpoint='/api/v2/cloud-init/meta-data', │ │
+│ │                  │   x_stats_track_process_tree=False,                               │ │
+│ │                  │   x_sync=False,                                                   │ │
+│ │                  │   x_sync_dir_suffix='',                                           │ │
+│ │                  │   x_update_finish_state=True,                                     │ │
+│ │                  │   app_url='https://wandb.ai',                                     │ │
+│ │                  │   colab_url=None,                                                 │ │
+│ │                  │   deployment='cloud',                                             │ │
+│ │                  │                                                                   │ │
+│ │                  files_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/files',   │ │
+│ │                  │   is_local=False,                                                 │ │
+│ │                  │   log_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs',  │ │
+│ │                  │                                                                   │ │
+│ │                  log_internal='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs/… │ │
+│ │                  │                                                                   │ │
+│ │                  log_symlink_internal='/data/erwinpi/SINGER/notebooks/wandb/debug-i… │ │
+│ │                  │                                                                   │ │
+│ │                  log_symlink_user='/data/erwinpi/SINGER/notebooks/wandb/debug.log',  │ │
+│ │                  │                                                                   │ │
+│ │                  log_user='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs/debu… │ │
+│ │                  │   project_url='',                                                 │ │
+│ │                  │                                                                   │ │
+│ │                  resume_fname='/data/erwinpi/SINGER/notebooks/wandb/wandb-resume.js… │ │
+│ │                  │   run_mode='run',                                                 │ │
+│ │                  │   run_url='',                                                     │ │
+│ │                  │                                                                   │ │
+│ │                  settings_workspace='/data/erwinpi/SINGER/notebooks/wandb/settings', │ │
+│ │                  │   sweep_url='',                                                   │ │
+│ │                  │   sync_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None',      │ │
+│ │                  │                                                                   │ │
+│ │                  sync_file='/data/erwinpi/SINGER/notebooks/wandb/run--None/run-None… │ │
+│ │                  │                                                                   │ │
+│ │                  sync_symlink_latest='/data/erwinpi/SINGER/notebooks/wandb/latest-r… │ │
+│ │                  │   timespec='',                                                    │ │
+│ │                  │   wandb_dir='/data/erwinpi/SINGER/notebooks/wandb'                │ │
+│ │                  )                                                                   │ │
+│ │        timeout = None                                                                │ │
+│ │ update_api_key = True                                                                │ │
+│ │         verify = False                                                               │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                          │
+│ /home/erwinpi/miniconda3/envs/FiGS/lib/python3.10/site-packages/wandb/sdk/wandb_login.py │
+│ :266 in _find_or_prompt_for_key                                                          │
+│                                                                                          │
+│   263 │   auth: wbauth.Auth | None = None                                                │
+│   264 │                                                                                  │
+│   265 │   try:                                                                           │
+│ ❱ 266 │   │   auth = wbauth.authenticate_session(                                        │
+│   267 │   │   │   host=host,                                                             │
+│   268 │   │   │   source="wandb.login()",                                                │
+│   269 │   │   │   no_offline=force,                                                      │
+│                                                                                          │
+│ ╭─────────────────────────────────────── locals ───────────────────────────────────────╮ │
+│ │          auth = None                                                                 │ │
+│ │         force = False                                                                │ │
+│ │          host = HostUrl('https://api.wandb.ai')                                      │ │
+│ │ input_timeout = None                                                                 │ │
+│ │      referrer = 'models'                                                             │ │
+│ │       relogin = False                                                                │ │
+│ │      settings = Settings(                                                            │ │
+│ │                 │   allow_offline_artifacts=True,                                    │ │
+│ │                 │   allow_val_change=False,                                          │ │
+│ │                 │   anonymous=<object object at 0x743750189e30>,                     │ │
+│ │                 │   api_key=None,                                                    │ │
+│ │                 │   azure_account_url_to_access_key=None,                            │ │
+│ │                 │   app_url_override=None,                                           │ │
+│ │                 │   base_url='https://api.wandb.ai',                                 │ │
+│ │                 │   code_dir=None,                                                   │ │
+│ │                 │   config_paths=None,                                               │ │
+│ │                 │   console='wrap',                                                  │ │
+│ │                 │   console_multipart=False,                                         │ │
+│ │                 │   console_chunk_max_bytes=0,                                       │ │
+│ │                 │   console_chunk_max_seconds=0,                                     │ │
+│ │                 │   credentials_file='/home/erwinpi/.config/wandb/credentials.json', │ │
+│ │                 │   disable_code=False,                                              │ │
+│ │                 │   disable_git=False,                                               │ │
+│ │                 │   disable_job_creation=True,                                       │ │
+│ │                 │   docker=None,                                                     │ │
+│ │                 │   email=None,                                                      │ │
+│ │                 │   entity=None,                                                     │ │
+│ │                 │   organization=None,                                               │ │
+│ │                 │   force=False,                                                     │ │
+│ │                 │   fork_from=None,                                                  │ │
+│ │                 │   git_commit=None,                                                 │ │
+│ │                 │   git_remote='origin',                                             │ │
+│ │                 │   git_remote_url=None,                                             │ │
+│ │                 │   git_root=None,                                                   │ │
+│ │                 │   heartbeat_seconds=30,                                            │ │
+│ │                 │   host='coruscant.stanford.edu',                                   │ │
+│ │                 │   http_proxy=None,                                                 │ │
+│ │                 │   https_proxy=None,                                                │ │
+│ │                 │   identity_token_file=None,                                        │ │
+│ │                 │   ignore_globs=(),                                                 │ │
+│ │                 │   init_timeout=90.0,                                               │ │
+│ │                 │   insecure_disable_ssl=False,                                      │ │
+│ │                 │   job_name=None,                                                   │ │
+│ │                 │   job_source=None,                                                 │ │
+│ │                 │   label_disable=False,                                             │ │
+│ │                 │   launch=False,                                                    │ │
+│ │                 │   launch_config_path=None,                                         │ │
+│ │                 │   login_timeout=None,                                              │ │
+│ │                 │   mode='online',                                                   │ │
+│ │                 │   notebook_name=None,                                              │ │
+│ │                 │                                                                    │ │
+│ │                 program='/data/erwinpi/SINGER/notebooks/ssv_multi3dgs_campaign.py',  │ │
+│ │                 │                                                                    │ │
+│ │                 program_abspath='/data/erwinpi/SINGER/notebooks/ssv_multi3dgs_campa… │ │
+│ │                 │   program_relpath='notebooks/ssv_multi3dgs_campaign.py',           │ │
+│ │                 │   project=None,                                                    │ │
+│ │                 │   quiet=False,                                                     │ │
+│ │                 │   reinit='default',                                                │ │
+│ │                 │   relogin=False,                                                   │ │
+│ │                 │   resume=None,                                                     │ │
+│ │                 │   resume_from=None,                                                │ │
+│ │                 │   resumed=False,                                                   │ │
+│ │                 │   root_dir='/data/erwinpi/SINGER/notebooks',                       │ │
+│ │                 │   run_group=None,                                                  │ │
+│ │                 │   run_id=None,                                                     │ │
+│ │                 │   run_job_type=None,                                               │ │
+│ │                 │   run_name=None,                                                   │ │
+│ │                 │   run_notes=None,                                                  │ │
+│ │                 │   run_tags=None,                                                   │ │
+│ │                 │   sagemaker_disable=False,                                         │ │
+│ │                 │   save_code=None,                                                  │ │
+│ │                 │   settings_system='/home/erwinpi/.config/wandb/settings',          │ │
+│ │                 │   max_end_of_run_history_metrics=10,                               │ │
+│ │                 │   max_end_of_run_summary_metrics=10,                               │ │
+│ │                 │   show_colors=None,                                                │ │
+│ │                 │   show_emoji=None,                                                 │ │
+│ │                 │   show_errors=True,                                                │ │
+│ │                 │   show_info=True,                                                  │ │
+│ │                 │   show_warnings=True,                                              │ │
+│ │                 │   silent=False,                                                    │ │
+│ │                 │   start_method=None,                                               │ │
+│ │                 │   strict=None,                                                     │ │
+│ │                 │   summary_timeout=60,                                              │ │
+│ │                 │   summary_warnings=5,                                              │ │
+│ │                 │   sweep_id=None,                                                   │ │
+│ │                 │   sweep_param_path=None,                                           │ │
+│ │                 │   symlink=True,                                                    │ │
+│ │                 │   sync_tensorboard=None,                                           │ │
+│ │                 │   table_raise_on_max_row_limit_exceeded=False,                     │ │
+│ │                 │   use_dot_wandb=None,                                              │ │
+│ │                 │   username=None,                                                   │ │
+│ │                 │   x_cli_only_mode=False,                                           │ │
+│ │                 │   x_disable_meta=False,                                            │ │
+│ │                 │   x_disable_stats=False,                                           │ │
+│ │                 │   x_disable_viewer=False,                                          │ │
+│ │                 │   x_disable_machine_info=False,                                    │ │
+│ │                 │   x_executable='/home/erwinpi/miniconda3/envs/FiGS/bin/python',    │ │
+│ │                 │   x_extra_http_headers=None,                                       │ │
+│ │                 │   x_file_stream_max_bytes=None,                                    │ │
+│ │                 │   x_file_stream_max_line_bytes=None,                               │ │
+│ │                 │   x_file_stream_transmit_interval=None,                            │ │
+│ │                 │   x_file_stream_retry_max=None,                                    │ │
+│ │                 │   x_file_stream_retry_wait_min_seconds=None,                       │ │
+│ │                 │   x_file_stream_retry_wait_max_seconds=None,                       │ │
+│ │                 │   x_file_stream_timeout_seconds=None,                              │ │
+│ │                 │   x_file_transfer_retry_max=None,                                  │ │
+│ │                 │   x_file_transfer_retry_wait_min_seconds=None,                     │ │
+│ │                 │   x_file_transfer_retry_wait_max_seconds=None,                     │ │
+│ │                 │   x_file_transfer_timeout_seconds=None,                            │ │
+│ │                 │   x_files_dir=None,                                                │ │
+│ │                 │   x_flow_control_custom=None,                                      │ │
+│ │                 │   x_flow_control_disabled=None,                                    │ │
+│ │                 │   x_graphql_retry_max=None,                                        │ │
+│ │                 │   x_graphql_retry_wait_min_seconds=None,                           │ │
+│ │                 │   x_graphql_retry_wait_max_seconds=None,                           │ │
+│ │                 │   x_graphql_timeout_seconds=None,                                  │ │
+│ │                 │   x_internal_check_process=8.0,                                    │ │
+│ │                 │   x_jupyter_name=None,                                             │ │
+│ │                 │   x_jupyter_path=None,                                             │ │
+│ │                 │   x_jupyter_root=None,                                             │ │
+│ │                 │   x_label=None,                                                    │ │
+│ │                 │   x_live_policy_rate_limit=None,                                   │ │
+│ │                 │   x_live_policy_wait_time=None,                                    │ │
+│ │                 │   x_log_level=20,                                                  │ │
+│ │                 │   x_network_buffer=None,                                           │ │
+│ │                 │   x_primary=True,                                                  │ │
+│ │                 │   x_proxies=None,                                                  │ │
+│ │                 │   x_runqueue_item_id=None,                                         │ │
+│ │                 │   x_save_requirements=True,                                        │ │
+│ │                 │   x_server_side_derived_summary=False,                             │ │
+│ │                 │   x_server_side_expand_glob_metrics=True,                          │ │
+│ │                 │   x_service_transport=None,                                        │ │
+│ │                 │   x_service_wait=30.0,                                             │ │
+│ │                 │   x_skip_transaction_log=False,                                    │ │
+│ │                 │   x_start_time=None,                                               │ │
+│ │                 │   x_stats_pid=2182055,                                             │ │
+│ │                 │   x_stats_sampling_interval=15.0,                                  │ │
+│ │                 │   x_stats_neuron_monitor_config_path=None,                         │ │
+│ │                 │   x_stats_dcgm_exporter=None,                                      │ │
+│ │                 │   x_stats_open_metrics_endpoints=None,                             │ │
+│ │                 │   x_stats_open_metrics_filters=None,                               │ │
+│ │                 │   x_stats_open_metrics_http_headers=None,                          │ │
+│ │                 │   x_stats_disk_paths=('/',),                                       │ │
+│ │                 │   x_stats_cpu_count=None,                                          │ │
+│ │                 │   x_stats_cpu_logical_count=None,                                  │ │
+│ │                 │   x_stats_gpu_count=None,                                          │ │
+│ │                 │   x_stats_gpu_type=None,                                           │ │
+│ │                 │   x_stats_gpu_device_ids=None,                                     │ │
+│ │                 │   x_stats_buffer_size=0,                                           │ │
+│ │                 │   x_stats_coreweave_metadata_base_url='http://169.254.169.254',    │ │
+│ │                 │                                                                    │ │
+│ │                 x_stats_coreweave_metadata_endpoint='/api/v2/cloud-init/meta-data',  │ │
+│ │                 │   x_stats_track_process_tree=False,                                │ │
+│ │                 │   x_sync=False,                                                    │ │
+│ │                 │   x_sync_dir_suffix='',                                            │ │
+│ │                 │   x_update_finish_state=True,                                      │ │
+│ │                 │   app_url='https://wandb.ai',                                      │ │
+│ │                 │   colab_url=None,                                                  │ │
+│ │                 │   deployment='cloud',                                              │ │
+│ │                 │                                                                    │ │
+│ │                 files_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/files',    │ │
+│ │                 │   is_local=False,                                                  │ │
+│ │                 │   log_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs',   │ │
+│ │                 │                                                                    │ │
+│ │                 log_internal='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs/d… │ │
+│ │                 │                                                                    │ │
+│ │                 log_symlink_internal='/data/erwinpi/SINGER/notebooks/wandb/debug-in… │ │
+│ │                 │                                                                    │ │
+│ │                 log_symlink_user='/data/erwinpi/SINGER/notebooks/wandb/debug.log',   │ │
+│ │                 │                                                                    │ │
+│ │                 log_user='/data/erwinpi/SINGER/notebooks/wandb/run--None/logs/debug… │ │
+│ │                 │   project_url='',                                                  │ │
+│ │                 │                                                                    │ │
+│ │                 resume_fname='/data/erwinpi/SINGER/notebooks/wandb/wandb-resume.jso… │ │
+│ │                 │   run_mode='run',                                                  │ │
+│ │                 │   run_url='',                                                      │ │
+│ │                 │                                                                    │ │
+│ │                 settings_workspace='/data/erwinpi/SINGER/notebooks/wandb/settings',  │ │
+│ │                 │   sweep_url='',                                                    │ │
+│ │                 │   sync_dir='/data/erwinpi/SINGER/notebooks/wandb/run--None',       │ │
+│ │                 │                                                                    │ │
+│ │                 sync_file='/data/erwinpi/SINGER/notebooks/wandb/run--None/run-None.… │ │
+│ │                 │                                                                    │ │
+│ │                 sync_symlink_latest='/data/erwinpi/SINGER/notebooks/wandb/latest-ru… │ │
+│ │                 │   timespec='',                                                     │ │
+│ │                 │   wandb_dir='/data/erwinpi/SINGER/notebooks/wandb'                 │ │
+│ │                 )                                                                    │ │
+│ │     timed_out = False                                                                │ │
+│ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │
+│                                                                                          │
+│ /home/erwinpi/miniconda3/envs/FiGS/lib/python3.10/site-packages/wandb/sdk/lib/wbauth/aut │
+│ henticate.py:138 in authenticate_session                                                 │
+│                                                                                          │
+│   135 │   │   │   input_timeout=input_timeout,                                           │
+│   136 │   │   )                                                                          │
+│   137 │   except term.NotATerminalError:                                                 │
+│ ❱ 138 │   │   raise UsageError(                                                          │
+│   139 │   │   │   "No API key configured. Use `wandb login` to log in."                  │
+│   140 │   │   ) from None                                                                │
+│   141                                                                                    │
+│                                                                                          │
+│ ╭──────────────────── locals ─────────────────────╮                                      │
+│ │          auth = None                            │                                      │
+│ │          host = HostUrl('https://api.wandb.ai') │                                      │
+│ │ input_timeout = None                            │                                      │
+│ │     no_create = False                           │                                      │
+│ │    no_offline = False                           │                                      │
+│ │      referrer = 'models'                        │                                      │
+│ │       relogin = False                           │                                      │
+│ │        source = 'wandb.login()'                 │                                      │
+│ ╰─────────────────────────────────────────────────╯                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯
+UsageError: No API key configured. Use `wandb login` to log in.

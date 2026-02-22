@@ -1,0 +1,22 @@
+/home/erwinpi/FiGS-Standalone/gemsplat/gemsplat/clip/clip.py:6: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import packaging
+wandb: [wandb.login()] Loaded credentials for https://api.wandb.ai from /home/erwinpi/.netrc.
+wandb: Currently logged in as: erwin-poussi (erwin-poussi-stanford-university) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run m49az75s
+wandb: Tracking run with wandb version 0.24.0
+wandb: Run data is saved locally in /data/erwinpi/SINGER/notebooks/wandb/run-20260217_023325-m49az75s
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run command_ssv_clipseg
+wandb: ⭐️ View project at https://wandb.ai/erwin-poussi-stanford-university/SINGER
+wandb: 🚀 View run at https://wandb.ai/erwin-poussi-stanford-university/SINGER/runs/m49az75s
+Training Student:  InstinctJester
+Training new network.
+Training Progress:   0%|          | 0/150 [00:00<?, ?it/s]
+/home/erwinpi/miniconda3/envs/FiGS/lib/python3.10/site-packages/torch/nn/modules/conv.py:456: UserWarning: Applied workaround for CuDNN issue, install nvrtc.so (Triggered internally at ../aten/src/ATen/native/cudnn/Conv_v8.cpp:80.)
+  return F.conv2d(input, weight, bias, self.stride,
+
+Epoch 150: final model saved to last_model.pth
+
+[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33mcommand_ssv_clipseg[0m at: [34mhttps://wandb.ai/erwin-poussi-stanford-university/SINGER/runs/m49az75s[0m
+[1;34mwandb[0m: Find logs at: [1;35m../../../../../data/erwinpi/SINGER/notebooks/wandb/run-20260217_023325-m49az75s/logs[0m

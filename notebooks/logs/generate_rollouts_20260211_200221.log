@@ -1,0 +1,492 @@
+/home/erwinpi/FiGS-Standalone/gemsplat/gemsplat/clip/clip.py:6: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import packaging
+==========================================================================
+Cohort         : ssv_CLIPSEG_NORMAL
+Method         : rrt
+Policy         : vrmpc_rrt
+Frame          : carl
+Flights        : [['flightroom_ssv_exp', 'flightroom_ssv_exp']]
+Using CLIPSeg for semantic segmentation.
+/home/erwinpi/miniconda3/envs/FiGS/lib/python3.10/site-packages/huggingface_hub/file_download.py:942: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+Current path dict: /home/erwinpi/FiGS-Standalone/3dgs/workspace/outputs/flightroom_ssv_exp/gemsplat/2026-02-03_115017/config.yml
+Current path name: config.yml
+[20:02:48] Scene AABB for hash grid: min=[-5.999476909637451, -5.998635292053223, -5.998494625091553],   gemsplat.py:477
+           max=[5.999906539916992, 5.999204158782959, 5.9991135597229]                                                  
+Loading latest checkpoint from load_dir
+✅ Done loading checkpoint from 
+outputs/flightroom_ssv_exp/gemsplat/2026-02-03_115017/nerfstudio_models/step-000028000.ckpt
+rendering simulation with similarity.
+**************************************************
+Processing Object: Ladder
+**************************************************
+obstacles poses : []
+rings poses shape: 0
+Configuration loaded from config.yml
+algorithm set to RRT* from config.yml
+dimension set to 2 from config.yml
+prevent_edge_overlap set to y from config.yml
+exact_step set to n from config.yml
+bounded_step set to y from config.yml
+env_bounds: [(-3.7, 3.7), (-8.0, 8.0)]
+target: Ladder
+pose: [-2.09524889  3.03766662 -1.1       ]
+Object Exclusion: (array([-3.25536271,  4.66681852]), 2.0)
+RRT/RRT* construction completed.
+Total Nodes Added: 1105
+Total Rewiring Actions: 1024
+Total Distance Saved: 30.72 units
+Rendering the figure...
+Saved figure to /home/erwinpi/FiGS-Standalone/3dgs/workspace/outputs/rrt_Ladder.html
+==== OBJECTIVES ====
+objectives: ['Ladder']
+raw_rrt_paths keys: ['Ladder']
+Total number of raw_rrt_paths: 741
+====================
+Ladder: 110 branches
+Configuration loaded from config.yml
+Generating loitering trajectories...
+Simulating and saving rollouts...
+Rollout Data Batches:   0%|          | 0/110 [00:00<?, ?it/s]Preparing 440 samples for course 'Ladder', query: Ladder
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:   1%|          | 1/110 [00:24<44:37, 24.56s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:   2%|▏         | 2/110 [00:48<43:55, 24.41s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:   3%|▎         | 3/110 [01:12<42:31, 23.84s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:   4%|▎         | 4/110 [01:35<41:35, 23.54s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:   5%|▍         | 5/110 [01:59<41:34, 23.76s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:   5%|▌         | 6/110 [02:22<40:57, 23.63s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:   6%|▋         | 7/110 [02:45<40:01, 23.32s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:   7%|▋         | 8/110 [03:09<39:52, 23.45s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:   8%|▊         | 9/110 [03:31<38:57, 23.14s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:   9%|▉         | 10/110 [03:55<38:58, 23.38s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  10%|█         | 11/110 [04:18<38:38, 23.42s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  11%|█         | 12/110 [04:41<38:03, 23.30s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  12%|█▏        | 13/110 [05:05<37:51, 23.42s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  13%|█▎        | 14/110 [05:28<37:12, 23.26s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  14%|█▎        | 15/110 [05:52<37:19, 23.57s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  15%|█▍        | 16/110 [06:15<36:32, 23.33s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  15%|█▌        | 17/110 [06:38<36:07, 23.31s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  16%|█▋        | 18/110 [07:02<35:41, 23.27s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  17%|█▋        | 19/110 [07:25<35:23, 23.33s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  18%|█▊        | 20/110 [07:48<34:56, 23.29s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  19%|█▉        | 21/110 [08:11<34:20, 23.15s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  20%|██        | 22/110 [08:34<34:04, 23.23s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  21%|██        | 23/110 [08:58<33:43, 23.26s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  22%|██▏       | 24/110 [09:21<33:24, 23.31s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  23%|██▎       | 25/110 [09:44<32:58, 23.28s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  24%|██▎       | 26/110 [10:08<32:47, 23.42s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  25%|██▍       | 27/110 [10:32<32:41, 23.64s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  25%|██▌       | 28/110 [10:57<32:37, 23.87s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  26%|██▋       | 29/110 [11:20<31:54, 23.63s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  27%|██▋       | 30/110 [11:42<31:07, 23.34s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  28%|██▊       | 31/110 [12:06<30:40, 23.30s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  29%|██▉       | 32/110 [12:28<30:00, 23.08s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  30%|███       | 33/110 [12:51<29:40, 23.13s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  31%|███       | 34/110 [13:14<29:04, 22.95s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  32%|███▏      | 35/110 [13:37<28:38, 22.92s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  33%|███▎      | 36/110 [14:01<28:40, 23.25s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  34%|███▎      | 37/110 [14:24<28:17, 23.25s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  35%|███▍      | 38/110 [14:48<28:05, 23.41s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  35%|███▌      | 39/110 [15:12<28:01, 23.69s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  36%|███▋      | 40/110 [15:36<27:43, 23.76s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  37%|███▋      | 41/110 [16:00<27:11, 23.65s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  38%|███▊      | 42/110 [16:23<26:51, 23.69s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  39%|███▉      | 43/110 [16:46<26:04, 23.35s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  40%|████      | 44/110 [17:09<25:37, 23.30s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  41%|████      | 45/110 [17:32<25:00, 23.08s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  42%|████▏     | 46/110 [17:55<24:37, 23.09s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  43%|████▎     | 47/110 [18:18<24:17, 23.13s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  44%|████▎     | 48/110 [18:43<24:27, 23.67s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  45%|████▍     | 49/110 [19:07<24:02, 23.65s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  45%|████▌     | 50/110 [19:31<23:46, 23.77s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  46%|████▋     | 51/110 [19:53<23:05, 23.48s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  47%|████▋     | 52/110 [20:17<22:37, 23.41s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  48%|████▊     | 53/110 [20:40<22:13, 23.39s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  49%|████▉     | 54/110 [21:03<21:46, 23.32s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  50%|█████     | 55/110 [21:26<21:14, 23.17s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  51%|█████     | 56/110 [21:48<20:41, 22.99s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  52%|█████▏    | 57/110 [22:11<20:12, 22.89s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  53%|█████▎    | 58/110 [22:35<20:05, 23.18s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  54%|█████▎    | 59/110 [22:58<19:40, 23.15s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  55%|█████▍    | 60/110 [23:21<19:14, 23.09s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  55%|█████▌    | 61/110 [23:44<18:42, 22.91s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  56%|█████▋    | 62/110 [24:07<18:32, 23.19s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  57%|█████▋    | 63/110 [24:31<18:10, 23.21s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  58%|█████▊    | 64/110 [24:54<17:54, 23.37s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  59%|█████▉    | 65/110 [25:17<17:25, 23.24s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  60%|██████    | 66/110 [25:41<17:08, 23.38s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  61%|██████    | 67/110 [26:05<16:51, 23.53s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  62%|██████▏   | 68/110 [26:28<16:24, 23.45s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  63%|██████▎   | 69/110 [26:51<15:59, 23.39s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  64%|██████▎   | 70/110 [27:14<15:26, 23.16s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  65%|██████▍   | 71/110 [27:37<15:02, 23.15s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  65%|██████▌   | 72/110 [28:00<14:35, 23.04s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  66%|██████▋   | 73/110 [28:23<14:11, 23.02s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  67%|██████▋   | 74/110 [28:46<13:48, 23.02s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  68%|██████▊   | 75/110 [29:10<13:37, 23.36s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  69%|██████▉   | 76/110 [29:33<13:10, 23.25s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  70%|███████   | 77/110 [29:57<12:55, 23.51s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  71%|███████   | 78/110 [30:21<12:31, 23.48s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  72%|███████▏  | 79/110 [30:45<12:14, 23.68s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  73%|███████▎  | 80/110 [31:08<11:44, 23.48s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  74%|███████▎  | 81/110 [31:31<11:15, 23.28s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  75%|███████▍  | 82/110 [31:54<10:54, 23.38s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  75%|███████▌  | 83/110 [32:18<10:33, 23.46s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  76%|███████▋  | 84/110 [32:41<10:06, 23.33s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  77%|███████▋  | 85/110 [33:04<09:44, 23.37s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  78%|███████▊  | 86/110 [33:28<09:22, 23.44s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  79%|███████▉  | 87/110 [33:51<08:58, 23.40s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  80%|████████  | 88/110 [34:14<08:31, 23.23s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  81%|████████  | 89/110 [34:37<08:07, 23.23s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  82%|████████▏ | 90/110 [35:01<07:46, 23.34s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  83%|████████▎ | 91/110 [35:25<07:25, 23.47s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  84%|████████▎ | 92/110 [35:48<07:01, 23.39s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  85%|████████▍ | 93/110 [36:11<06:35, 23.24s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  85%|████████▌ | 94/110 [36:35<06:15, 23.45s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  86%|████████▋ | 95/110 [36:58<05:48, 23.27s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  87%|████████▋ | 96/110 [37:20<05:23, 23.09s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  88%|████████▊ | 97/110 [37:43<05:00, 23.09s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  89%|████████▉ | 98/110 [38:07<04:39, 23.33s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  90%|█████████ | 99/110 [38:30<04:16, 23.29s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  91%|█████████ | 100/110 [38:53<03:51, 23.13s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  92%|█████████▏| 101/110 [39:16<03:27, 23.08s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  93%|█████████▎| 102/110 [39:39<03:04, 23.09s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  94%|█████████▎| 103/110 [40:02<02:41, 23.02s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  95%|█████████▍| 104/110 [40:25<02:17, 22.99s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  95%|█████████▌| 105/110 [40:49<01:56, 23.20s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  96%|█████████▋| 106/110 [41:12<01:32, 23.18s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  97%|█████████▋| 107/110 [41:35<01:09, 23.15s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  98%|█████████▊| 108/110 [41:58<00:46, 23.05s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches:  99%|█████████▉| 109/110 [42:22<00:23, 23.43s/it]Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Bypassing trajectory optimization. Using provided trajectory.
+Rollout Data Batches: 100%|██████████| 110/110 [42:45<00:00, 23.35s/it]Rollout Data Batches: 100%|██████████| 110/110 [42:45<00:00, 23.32s/it]
+All rollouts complete.

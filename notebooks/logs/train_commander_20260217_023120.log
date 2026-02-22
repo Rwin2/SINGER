@@ -1,0 +1,7 @@
+/home/erwinpi/FiGS-Standalone/gemsplat/gemsplat/clip/clip.py:6: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import packaging
+Usage: ssv_multi3dgs_campaign.py [OPTIONS] COMMAND [ARGS]...
+Try 'ssv_multi3dgs_campaign.py --help' for help.
+╭─ Error ───────────────────────────────────────────────────────────────────────────────────────────╮
+│ No such command 'train-commander'. Did you mean 'train-command'?                                  │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────╯
