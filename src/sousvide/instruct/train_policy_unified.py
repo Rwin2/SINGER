@@ -428,10 +428,12 @@ def train_rl_policy(cohort_name: str, roster: List[str],
     from sousvide.flight.deploy_ssv import simulate_roster
     from sousvide.visualize.analyze_simulated_experiments import analyze_trajectory_performance
     import figs.utilities.trajectory_helper as th
-    from figs.utilities.display_config import set_figure_display
-
-    # CRITICAL: Disable figure display during RL training to prevent memory leaks
-    set_figure_display(False)
+  # Try to disable figure display (optional utility; may not exist in all FiGS versions)
+    try:
+        from figs.utilities.display_config import set_figure_display
+        set_figure_display(False)
+    except Exception:
+        pass
 
     progress = rv.get_training_progress()
     train_desc = "[bold dark_green]RL Training Progress[/]"

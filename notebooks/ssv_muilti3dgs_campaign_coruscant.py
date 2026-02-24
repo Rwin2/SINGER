@@ -72,6 +72,31 @@ def common_options(
     })
     return cfg
 
+@app.command()
+def train_rl(config_file: str):
+    import yaml
+    from sousvide.instruct.train_policy_unified import train_rl_policy
+
+    with open(config_file) as f:
+        cfg = yaml.safe_load(f)
+
+    cohort = cfg["cohort"]
+    method = cfg["method"]
+    flights = [tuple(x) for x in cfg["flights"]]
+
+    # Si roster est vide → fallback sur InstinctJester
+    roster = cfg.get("roster") or ["InstinctJester"]
+
+    train_rl_policy(
+        cohort_name=cohort,
+        roster=roster,
+        method_name=method,
+        flights=flights,
+        Neps=50,
+        train_on_failures_only=True,
+        advantage_method="monte_carlo",
+    )
+
 @app.command("generate-rollouts")
 def generate_rollouts(
     config_file: Path = typer.Option(..., exists=True),

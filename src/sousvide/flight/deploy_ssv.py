@@ -36,7 +36,14 @@ from torchvision.io import write_video
 from torchvision.transforms import Resize
 from figs.simulator import Simulator
 import figs.utilities.trajectory_helper as th
-from figs.utilities.display_config import get_figure_display
+#from figs.utilities.display_config import get_figure_display
+try:
+    # Newer FiGS versions
+    from figs.utilities.display_config import get_figure_display
+except ModuleNotFoundError:
+    # Older FiGS versions: no display_config available → run headless
+    def get_figure_display() -> bool:
+        return False
 from figs.dynamics.model_specifications import generate_specifications
 # import figs.visualize.generate_videos as gv
 
@@ -118,7 +125,8 @@ def simulate_trajectory():
         Perturbations  = gd.generate_perturbations(
             Tsps=Trep,
             tXUi=tXUi,
-            trajectory_set_config=test_set_config
+            trajectory_set_config=trajectory_set_config
+            
         )
 
         for pilot_name in pilot_list:
@@ -521,7 +529,7 @@ def simulate_rollouts(
                     Perturbations = gd.generate_perturbations(
                         Tsps=Trep,
                         tXUi=tXUi,
-                        trajectory_set_config=test_set_config
+                        trajectory_set_config=trajectory_set_config
                     )
                     
                     # Store analysis results for this trajectory across all pilots
@@ -1136,7 +1144,7 @@ def simulate_roster(cohort_name:str,method_name:str,
         Perturbations  = gd.generate_perturbations(
             Tsps=Trep,
             tXUi=tXUi,
-            trajectory_set_config=test_set_config
+            trajectory_set_config=trajectory_set_config
         )
 
         for pilot_name in pilot_list:
