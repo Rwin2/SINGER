@@ -1,5 +1,6 @@
-#queries: ["green clock", "green and pink leafblower", "yellow handheld cordless drill on two boxes"]
-queries: ["ladder"]
+queries: ["green clock", "green and pink leafblower", "yellow handheld cordless drill on two boxes"]
+#queries: ["green and pink leafblower", "yellow handheld cordless drill on two boxes"]
+#queries: ["ladder"]
 # queries: ["mannequin", "textbook on stool", "water barrel"]
 # queries: ["mannequin", "water barrel", ""]
 # queries: ["mannequin", "water barrel"]
@@ -20,10 +21,9 @@ altitudes:
   # - -1.0
 
 similarities:
-  - [ 0.90, 0.025 ]  # threshold, filter radius
-  - [ 0.90, 0.025 ]
-  - [ 0.90, 0.025 ]
-  # - [ 0.90, 0.025 ]
+  - [ 0.90, 0.025 ]  # green clock — threshold baissé
+  - [ 0.90, 0.025 ]  # green and pink leafblower
+  - [ 0.90, 0.025 ]  # yellow handheld cordless drill
 
 nbranches:
   - 110

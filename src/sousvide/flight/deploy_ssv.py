@@ -242,7 +242,7 @@ def simulate_trajectory():
 
                     # save video with key in filename
                     key_vid_file = vid_file.replace('.mp4', f'_{key}.mp4')
-                    write_video(key_vid_file, frames, fps=20)
+                    import imageio; imageio.mimwrite(key_vid_file, frames.numpy().astype("uint8"), fps=20)
 
 
 
@@ -601,8 +601,7 @@ def simulate_rollouts(
                             # Simulate trajectory
                             Tro, Xro, Uro, Iro, Tsol, Adv = simulator.simulate(
                                 policy, perturbation["t0"], tXUi[0, -1], perturbation["x0"],
-                                np.zeros((18, 1)), query=obj_name, vision_processor=vision_processor, verbose=False,
-                                progress_callback=sim_progress_callback
+                                np.zeros((18, 1)), query=obj_name, vision_processor=vision_processor, verbose=False
                             )
                             
                             # Analyze trajectory performance
@@ -657,7 +656,7 @@ def simulate_rollouts(
                             
                             # Save video with key in filename
                             key_vid_file = vid_file.replace('.mp4', f'_{key}.mp4')
-                            write_video(key_vid_file, frames, fps=20)
+                            import imageio; imageio.mimwrite(key_vid_file, frames.numpy().astype("uint8"), fps=20)
                         
                         if not show_progress:
                             print(f"    Saved simulation results for pilot '{pilot_name}'")
@@ -1260,7 +1259,7 @@ def simulate_roster(cohort_name:str,method_name:str,
 
                     # save video with key in filename
                     key_vid_file = vid_file.replace('.mp4', f'_{key}.mp4')
-                    write_video(key_vid_file, frames, fps=20)
+                    import imageio; imageio.mimwrite(key_vid_file, frames.numpy().astype("uint8"), fps=20)
 
     # === 11) Final Summary Report ===
     print("\n" + "="*80)

@@ -146,12 +146,8 @@ def train_student(cohort_name:str,student:Pilot,
                 input,label = tuple(tensor.to(device) for tensor in input),label.to(device)
 
                 # Forward Pass
-                if use_energy_loss:
-                    energy_scores, _ = model(*input, oracle_command=label)
-                    loss = criterion(energy_scores, oracle_position=0)
-                else:
-                    prediction,_ = model(*input)
-                    loss = criterion(prediction,label)
+                prediction, _ = model(*input)
+                loss = criterion(prediction,label)
 
                 # Backward Pass
                 loss.backward()
@@ -174,12 +170,8 @@ def train_student(cohort_name:str,student:Pilot,
                 input,label = tuple(tensor.to(device) for tensor in input),label.to(device)
 
                 # Forward Pass
-                if use_energy_loss:
-                    energy_scores, _ = model(*input, oracle_command=label)
-                    loss = criterion(energy_scores, oracle_position=0)
-                else:
-                    prediction,_ = model(*input)
-                    loss = criterion(prediction,label)
+                prediction, _ = model(*input)
+                loss = criterion(prediction,label)
 
                 # Save loss logs
                 log_log_tt.append((label.shape[0],loss.item()))
