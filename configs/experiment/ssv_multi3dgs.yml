@@ -15,12 +15,12 @@ method: "rrt"
 review: false
 
 # Number of episodes for history/command training
-Nep_his: 3 #100
-Nep_com: 3 #150 #250 already done
+Nep_his: 100
+Nep_com: 150
 
 # DAgger parameters
-Nep_dagger: 10   # epochs per DAgger retraining iteration (real run: 50)
-lim_sv: 5        # save checkpoint every N epochs
+Nep_dagger: 50
+lim_sv: 10
 
 # Each entry is a (scene, course) pair
 flights:
