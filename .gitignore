@@ -72,3 +72,5 @@ __pycache__/
 # system
 .DS_Store
 
+figs_ocp_solver.json
+figs_sim_solver.json
