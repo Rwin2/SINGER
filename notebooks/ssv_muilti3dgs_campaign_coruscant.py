@@ -1,6 +1,6 @@
 import os
-os.environ["ACADOS_SOURCE_DIR"] = "/home/data/<username>/SousVide-Semantic/FiGS-Semantic/acados"
-os.environ["LD_LIBRARY_PATH"] = os.getenv("LD_LIBRARY_PATH", "") + "/home/data/<username>/SousVide-Semantic/FiGS-Semantic/acados/lib"
+os.environ["ACADOS_SOURCE_DIR"] = "/data/erwinpi/FiGS-Standalone/acados"
+os.environ["LD_LIBRARY_PATH"] = os.getenv("LD_LIBRARY_PATH", "") + ":/data/erwinpi/FiGS-Standalone/acados/lib"
 os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"  # Disable Albumentations update check
 
 import typer
@@ -61,13 +61,17 @@ def common_options(
     use_wandb: bool,
     wandb_project: Optional[str],
     wandb_run_name: Optional[str],
+    wandb_run_id: Optional[str] = None,
+    wandb_resume: Optional[str] = "allow",
 ) -> dict:
     cfg = load_yaml(config_file)
     cfg.update({
-        "plot": plot,
-        "use_wandb": use_wandb,
-        "wandb_project": wandb_project,
+        "plot":           plot,
+        "use_wandb":      use_wandb,
+        "wandb_project":  wandb_project,
         "wandb_run_name": wandb_run_name,
+        "wandb_run_id":   wandb_run_id,
+        "wandb_resume":   wandb_resume,
     })
     return cfg
 
@@ -112,7 +116,7 @@ def _log_figures_to_wandb(prefix: str) -> None:
         pil_img = Image.open(buf)
         logs[f"{prefix}_plotly_png_{i}"] = wandb.Image(pil_img)
 
-    wandb.log(logs)
+    if wandb.run is not None: wandb.log(logs)
     plt.close("all")
     _all_plotly_figs.clear()
 
@@ -169,7 +173,7 @@ def generate_rollouts(
     if cfg["plot"]:
         fig = ps.plot_rollout_data(cfg["cohort"])
         if cfg["use_wandb"]:
-            wandb.log({"rollout_plot": fig})
+            if wandb.run is not None: wandb.log({"rollout_plot": fig})
 
 
 @app.command("generate-observations")
@@ -192,7 +196,7 @@ def generate_observations(
     if cfg["plot"]:
         fig = ps.plot_observation_data(cfg["cohort"], cfg["roster"])
         if cfg["use_wandb"]:
-            wandb.log({"observation_plot": fig})
+            if wandb.run is not None: wandb.log({"observation_plot": fig})
 
 
 @app.command("train-history")
@@ -212,7 +216,7 @@ def train_history(
     if cfg["plot"]:
         fig = pl.plot_losses(cfg["cohort"], cfg["roster"], "Parameter")
         if cfg["use_wandb"]:
-            wandb.log({"history_loss_plot": fig})
+            if wandb.run is not None: wandb.log({"history_loss_plot": fig})
 
 
 @app.command("train-command")
@@ -234,48 +238,30 @@ def train_command(
     if cfg["plot"]:
         fig = pl.plot_losses(cfg["cohort"], cfg["roster"], "Commander")
         if cfg["use_wandb"]:
-            wandb.log({"command_loss_plot": fig})
+            if wandb.run is not None: wandb.log({"command_loss_plot": fig})
 
 
-@app.command("train-dagger")
+@app.command("dagger")
 def train_dagger(
     config_file: Path = typer.Option(..., exists=True),
     n_iterations: int = typer.Option(5, help="Nombre d'itérations DAgger"),
-    beta_start: float = typer.Option(
-        1.0, help="Mix expert initial (1.0 = full expert, 0.0 = full pilot)"
-    ),
-    beta_decay: float = typer.Option(
-        0.5, help="Facteur de décroissance de β par itération"
-    ),
-    collision_threshold: float = typer.Option(
-        0.15, help="Rayon de détection de collision (m)"
-    ),
-    drift_threshold: float = typer.Option(
-        2.0, help="Distance max de dérive par rapport à la trajectoire de référence (m)"
-    ),
+    beta_start: float = typer.Option(1.0),
+    beta_decay: float = typer.Option(0.5),
+    collision_threshold: float = typer.Option(0.15),
+    drift_threshold: float = typer.Option(2.0),
     plot: bool = typer.Option(False),
     use_wandb: bool = typer.Option(False),
     wandb_project: Optional[str] = typer.Option(None),
     wandb_run_name: Optional[str] = typer.Option(None),
-    wandb_run_id: Optional[str] = typer.Option(None, help="Existing W&B run ID to resume"),
-    wandb_resume: Optional[str] = typer.Option("allow", help="resume mode: allow|must"),
+    wandb_run_id: Optional[str] = typer.Option(None),
+    wandb_resume: Optional[str] = typer.Option("allow"),
 ):
-    """
-    Entraînement DAgger (Dataset Aggregation) :
-    agrégation itérative de corrections expert sur les états visités par le Pilot.
-    Réduit les collisions et les dérives par rapport au behavior cloning seul.
-
-    Pipeline par itération :
-      1. Pilot contrôle le drone avec mix (β * expert + (1-β) * pilot)
-      2. Expert MPC annote tous les états visités
-      3. Détection collision / dérive → forçage correction expert
-      4. Agrégation  D = D ∪ D_k
-      5. Re-entraînement du Commander sur D agrégé
-      6. β ← β * beta_decay  (pilot prend progressivement plus la main)
-    """
     from sousvide.instruct.train_dagger import train_dagger_policy
 
-    cfg = common_options(config_file, plot, use_wandb, wandb_project, wandb_run_name)
+    cfg = common_options(
+        config_file, plot, use_wandb, wandb_project, wandb_run_name,
+        wandb_run_id=wandb_run_id, wandb_resume=wandb_resume,
+    )
     init_wandb(cfg, "train_dagger")
 
     typer.echo("=" * 70)
@@ -283,6 +269,7 @@ def train_dagger(
     typer.echo(f"         β initial  : {beta_start}  |  decay : {beta_decay}")
     typer.echo(f"         collision  : {collision_threshold} m")
     typer.echo(f"         dérive max : {drift_threshold} m")
+    typer.echo(f"         W&B        : {'ON  → ' + cfg.get('wandb_project','') if use_wandb else 'OFF'}")
     typer.echo("=" * 70)
 
     all_metrics = train_dagger_policy(
@@ -296,6 +283,9 @@ def train_dagger(
         collision_threshold=collision_threshold,
         drift_threshold=drift_threshold,
         Nep_per_iter=cfg.get("Nep_dagger", 50),
+        use_wandb=cfg.get("use_wandb", False),
+        wandb_project=cfg.get("wandb_project", "singer-dagger"),
+        wandb_run_name=cfg.get("wandb_run_name", "dagger"),
         lim_sv=cfg.get("lim_sv", 10),
     )
 
@@ -315,23 +305,14 @@ def train_dagger(
                 f"  {m['success_rate']:>8.1%}"
             )
 
-    # ── W&B ──────────────────────────────────────────────────────────────────
-    if cfg.get("use_wandb") and all_metrics:
-        import numpy as np
-
-        for pilot_name, iter_metrics in all_metrics.items():
-            for m in iter_metrics:
-                wandb.log({
-                    f"dagger/{pilot_name}/beta":             m["beta"],
-                    f"dagger/{pilot_name}/collision_rate":   m["collision_rate"],
-                    f"dagger/{pilot_name}/drift_rate":       m["drift_rate"],
-                    f"dagger/{pilot_name}/success_rate":     m["success_rate"],
-                    f"dagger/{pilot_name}/total_rollouts":   m["total_rollouts"],
-                    "dagger/iteration":                       m["iteration"],
-                })
-
+    if cfg.get("use_wandb"):
         if plot:
-            _log_figures_to_wandb("dagger")
+            _log_figures_to_wandb("dagger_summary")
+        try:
+            import wandb
+            wandb.finish()
+        except Exception:
+            pass
 
 
 @app.command()

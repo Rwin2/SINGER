@@ -109,14 +109,14 @@ def generate_rollouts(
             pil_img = Image.open(buf)
             logs[f"generate_rollout_plotly_png_{i}"] = wandb.Image(pil_img)
 
-        wandb.log(logs)
+        if wandb.run is not None: wandb.log(logs)
         plt.close("all")
         _all_plotly_figs.clear()
 
     if cfg["plot"]:
         fig = ps.plot_rollout_data(cfg["cohort"])
         if cfg["use_wandb"]:
-            wandb.log({"rollout_plot": fig})
+            if wandb.run is not None: wandb.log({"rollout_plot": fig})
 
 @app.command("generate-observations")
 def generate_observations(
@@ -138,7 +138,7 @@ def generate_observations(
     if cfg["plot"]:
         fig = ps.plot_observation_data(cfg["cohort"], cfg["roster"])
         if cfg["use_wandb"]:
-            wandb.log({"observation_plot": fig})
+            if wandb.run is not None: wandb.log({"observation_plot": fig})
 
 @app.command("train-history")
 def train_history(
@@ -158,7 +158,7 @@ def train_history(
     if cfg["plot"]:
         fig = pl.plot_losses(cfg["cohort"], cfg["roster"], "Parameter")
         if cfg["use_wandb"]:
-            wandb.log({"history_loss_plot": fig})
+            if wandb.run is not None: wandb.log({"history_loss_plot": fig})
 
 @app.command("train-command")
 def train_command(
@@ -181,7 +181,7 @@ def train_command(
     if cfg["plot"]:
         fig = pl.plot_losses(cfg["cohort"], cfg["roster"], "Commander")
         if cfg["use_wandb"]:
-            wandb.log({"command_loss_plot": fig})
+            if wandb.run is not None: wandb.log({"command_loss_plot": fig})
 
 @app.command("train-rl")
 def train_rl(
@@ -263,7 +263,7 @@ def train_rl(
     if cfg["plot"]:
         fig = pl.plot_rl_losses(cfg["cohort"], cfg["roster"])
         if cfg["use_wandb"]:
-            wandb.log({"rl_loss_plot": fig})
+            if wandb.run is not None: wandb.log({"rl_loss_plot": fig})
 
 @app.command()
 def simulate(
@@ -299,7 +299,7 @@ def simulate(
             pil_img = Image.open(buf)
             logs[f"simulate_plotly_png_{i}"] = wandb.Image(pil_img)
 
-        wandb.log(logs)
+        if wandb.run is not None: wandb.log(logs)
         plt.close("all")
         _all_plotly_figs.clear()
 
@@ -412,7 +412,7 @@ def debug_trajectory(
             pil_img = Image.open(buf)
             logs[f"debug_plotly_png_{i}"] = wandb.Image(pil_img)
 
-        wandb.log(logs)
+        if wandb.run is not None: wandb.log(logs)
         plt.close("all")
         _all_plotly_figs.clear()
 

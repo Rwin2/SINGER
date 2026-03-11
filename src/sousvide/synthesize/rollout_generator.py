@@ -10,7 +10,7 @@ import re
 from scipy.spatial.transform import Rotation as R, Slerp
 
 from typing import Dict,Union,Tuple,List,Optional
-from tqdm.notebook import trange
+from tqdm.auto import trange
 from tqdm import tqdm
 
 import figs.utilities.trajectory_helper as th
@@ -278,11 +278,6 @@ def generate_rollout_data(cohort_name:str,method_name:str,
 #                                     pickle.dump(combined_data, f)
 
 #                                 import sousvide.flight.deploy_ssv as df
-#                                 df.simulate_roster(cohort_name=cohort_name,
-#                                                    method_name=method_name,
-#                                                    flights=flights,
-#                                                    roster=[],
-#                                                    review=True,
 #                                                    filename=combined_file
 #                                                    )
 #                             loiter_id += 1
@@ -672,8 +667,14 @@ def rollout_trajectories(all_trajectories, objectives, Nro_tp,
                 cohort_path, course_name,
                 validation_mode=False):
 
-    orig_courses = [c.replace("loiter_", "") for c in objectives.keys()]
-    orig_name = dict(zip(orig_courses, objectives))
+    # FIX #2 & #4 : construire orig_name correctement
+    # objectives est un dict {course_key: query_string}
+    # les clés loiter_* doivent pointer vers la même query que leur base
+    orig_name = {}
+    for course_key, query in objectives.items():
+        orig_name[course_key] = query
+        loiter_key = f"loiter_{course_key}"
+        orig_name[loiter_key] = query   # même query pour loiter
 
     total_batches = sum(
         len(compute_batches(tXUi,
@@ -686,22 +687,25 @@ def rollout_trajectories(all_trajectories, objectives, Nro_tp,
 
     with tqdm(total=total_batches, desc="Rollout Data Batches") as pbar:
         for course in all_trajectories:
-            base = course[len("loiter_"):] if course.startswith("loiter_") else course
             is_loiter = course.startswith("loiter_")
             reps = Nro_tp
 
+            # FIX #2 : utiliser orig_name avec la clé complète (loiter_ inclus)
+            query = orig_name.get(course)
+            if query is None:
+                print(f"[WARN] Clé '{course}' absente de orig_name, ignorée.")
+                continue
+
             print(f"Preparing {reps * len(all_trajectories[course])} samples "
-                  f"for course '{course}', query: {orig_name[base]}")
+                  f"for course '{course}', query: {query}")
 
             for traj_idx, tXUi in enumerate(all_trajectories[course]):
                 for _batch in compute_batches(tXUi, reps, Tdt_ro, Ntp_sc, Nro_sv, validation_mode=validation_mode):
-                    # shared frame generation
                     Frames = generate_frames(
                         Tsps=Trep,
                         base_frame_config=base_frame_config,
                         frame_set_config=frame_set_config
                     )
-                    # pick correct perturbation config
                     cfg = loiter_set_config if is_loiter else trajectory_set_config
                     Perturbations = generate_perturbations(
                         Tsps=Trep,
@@ -709,11 +713,10 @@ def rollout_trajectories(all_trajectories, objectives, Nro_tp,
                         trajectory_set_config=cfg
                     )
 
-                    # actual rollout + save
                     Trajectories, Images, Img_data = generate_rollouts(
                         simulator, sample_set_config,
                         tXUd=tXUi,
-                        objective=orig_name[base],
+                        objective=query,      # FIX #2 : query correcte
                         policy_config=policy_config,
                         Frames=Frames,
                         Perturbations=Perturbations,
@@ -940,47 +943,40 @@ def generate_perturbations(Tsps:np.ndarray|None=None,
         Perturbations:          List of perturbations (dictionary format).
     """
 
-    # Sample Count
     Nsps = len(Tsps)
-
-    # Set random number generator seed
     if rng_seed is not None:
         np.random.seed(rng_seed)
     
-    # Unpack the config
-    w_x0 = np.array(trajectory_set_config["initial"],dtype=float)
+    w_x0 = np.array(trajectory_set_config["initial"], dtype=float)
     
-    # Get ideal trajectory for quaternion checking
-    if Tpd is not None:
-        tXUd = th.TS_to_tXU(Tpd,CPd,None,10)
+    # FIX #3 : ne pas appeler TS_to_tXU si CPd est None (mode RRT)
+    if Tpd is not None and CPd is not None:
+        tXUd = th.TS_to_tXU(Tpd, CPd, None, 10)
     elif tXUi is not None:
         tXUd = copy.deepcopy(tXUi)
-        Tpd = tXUd[0]
+        Tpd  = tXUd[0]
+    else:
+        raise ValueError("generate_perturbations: fournir soit (Tpd+CPd) soit tXUi.")
 
-    # Generate perturbed starting points    
     Perturbations = []
     for i in range(Nsps):
-        # Sample random start time and get corresponding state vector sample
-        t0 = Tsps[i]
+        t0   = Tsps[i]
         idx0 = np.where(Tpd <= t0)[0][-1]
-        idx0 = min(idx0,(len(Tpd)-2))
-        t00,t0f = Tpd[idx0],Tpd[idx0 + 1]
+        idx0 = min(idx0, len(Tpd) - 2)
+        t00, t0f = Tpd[idx0], Tpd[idx0 + 1]
 
         if CPd is not None:
-            x0s = th.ts_to_xu(t0-t00,t0f-t00,CPd[idx0,:,:],None)
+            x0s = th.ts_to_xu(t0 - t00, t0f - t00, CPd[idx0, :, :], None)
         else:
-            x0s = tXUd[1:11,idx0]
-        
-        # Perturb state vector sample
-        w0 = np.random.uniform(w_x0[0,:],w_x0[1,:])
-        x0 = x0s + w0
-        
-        # Ensure quaternion is well-behaved (magnitude and closest to previous)
-        idxr = np.where(tXUd[0,:] <= t0)[0][-1]
-        x0[6:10] = th.obedient_quaternion(x0[6:10],tXUd[7:11,idxr])
+            x0s = tXUd[1:11, idx0]
 
-        # Store perturbation in list
-        perturbation = {"t0":t0,"x0":x0}
+        w0 = np.random.uniform(w_x0[0, :], w_x0[1, :])
+        x0 = x0s + w0
+
+        idxr     = np.where(tXUd[0, :] <= t0)[0][-1]
+        x0[6:10] = th.obedient_quaternion(x0[6:10], tXUd[7:11, idxr])
+
+        perturbation = {"t0": t0, "x0": x0}
         Perturbations.append(perturbation)
     
     return Perturbations
@@ -1059,7 +1055,7 @@ def generate_rollouts(
             Tro, Xro, Uro, Imgs, Tsol, Adv = sim.simulate(
                 ctl, t0, tf, x0,
                 query=objective,
-                clipseg=vision_processor,
+                vision_processor=vision_processor,
                 validation=validation_mode
             )
 
@@ -1119,51 +1115,45 @@ def generate_rollouts(
 
         return Trajectories, Images, Image_Data
     else:
-        # Unpack the trajectory
-        Tpi,CPi = ms.solve(course_config)
-        obj = sh.ts_to_obj(Tpi,CPi)
-        tXUd = th.TS_to_tXU(Tpi,CPi,None,10)
+        # FIX #5 : retourner 3 valeurs pour cohérence avec tous les appelants
+        Tpi, CPi = ms.solve(course_config)
+        obj  = sh.ts_to_obj(Tpi, CPi)
+        tXUd = th.TS_to_tXU(Tpi, CPi, None, 10)
         
-        # Initialize rollout variables
-        Trajectories,Images = [],[]
+        Trajectories, Images, Image_Data = [], [], []
 
-        # Rollout the trajectories
-        for idx,(frame_config,perturbation) in enumerate(zip(Frames,Perturbations)):
-            # Unpack rollout variables
-            t0,x0 = perturbation["t0"],perturbation["x0"]
+        for idx, (frame_config, perturbation) in enumerate(zip(Frames, Perturbations)):
+            t0, x0 = perturbation["t0"], perturbation["x0"]
             tf = t0 + Tdt_ro
 
-            # Load the simulation variables
             sim.load_frame(frame_config)
-            ctl = VehicleRateMPC(course_config,policy_config,frame_config)
+            ctl = VehicleRateMPC(course_config, policy_config, frame_config)
             
-            # Simulate the flight
-            Tro,Xro,Uro,Imgs,Tsol,Adv = sim.simulate(ctl,t0,tf,x0)
+            Tro, Xro, Uro, Imgs, Tsol, Adv = sim.simulate(ctl, t0, tf, x0)
             
-            # Check if the rollout data is useful
-            err = np.min(np.linalg.norm(tXUd[1:4,:]-Xro[0:3,-1].reshape(-1,1),axis=0))
+            err = np.min(np.linalg.norm(tXUd[1:4, :] - Xro[0:3, -1].reshape(-1, 1), axis=0))
             if err < err_tol:
-                # Package the rollout data
                 trajectory = {
-                    "Tro":Tro,"Xro":Xro,"Uro":Uro,
-                    "tXUd":tXUd,"obj":obj,"Ndata":Uro.shape[1],"Tsol":Tsol,"Adv":Adv,
-                    "rollout_id":str(idx).zfill(5),
-                    "course":course_config["name"],
-                    "frame":frame_config}
-
-                images = {
-                    "images":Imgs,
-                    "rollout_id":str(idx).zfill(5),"course":course_config["name"]
+                    "Tro": Tro, "Xro": Xro, "Uro": Uro,
+                    "tXUd": tXUd, "obj": obj,
+                    "Ndata": Uro.shape[1],
+                    "Tsol": Tsol, "Adv": Adv,
+                    "rollout_id": str(idx).zfill(5),
+                    "course": course_config["name"],
+                    "frame": frame_config
                 }
-
-                # Store rollout data
+                images = {
+                    "images":     Imgs,
+                    "rollout_id": str(idx).zfill(5),
+                    "course":     course_config["name"]
+                }
                 Trajectories.append(trajectory)
                 Images.append(images)
 
-            # Clear policy
             del ctl
 
-        return Trajectories,Images
+        # FIX #5 : 3 valeurs retournées
+        return Trajectories, Images, Image_Data
 
 def save_rollouts(
     cohort_path: str,

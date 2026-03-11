@@ -396,6 +396,27 @@ class CLIPSegHFModel:
         log(f"CLIPSeg inference time: {end - start:.3f} seconds")
         return overlayed, scaled
 
+    def process(
+        self,
+        image: Union[Image.Image, np.ndarray],
+        prompt: str,
+        resize_output_to_input: bool = True,
+        use_refinement: bool = False,
+        use_smoothing: bool = False,
+        scene_change_threshold: float = 1.00,
+        verbose: bool = False
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Unified interface expected by Simulator. Delegates to clipseg_hf_inference."""
+        return self.clipseg_hf_inference(
+            image=image,
+            prompt=prompt,
+            resize_output_to_input=resize_output_to_input,
+            use_refinement=use_refinement,
+            use_smoothing=use_smoothing,
+            scene_change_threshold=scene_change_threshold,
+            verbose=verbose,
+        )
+
     def _make_overlay(self, frame_bgr: np.ndarray, mask_u8: np.ndarray) -> np.ndarray:
         overlay = frame_bgr.copy()
         color_img = np.zeros_like(frame_bgr)

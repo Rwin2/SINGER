@@ -289,9 +289,9 @@ def train_student(cohort_name:str,student:Pilot,
             }
             if use_energy_loss and loss_cem is not None and not np.isnan(loss_cem):
                 log_dict["test/epoch cem loss"] = loss_cem
-            wandb.log(log_dict)
+            if wandb.run is not None: wandb.log(log_dict)
         else:
-            wandb.log({
+            if wandb.run is not None: wandb.log({
                 "train/epoch loss": loss_train,
                 "test/epoch loss": loss_tests,
                 "epoch": ep,

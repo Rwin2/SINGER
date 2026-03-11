@@ -4,7 +4,7 @@ import time
 import torch
 from torch import NoneType, nn
 from torch.utils.data import DataLoader,Dataset
-from tqdm.notebook import trange
+from tqdm.auto import trange
 from sousvide.control.pilot import Pilot
 from typing import List,Tuple,Literal,Union,Dict,Callable
 from enum import Enum

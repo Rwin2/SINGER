@@ -193,7 +193,7 @@ def train_student(cohort_name:str,student:Pilot,
 
             # Log losses to wandb
             if bool(od_val_files) and bool(od_rol_files):
-                wandb.log({
+                if wandb.run is not None: wandb.log({
                     "train/epoch loss": loss_train,
                     "test/epoch loss": loss_tests,
                     "test/epoch validation loss": loss_validation,
@@ -201,21 +201,21 @@ def train_student(cohort_name:str,student:Pilot,
                     "epoch": ep,
                 })
             elif bool(od_val_files):
-                wandb.log({
+                if wandb.run is not None: wandb.log({
                     "train/epoch loss": loss_train,
                     "test/epoch loss": loss_tests,
                     "test/epoch validation_loss": loss_validation,
                     "epoch": ep,
                 })
             elif bool(od_rol_files):
-                wandb.log({
+                if wandb.run is not None: wandb.log({
                     "train/epoch loss": loss_train,
                     "test/epoch loss": loss_tests,
                     "test/epoch rollout loss:": loss_rollouts,
                     "epoch": ep,
                 })
             else:
-                wandb.log({
+                if wandb.run is not None: wandb.log({
                     "train/epoch loss": loss_train,
                     "test/epoch loss": loss_tests,
                     "epoch": ep,

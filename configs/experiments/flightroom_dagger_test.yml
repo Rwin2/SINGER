@@ -1,0 +1,18 @@
+cohort: "20250912_143711_45_HARD"
+method: "rrt"
+roster:
+  - "InstinctJester"
+
+flights:
+  - ["flightroom_ssv_exp", "green clock"]
+  - ["flightroom_ssv_exp", "green and pink leafblower"]
+  - ["flightroom_ssv_exp", "yellow handheld cordless drill on two boxes"]
+
+# DAgger params — minimal for smoke test
+Nep_dagger: 5        # 5 epochs (vs 50 in production)
+lim_sv: 10
+
+# W&B
+use_wandb: true
+wandb_project: "singer-dagger"
+wandb_run_name: "dagger_test_smoke"

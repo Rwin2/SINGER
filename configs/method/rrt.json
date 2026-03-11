@@ -10,7 +10,8 @@
         "rrt_mode": true,
         "loitering": false,
         "clipseg": true,
-        "videoMode": true
+        "videoMode": true,
+        "vision_processor_type": "clipseg"
     },
     "trajectory_set":{
         "initial": [

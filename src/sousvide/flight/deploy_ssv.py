@@ -363,6 +363,9 @@ def simulate_rollouts(
             scene_cfg["visualize"] = False
         
         objectives = objectives_all[scene_name]
+        # FIX: extraire la liste queries si dict complet passé
+        if isinstance(objectives, dict):
+            objectives = objectives["queries"]
         radii = scene_cfg["radii"]
         altitudes = scene_cfg["altitudes"]
         similarities = scene_cfg.get("similarities", None)
