@@ -1,0 +1,16 @@
+cohort: "ssv_dagger_rrt"
+method: "rrt"
+
+review: false
+
+Nep_his: 100
+Nep_com: 150
+
+Nep_dagger: 50
+lim_sv: 10
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"
