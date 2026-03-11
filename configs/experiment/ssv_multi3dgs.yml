@@ -15,12 +15,12 @@ method: "rrt"
 review: false
 
 # Number of episodes for history/command training
-Nep_his: 3 #100
-Nep_com: 3 #150
+Nep_his: 100
+Nep_com: 150
 
 # DAgger parameters
-Nep_dagger: 3 #50
-lim_sv: 1 #10
+Nep_dagger: 50
+lim_sv: 10
 
 # Each entry is a (scene, course) pair
 flights:
