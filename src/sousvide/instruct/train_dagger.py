@@ -23,6 +23,8 @@ from figs.simulator import Simulator
 from figs.control.vehicle_rate_mpc import VehicleRateMPC
 import figs.tsampling.build_rrt_dataset as bd
 
+from sousvide.instruct.expert_controllers import PotentialFieldExpert, OnlineRRTExpert
+
 from sousvide.control.pilot import Pilot
 import sousvide.instruct.train_policy as tp
 from sousvide.flight.deploy_ssv import simulate_rollouts
@@ -471,6 +473,61 @@ def _extract_metrics_from_analyses(analyses: list, point_cloud) -> dict:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Per-iteration full-trajectory evaluation (no model swap, no rrt_backup)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _eval_full_trajectories(
+    pilot,
+    flights: list,
+    scenes_cfg_dir: str,
+    label: str = "eval",
+    vision_processor=None,
+) -> dict:
+    """
+    Run one full-trajectory simulation per object (t0→tf from PKL) and return
+    per-object {goal_dist, success}.  Reuses _SCENE_CACHE / _PKL_CACHE so no
+    gsplat reload.  Used for honest per-iteration progress tracking.
+    """
+    results = {}
+    for scene_name, _ in flights:
+        scene_data  = _get_scene(scene_name, scenes_cfg_dir)
+        simulator   = scene_data["simulator"]
+        obj_targets = scene_data["obj_targets"]
+        queries     = scene_data["queries"]
+
+        for obj_idx, obj_name in enumerate(queries):
+            pkl_data = _get_pkl(scene_name, obj_name, scenes_cfg_dir)
+            if pkl_data is None:
+                continue
+            tXUi = pkl_data["tXUi"]
+            obj_target = (
+                obj_targets[obj_idx] if obj_idx < len(obj_targets)
+                else pkl_data.get("obj_loc", np.zeros(3))
+            )
+
+            t0 = float(tXUi[0, 0])
+            tf = float(tXUi[0, -1])
+            x0 = tXUi[1:11, 0].copy()
+
+            _t = time.time()
+            result = simulator.simulate(
+                policy=pilot, t0=t0, tf=tf, x0=x0,
+                obj=np.zeros((18, 1)), query=obj_name,
+                vision_processor=vision_processor, verbose=False,
+            )
+            Xro = result[1]
+            goal_dist = float(np.linalg.norm(Xro[:3, -1] - obj_target))
+            success   = goal_dist < 2.0
+            status    = "✓" if success else "✗"
+            print(f"  [{label}] {status}  '{obj_name}'  "
+                  f"goal_dist={goal_dist:.2f}m  ({time.time()-_t:.1f}s)")
+            results[obj_name] = {"goal_dist": goal_dist, "success": success}
+
+        torch.cuda.empty_cache()
+    return results
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Collecte rollout DAgger
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -535,22 +592,29 @@ def _collect_dagger_rollout(
     if pc.shape[0] > 0:
         pc_t  = torch.from_numpy(pc).float().to(DEVICE)
         Xro_t = torch.from_numpy(Xro[:3].T).float().to(DEVICE)
-        T     = min(Xro_t.shape[0], tXUi.shape[1])
+        T     = Xro_t.shape[0]
 
         dists           = torch.cdist(Xro_t, pc_t)
         collision_steps = (dists < collision_threshold).any(dim=1)\
                           .nonzero(as_tuple=True)[0].cpu().tolist()
 
-        ref_t       = torch.from_numpy(tXUi[1:4, :T].T).float().to(DEVICE)
+        # FIX: align reference slice to window start (idx0), not t=0.
+        # Without this, windows starting mid-trajectory compare the drone's
+        # positions against the reference at t=0, which is always wrong.
+        ref_end = min(idx0 + T, tXUi.shape[1])
+        ref_len = ref_end - idx0
+        ref_t   = torch.from_numpy(tXUi[1:4, idx0:ref_end].T).float().to(DEVICE)
+        T_drift = min(T, ref_len)
         drift_steps = (
-            torch.norm(Xro_t[:T] - ref_t[:T], dim=1) > drift_threshold
+            torch.norm(Xro_t[:T_drift] - ref_t[:T_drift], dim=1) > drift_threshold
         ).nonzero(as_tuple=True)[0].cpu().tolist()
 
         del pc_t, Xro_t, dists, ref_t
         torch.cuda.empty_cache()
     else:
         for i, x in enumerate(Xro.T):
-            ref = tXUi[1:4, min(i, tXUi.shape[1] - 1)]
+            # FIX: offset reference index by idx0 for window alignment
+            ref = tXUi[1:4, min(idx0 + i, tXUi.shape[1] - 1)]
             if np.linalg.norm(x[:3] - ref) > drift_threshold:
                 drift_steps.append(i)
 
@@ -725,6 +789,44 @@ def _print_benchmark_comparison(before: dict, after: dict, pilot_name: str) -> N
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Expert factory
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _make_expert(
+    expert_type: str,
+    tXUi:        np.ndarray,
+    obj_target:  np.ndarray,
+    obj_idx:     int,
+    scene_data:  dict,
+    scene_cfg:   dict,
+    policy_name: str,
+    frame_name:  str,
+    pilot_name:  str,
+):
+    """
+    Return the expert controller for this DAgger iteration segment.
+      "mpc"       – original VehicleRateMPC (recovery-to-reference)
+      "potential" – PotentialFieldExpert   (goal-seeking + obstacle avoidance)
+      "rrt"       – OnlineRRTExpert        (RRT* replanning + pure-pursuit)
+    """
+    if expert_type == "potential":
+        return PotentialFieldExpert(
+            goal=obj_target,
+            point_cloud=scene_data["epcds_arr"],
+        )
+    elif expert_type == "rrt":
+        return OnlineRRTExpert(
+            goal=obj_target,
+            point_cloud=scene_data["epcds_arr"],
+            scene_cfg=scene_cfg,
+            obj_idx=obj_idx,
+            replan_interval=2.0,
+        )
+    else:   # "mpc" — default, original behaviour
+        return VehicleRateMPC(tXUi, policy_name, frame_name, pilot_name)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Fonction principale DAgger
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -733,9 +835,9 @@ def train_dagger_policy(
     method_name: str,
     roster: List[str],
     flights: List[Tuple[str, str]],
-    n_iterations: int          = 5,
-    beta_start: float          = 1.0,
-    beta_decay: float          = 0.5,
+    n_iterations: int          = 10,
+    beta_start: float          = 0.7,
+    beta_decay: float          = 0.85,
     collision_threshold: float = 0.15,
     drift_threshold: float     = 2.0,
     Nep_per_iter: int          = 50,
@@ -745,6 +847,7 @@ def train_dagger_policy(
     use_wandb: bool            = False,
     wandb_project: str         = "singer-dagger",
     wandb_run_name: str        = "dagger",
+    expert_type: str           = "mpc",
 ) -> dict:
 
     print(f"[DAgger] Device : {DEVICE}")
@@ -819,6 +922,7 @@ def train_dagger_policy(
         print(f"  Nep/iter     : {Nep_per_iter}")
         print(f"  collision_th : {collision_threshold} m")
         print(f"  drift_th     : {drift_threshold} m")
+        print(f"  expert_type  : {expert_type}")
 
         pilot = Pilot(cohort_name, pilot_name)
         pilot.set_mode("deploy")
@@ -885,10 +989,15 @@ def train_dagger_policy(
                         else pkl_data.get("obj_loc", np.zeros(3))
                     )
 
-                    # Build expert MPC once per object (ACADOS setup is expensive).
-                    # The same MPC is reused across all 2s windows of this trajectory.
-                    expert_mpc   = VehicleRateMPC(tXUi, _base_policy_name, _base_frame_name, pilot_name)
-                    mixed_policy = MixedPolicy(expert_mpc, pilot, beta)
+                    # Build expert once per object.
+                    # For "mpc": ACADOS setup is expensive → reused across all 2s windows.
+                    # For "potential"/"rrt": lightweight, also reused across windows.
+                    expert       = _make_expert(
+                        expert_type, tXUi, obj_target, obj_idx,
+                        scene_data, objective_configs[scene_name],
+                        _base_policy_name, _base_frame_name, pilot_name,
+                    )
+                    mixed_policy = MixedPolicy(expert, pilot, beta)
 
                     # Split trajectory into 2s windows — mirrors BC training (compute_batches).
                     t_traj_start = float(tXUi[0, 0])
@@ -956,15 +1065,49 @@ def train_dagger_policy(
             pilot.set_mode("deploy")
             pilot.model.to(DEVICE)
 
+            # ── Per-segment metrics (data-collection windows) ─────────────────
             m = _compute_dagger_metrics(all_rollouts, iteration, beta)
             all_metrics[pilot_name].append(m)
-            print(f"[DAgger] Itération {iteration} done in {time.time()-_t_iter:.1f}s"
-                  f"  collision={m['collision_rate']:.1%}"
+
+            # ── Full-trajectory evaluation after retrain ──────────────────────
+            # Runs one complete t0→tf sim per object — honest progress metric,
+            # not contaminated by window-alignment artefacts.
+            print(f"\n[DAgger] Full-traj eval after iter {iteration} retrain...")
+            _t_eval = time.time()
+            iter_eval = _eval_full_trajectories(
+                pilot, flights, scenes_cfg_dir,
+                label=f"iter{iteration:03d}",
+                vision_processor=vision_processor,
+            )
+            n_ok  = sum(1 for v in iter_eval.values() if v["success"])
+            n_tot = len(iter_eval)
+            print(f"[DAgger] Full-traj eval done in {time.time()-_t_eval:.1f}s  "
+                  f"{n_ok}/{n_tot} objects reached")
+            m["full_traj_eval"]    = iter_eval
+            m["full_traj_success"] = n_ok / max(n_tot, 1)
+
+            print(f"[DAgger] Itération {iteration} done in {time.time()-_t_iter:.1f}s")
+            print(f"  Segment metrics : collision={m['collision_rate']:.1%}"
                   f"  drift={m['drift_rate']:.1%}"
                   f"  success={m['success_rate']:.1%}")
+            print(f"  Full-traj ({n_ok}/{n_tot}) :", end="")
+            for obj_name, r in iter_eval.items():
+                s = "✓" if r["success"] else "✗"
+                print(f"  {s} {obj_name.split()[-1]}({r['goal_dist']:.1f}m)", end="")
+            print()
 
             if use_wandb:
                 _wandb_log_iteration(pilot_name, m, global_step)
+                try:
+                    import wandb
+                    if wandb.run is not None:
+                        wandb.log({
+                            f"dagger/{pilot_name}/full_traj_success": m["full_traj_success"],
+                            **{f"dagger/{pilot_name}/full_traj/{k.replace(' ','_')}":
+                               v["goal_dist"] for k, v in iter_eval.items()},
+                        }, step=global_step)
+                except Exception:
+                    pass
 
             global_step += 1
             beta *= beta_decay

@@ -244,11 +244,12 @@ def train_command(
 @app.command("dagger")
 def train_dagger(
     config_file: Path = typer.Option(..., exists=True),
-    n_iterations: int = typer.Option(5, help="Nombre d'itérations DAgger"),
-    beta_start: float = typer.Option(1.0),
-    beta_decay: float = typer.Option(0.5),
+    n_iterations: int = typer.Option(10, help="Nombre d'itérations DAgger"),
+    beta_start: float = typer.Option(0.7),
+    beta_decay: float = typer.Option(0.85),
     collision_threshold: float = typer.Option(0.15),
     drift_threshold: float = typer.Option(2.0),
+    expert_type: str = typer.Option("mpc", help="Expert type: mpc | potential | rrt"),
     plot: bool = typer.Option(False),
     use_wandb: bool = typer.Option(False),
     wandb_project: Optional[str] = typer.Option(None),
@@ -287,6 +288,7 @@ def train_dagger(
         wandb_project=cfg.get("wandb_project", "singer-dagger"),
         wandb_run_name=cfg.get("wandb_run_name", "dagger"),
         lim_sv=cfg.get("lim_sv", 10),
+        expert_type=expert_type,
     )
 
     # ── Résumé terminal ───────────────────────────────────────────────────────
