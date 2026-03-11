@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict
 
+import time
+
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -124,6 +126,37 @@ def _preload_all_pkls(flights: List[Tuple[str, str]], scenes_cfg_dir: str) -> in
             if data is not None:
                 n += 1
     return n
+
+
+def _save_traj_plot(Tro: np.ndarray, Xro: np.ndarray, Uro, save_path: str, title: str = "") -> None:
+    """Save spatial + time trajectory plots to disk. Non-blocking, closes figures after saving."""
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    try:
+        tXU = np.vstack([Tro[np.newaxis, :], Xro])
+        if Uro is not None:
+            tXU = np.vstack([tXU, Uro])
+
+        fig = plt.figure(figsize=(14, 5))
+        ax3d = fig.add_subplot(1, 2, 1, projection="3d")
+        ax3d.plot(Xro[0], Xro[1], Xro[2], "b-", linewidth=1.2)
+        ax3d.scatter(*Xro[:3, 0], c="g", s=40, zorder=5, label="start")
+        ax3d.scatter(*Xro[:3, -1], c="r", s=40, zorder=5, label="end")
+        ax3d.set_xlabel("X"); ax3d.set_ylabel("Y"); ax3d.set_zlabel("Z")
+        ax3d.set_title(title or save_path)
+        ax3d.legend(fontsize=7)
+
+        ax2 = fig.add_subplot(1, 2, 2)
+        ax2.plot(Tro, Xro[0], label="x"); ax2.plot(Tro, Xro[1], label="y"); ax2.plot(Tro, Xro[2], label="z")
+        ax2.set_xlabel("t (s)"); ax2.set_ylabel("position (m)")
+        ax2.legend(fontsize=7); ax2.grid(True)
+
+        plt.tight_layout()
+        plt.savefig(save_path, dpi=90)
+        plt.close(fig)
+        print(f"  [plot] → {save_path}")
+    except Exception as e:
+        print(f"  [plot] WARNING: could not save plot: {e}")
+        plt.close("all")
 
 
 def _clear_caches():
@@ -349,7 +382,9 @@ def _run_benchmark_pilot(
             tf = float(tXUi[0, -1])
             x0 = tXUi[1:11, 0].copy()  # state is rows 1-10 (nx=10), not all 17 rows
 
-            print(f"  [{label}] simulate '{obj_name}'  tXUi={tXUi.shape}")
+            print(f"  [{label}] simulate '{obj_name}'  tXUi={tXUi.shape}  t=[{t0:.1f},{tf:.1f}]s  x0={x0[:3]}")
+            print(f"  [{label}]   → calling simulator.simulate() (first call may JIT-compile ~30-60s)...")
+            _t_sim = time.time()
 
             # FIX: signature correcte de Simulator.simulate()
             result = simulator.simulate(
@@ -360,10 +395,19 @@ def _run_benchmark_pilot(
                 obj=np.zeros((18, 1)),
                 query=obj_name,
                 vision_processor=None,
-                verbose=False,
+                verbose=True,
             )
             Tro, Xro = result[0], result[1]
             Uro = result[2] if len(result) > 2 else None
+            print(f"  [{label}]   ✅ simulate done in {time.time()-_t_sim:.1f}s  Tro={Tro.shape}  Xro={Xro.shape}")
+            _save_traj_plot(
+                Tro, Xro, Uro,
+                save_path=os.path.join(
+                    os.path.dirname(sim_base), "dagger_plots",
+                    f"{label}_{scene_name}_{obj_name.replace(' ','_')}.png",
+                ),
+                title=f"{label} | {scene_name} | {obj_name}",
+            )
 
             pc = scene_data["epcds_arr"]
             if isinstance(pc, list):
@@ -461,6 +505,9 @@ def _collect_dagger_rollout(
     t0 = t_start
     tf = t_end
 
+    print(f"  [rollout] ▶ '{obj_name}'  t=[{t0:.2f},{tf:.2f}]s  x0_pos={x0[:3]}  β={mixed_policy.beta:.3f}")
+    _t_rollout = time.time()
+
     # FIX: Simulator.simulate() retourne (Tro, Xro, Uro, ...)
     # signature: simulate(policy, t0, tf, x0, obj=None, query=None, vision_processor=None, ...)
     result = simulator.simulate(
@@ -476,6 +523,7 @@ def _collect_dagger_rollout(
     # simulate() retourne un tuple (Tro, Xro, Uro, ...) selon simulator.py
     Tro, Xro = result[0], result[1]
     Uro = result[2] if len(result) > 2 else None
+    print(f"  [rollout] ✅ simulate done in {time.time()-_t_rollout:.1f}s  Tro={Tro.shape}  annotations so far={len(mixed_policy.annotations)}")
 
     pc = (np.concatenate(point_cloud, axis=0)
           if isinstance(point_cloud, list) and len(point_cloud) > 0
@@ -807,7 +855,8 @@ def train_dagger_policy(
 
         # ── Boucle DAgger ─────────────────────────────────────────────────
         for iteration in range(n_iterations):
-            print(f"\n[DAgger] Itération {iteration}/{n_iterations-1}  β={beta:.3f}")
+            _t_iter = time.time()
+            print(f"\n[DAgger] ── Itération {iteration}/{n_iterations-1}  β={beta:.3f}  ({time.strftime('%H:%M:%S')})")
 
             all_rollouts, all_annotations = [], []
 
@@ -862,6 +911,14 @@ def train_dagger_policy(
                         )
                         all_rollouts.append(rollout)
                         all_annotations.extend(rollout["annotations"])
+                        _save_traj_plot(
+                            rollout["Tro"], rollout["Xro"], rollout["Uro"],
+                            save_path=os.path.join(
+                                dagger_dir, "plots",
+                                f"iter{iteration:03d}_{obj_name.replace(' ','_')}_seg{seg_idx:02d}.png",
+                            ),
+                            title=f"iter={iteration} β={beta:.2f} | {obj_name} seg {seg_idx}/{n_windows-1}",
+                        )
 
                         used  = torch.cuda.memory_allocated() / 1024**3
                         total = torch.cuda.get_device_properties(0).total_memory / 1024**3
@@ -875,14 +932,19 @@ def train_dagger_policy(
                         )
 
             # Agrégation
+            print(f"\n[DAgger] Aggregating {len(all_annotations)} new annotations...")
+            _t_agg = time.time()
             agg_data = _aggregate_dagger_dataset(all_annotations, aggregated_file)
             torch.save(agg_data, aggregated_file)
             torch.save(all_annotations,
                        os.path.join(dagger_dir, f"dagger_iter_{iteration:03d}.pt"))
-            print(f"  [agg] {len(agg_data)} samples → {aggregated_file}")
+            print(f"  [agg] {len(agg_data)} total samples → {aggregated_file}  ({time.time()-_t_agg:.1f}s)")
 
             # Re-entraînement
+            print(f"[DAgger] Retraining Commander  Nep={Nep_per_iter} lim_sv={lim_sv}...")
+            _t_retrain = time.time()
             _retrain_commander(cohort_name, pilot_name, aggregated_file, Nep_per_iter, lim_sv)
+            print(f"[DAgger] Retraining done in {time.time()-_t_retrain:.1f}s")
 
             # Recharger pilot avec nouveaux poids
             pilot = Pilot(cohort_name, pilot_name)
@@ -891,7 +953,8 @@ def train_dagger_policy(
 
             m = _compute_dagger_metrics(all_rollouts, iteration, beta)
             all_metrics[pilot_name].append(m)
-            print(f"  collision={m['collision_rate']:.1%}"
+            print(f"[DAgger] Itération {iteration} done in {time.time()-_t_iter:.1f}s"
+                  f"  collision={m['collision_rate']:.1%}"
                   f"  drift={m['drift_rate']:.1%}"
                   f"  success={m['success_rate']:.1%}")
 
