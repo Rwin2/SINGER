@@ -27,8 +27,8 @@ similarities:
 
 nbranches:
   - 20
-  - 20
-  - 20
+  #- 20
+  #- 20
   # - 110
 
 hoverMode: False
