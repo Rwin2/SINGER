@@ -1,0 +1,58 @@
+{
+  "before": {
+    "collision_rate": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "clearance_mean": [
+      NaN,
+      NaN,
+      NaN
+    ],
+    "fov_rate": [
+      NaN,
+      NaN,
+      NaN
+    ],
+    "return_sum": [
+      -0.6441901424329727,
+      -2.005324249306843,
+      -1.2267374331072607
+    ],
+    "traj_length": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "label": "before_dagger"
+  },
+  "after": {
+    "collision_rate": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "clearance_mean": [
+      NaN,
+      NaN,
+      NaN
+    ],
+    "fov_rate": [
+      NaN,
+      NaN,
+      NaN
+    ],
+    "return_sum": [
+      -1.9447219405902452,
+      -1.3645645351614284,
+      -2.571917215282677
+    ],
+    "traj_length": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "label": "after_dagger"
+  }
+}
