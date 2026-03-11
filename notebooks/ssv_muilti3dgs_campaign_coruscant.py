@@ -250,6 +250,7 @@ def train_dagger(
     collision_threshold: float = typer.Option(0.15),
     drift_threshold: float = typer.Option(2.0),
     expert_type: str = typer.Option("mpc", help="Expert type: mpc | potential | rrt"),
+    max_trajectories: int = typer.Option(10, help="Number of benchmark trajectories per evaluation"),
     plot: bool = typer.Option(False),
     use_wandb: bool = typer.Option(False),
     wandb_project: Optional[str] = typer.Option(None),
@@ -288,6 +289,7 @@ def train_dagger(
         wandb_project=cfg.get("wandb_project", "singer-dagger"),
         wandb_run_name=cfg.get("wandb_run_name", "dagger"),
         lim_sv=cfg.get("lim_sv", 10),
+        max_trajectories=max_trajectories,
         expert_type=expert_type,
     )
 
