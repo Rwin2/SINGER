@@ -14,3 +14,61 @@
 /outputs/
 *.md
 !README.md
+
+# =========================
+# ML / RL artifacts
+# =========================
+
+# checkpoints
+*.pt
+*.pth
+*.ckpt
+*.bin
+
+# serialized data
+*.pkl
+*.pickle
+*.joblib
+*.npy
+*.npz
+
+# videos
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# images
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# logs
+*.log
+logs/
+logs_smoke_test/
+
+# experiment outputs
+offline_cache/
+offline_runs/
+wandb/
+runs/
+outputs/
+
+# datasets / generated data
+data/
+datasets/
+cache/
+
+# python cache
+__pycache__/
+*.pyc
+
+# notebook checkpoints
+.ipynb_checkpoints/
+
+# system
+.DS_Store
+
