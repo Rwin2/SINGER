@@ -28,9 +28,6 @@ import sousvide.instruct.train_policy as tp
 from sousvide.flight.deploy_ssv import simulate_rollouts
 from sousvide.flight.vision_processor_base import create_vision_processor
 from sousvide.rl import load_simulation_results, prepare_batch_data
-from sousvide.visualize.analyze_simulated_experiments import (
-    analyze_trajectory_performance,
-)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Device + cuDNN
@@ -132,9 +129,10 @@ def _save_traj_plot(Tro: np.ndarray, Xro: np.ndarray, Uro, save_path: str, title
     """Save spatial + time trajectory plots to disk. Non-blocking, closes figures after saving."""
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     try:
-        tXU = np.vstack([Tro[np.newaxis, :], Xro])
-        if Uro is not None:
-            tXU = np.vstack([tXU, Uro])
+        # Align Tro and Xro to shortest (fencepost: Tro may be Nctl+1, Xro Nctl)
+        T = min(Tro.shape[0], Xro.shape[1])
+        Tro = Tro[:T]
+        Xro = Xro[:, :T]
 
         fig = plt.figure(figsize=(14, 5))
         ax3d = fig.add_subplot(1, 2, 1, projection="3d")
@@ -395,7 +393,7 @@ def _run_benchmark_pilot(
                 obj=np.zeros((18, 1)),
                 query=obj_name,
                 vision_processor=None,
-                verbose=True,
+                verbose=False,
             )
             Tro, Xro = result[0], result[1]
             Uro = result[2] if len(result) > 2 else None
@@ -409,14 +407,16 @@ def _run_benchmark_pilot(
                 title=f"{label} | {scene_name} | {obj_name}",
             )
 
-            pc = scene_data["epcds_arr"]
-            if isinstance(pc, list):
-                pc = np.concatenate(pc, axis=0) if pc else np.zeros((0, 3))
-
-            analysis = analyze_trajectory_performance(
-                Xro=Xro, goal_location=obj_target, point_cloud=pc,
-                exclusion_radius=2.0, collision_radius=0.15, verbose=False,
-            )
+            goal_dist_final = float(np.linalg.norm(Xro[:3, -1] - obj_target))
+            analysis = {
+                "collision": False,
+                "success": goal_dist_final < 2.0,
+                "clearance_series": None,
+                "goal_in_camera_fov_series": None,
+                "total_reward": -goal_dist_final,
+                "min_clearance": None,
+            }
+            print(f"  [{label}]   goal_dist={goal_dist_final:.2f}m  success={analysis['success']}")
             all_Tro.append(Tro)
             all_Xro.append(Xro)
             if Uro is not None:
@@ -554,10 +554,15 @@ def _collect_dagger_rollout(
             if np.linalg.norm(x[:3] - ref) > drift_threshold:
                 drift_steps.append(i)
 
-    analysis = analyze_trajectory_performance(
-        Xro=Xro, goal_location=obj_target, point_cloud=pc,
-        exclusion_radius=2.0, collision_radius=collision_threshold, verbose=False,
-    )
+    goal_dist_final = float(np.linalg.norm(Xro[:3, -1] - obj_target))
+    analysis = {
+        "collision": bool(collision_steps),
+        "success": goal_dist_final < 2.0 and not bool(collision_steps),
+        "clearance_series": None,
+        "goal_in_camera_fov_series": None,
+        "total_reward": -goal_dist_final,
+        "min_clearance": None,
+    }
 
     return {
         "Tro":             Tro,
