@@ -1,5 +1,5 @@
-#queries: ["green clock", "green and pink leafblower", "yellow handheld cordless drill on two boxes"]
-queries: ["green and pink leafblower"]
+queries: ["green clock", "green and pink leafblower", "yellow handheld cordless drill on two boxes"]
+#queries: ["green and pink leafblower"]
 #queries: ["ladder"]
 # queries: ["mannequin", "textbook on stool", "water barrel"]
 # queries: ["mannequin", "water barrel", ""]
@@ -26,9 +26,9 @@ similarities:
   - [ 0.90, 0.025 ]  # yellow handheld cordless drill
 
 nbranches:
-  - 20
-  #- 20
-  #- 20
+  - 110
+  - 110
+  - 110
   # - 110
 
 hoverMode: False
