@@ -133,7 +133,7 @@ class PotentialFieldExpert(_GeometricMixin):
         k_alt:     float = 1.0,
         k_alt_vel: float = 0.3,
     ) -> None:
-        self.goal      = np.array(goal[:3], dtype=float)
+        self.goal      = np.asarray(goal, dtype=float).ravel()[:3]
         self.hz        = 20
         self.nzcr      = None
         self.k_att     = k_att
@@ -237,7 +237,7 @@ class OnlineRRTExpert(_GeometricMixin):
         k_alt:            float        = 1.0,
         k_alt_vel:        float        = 0.3,
     ) -> None:
-        self.goal            = np.array(goal[:3], dtype=float)
+        self.goal            = np.asarray(goal, dtype=float).ravel()[:3]
         self.hz              = 20
         self.nzcr            = None
         self.k_yaw           = k_yaw
