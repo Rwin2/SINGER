@@ -352,16 +352,22 @@ def _run_benchmark_pilot(
     benchmark_seed: int,
     max_trajectories: int,
 ) -> dict:
+    """
+    Benchmark the pilot on max_trajectories start positions per object.
+    Uses the same uniform-sampling approach as _eval_full_trajectories so
+    all evaluation phases (before, per-iter, after) are comparable.
+    Benchmark seed ensures before/after use identical start positions.
+    """
     pilot = _swap_model(pilot, model_path)
 
     np.random.seed(benchmark_seed)
     torch.manual_seed(benchmark_seed)
 
-    all_Tro, all_Xro, all_Uro = [], [], []
     all_analyses = []
+    all_Tro, all_Xro, all_Uro = [], [], []
 
     for scene_name, _ in flights:
-        scene_data  = _get_scene(scene_name, scenes_cfg_dir)   # depuis cache
+        scene_data  = _get_scene(scene_name, scenes_cfg_dir)
         simulator   = scene_data["simulator"]
         obj_targets = scene_data["obj_targets"]
         queries     = scene_data["queries"]
@@ -371,63 +377,72 @@ def _run_benchmark_pilot(
             if pkl_data is None:
                 continue
 
-            tXUi = pkl_data["tXUi"]
+            tXUi       = pkl_data["tXUi"]
             obj_target = (
-                obj_targets[obj_idx]
-                if obj_idx < len(obj_targets)
+                obj_targets[obj_idx] if obj_idx < len(obj_targets)
                 else pkl_data.get("obj_loc", np.zeros(3))
             )
 
-            t0 = float(tXUi[0, 0])
+            t0 = float(tXUi[0,  0])
             tf = float(tXUi[0, -1])
-            x0 = tXUi[1:11, 0].copy()  # state is rows 1-10 (nx=10), not all 17 rows
+            T  = tf - t0
 
-            print(f"  [{label}] simulate '{obj_name}'  tXUi={tXUi.shape}  t=[{t0:.1f},{tf:.1f}]s  x0={x0[:3]}")
-            print(f"  [{label}]   → calling simulator.simulate() (first call may JIT-compile ~30-60s)...")
-            _t_sim = time.time()
+            # Sample max_trajectories start positions from the SECOND half of
+            # tXUi — unseen during BC training (per-iter eval uses first half).
+            # before/after both sample the same indices → fully comparable.
+            n_cols     = tXUi.shape[1]
+            half       = max(1, n_cols // 2)
+            start_idxs = np.linspace(half, n_cols - 1, max_trajectories, dtype=int)
 
-            # FIX: signature correcte de Simulator.simulate()
-            result = simulator.simulate(
-                policy=pilot,
-                t0=t0,
-                tf=tf,
-                x0=x0,
-                obj=np.zeros((18, 1)),
-                query=obj_name,
-                vision_processor=None,
-                verbose=False,
-            )
-            Tro, Xro = result[0], result[1]
-            Uro = result[2] if len(result) > 2 else None
-            print(f"  [{label}]   ✅ simulate done in {time.time()-_t_sim:.1f}s  Tro={Tro.shape}  Xro={Xro.shape}")
-            _save_traj_plot(
-                Tro, Xro, Uro,
-                save_path=os.path.join(
-                    os.path.dirname(sim_base), "dagger_plots",
-                    f"{label}_{scene_name}_{obj_name.replace(' ','_')}.png",
-                ),
-                title=f"{label} | {scene_name} | {obj_name}",
-            )
+            print(f"  [{label}] '{obj_name}'  {max_trajectories} runs  "
+                  f"t_dur={T:.1f}s  seed={benchmark_seed}")
+            for run_i, s_idx in enumerate(start_idxs):
+                x0      = tXUi[1:11, s_idx].copy()
+                t_start = float(tXUi[0, s_idx])
+                t_end   = t_start + T
 
-            goal_dist_final = float(np.linalg.norm(Xro[:3, -1] - obj_target))
-            analysis = {
-                "collision": False,
-                "success": goal_dist_final < 2.0,
-                "clearance_series": None,
-                "goal_in_camera_fov_series": None,
-                "total_reward": -goal_dist_final,
-                "min_clearance": None,
-            }
-            print(f"  [{label}]   goal_dist={goal_dist_final:.2f}m  success={analysis['success']}")
-            all_Tro.append(Tro)
-            all_Xro.append(Xro)
-            if Uro is not None:
-                all_Uro.append(Uro)
-            all_analyses.append(analysis)
+                _t_sim = time.time()
+                result  = simulator.simulate(
+                    policy=pilot, t0=t_start, tf=t_end, x0=x0,
+                    obj=np.zeros((18, 1)), query=obj_name,
+                    vision_processor=None, verbose=False,
+                )
+                Tro, Xro = result[0], result[1]
+                Uro = result[2] if len(result) > 2 else None
+
+                goal_dist = float(np.linalg.norm(Xro[:3, -1] - obj_target))
+                pc_bench = scene_data.get("epcds_arr", np.zeros((0,3)))
+                collided  = False
+                if pc_bench.shape[0] > 0:
+                    Xro_t  = torch.from_numpy(Xro[:3].T).float().to(DEVICE)
+                    pc_t   = torch.from_numpy(pc_bench).float().to(DEVICE)
+                    collided = bool((torch.cdist(Xro_t, pc_t) < 0.15).any().item())
+                    del Xro_t, pc_t
+                success   = goal_dist < 2.0 and not collided
+                status    = "✓" if success else ("💥" if collided else "✗")
+                print(f"  [{label}] {status}  '{obj_name[:20]}'  run {run_i+1}/{max_trajectories}"
+                      f"  goal_dist={goal_dist:.2f}m  coll={collided}  ({time.time()-_t_sim:.1f}s)")
+                analysis = {
+                    "collision":               collided,
+                    "success":                 success,
+                    "clearance_series":        None,
+                    "goal_in_camera_fov_series": None,
+                    "total_reward":            -goal_dist,
+                    "min_clearance":           None,
+                }
+                all_analyses.append(analysis)
+                all_Tro.append(Tro)
+                all_Xro.append(Xro)
+                if Uro is not None:
+                    all_Uro.append(Uro)
+
+            sr = sum(1 for a in all_analyses[-max_trajectories:] if a["success"]) / max_trajectories
+            gd = float(np.mean([-a["total_reward"] for a in all_analyses[-max_trajectories:]]))
+            print(f"  [{label}] ── '{obj_name[:25]}'  success={sr:.0%}  mean_goal_dist={gd:.2f}m")
 
         torch.cuda.empty_cache()
 
-    print(f"  [{label}] {len(all_analyses)} trajectories simulated")
+    print(f"  [{label}] {len(all_analyses)} total trajectories evaluated")
     metrics = _extract_metrics_from_analyses(all_analyses, scene_data["epcds_arr"])
     metrics["label"] = label
 
@@ -473,6 +488,223 @@ def _extract_metrics_from_analyses(analyses: list, point_cloud) -> dict:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Cross-cohort benchmark — compare multiple InstinctJester variants on the
+# exact same held-out start conditions (seed ≠ DAgger benchmark_seed).
+# ──────────────────────────────────────────────────────────────────────────────
+
+def run_cross_cohort_benchmark(
+    models: list,
+    flights: list,
+    scenes_cfg_dir: str,
+    benchmark_seed: int = 123,
+    max_trajectories: int = 50,
+    output_path: Optional[str] = None,
+) -> dict:
+    """
+    Evaluate multiple InstinctJester model variants on the **same** held-out
+    benchmark conditions and produce a clean comparison table.
+
+    Parameters
+    ----------
+    models : list of dicts, each with keys:
+        - "label"       : display name (e.g. "before_dagger", "after_potential", "after_rrt")
+        - "cohort"      : cohort name used to instantiate Pilot (e.g. "ssv_CLIPSEG_NORMAL")
+        - "pilot_name"  : roster name (e.g. "InstinctJester")
+        - "model_path"  : path to .pth weights to load into the pilot
+    flights       : same list-of-[scene, obj_query] as DAgger training
+    scenes_cfg_dir: path to configs/scenes/
+    benchmark_seed: integer seed — use a value DIFFERENT from the DAgger
+                    benchmark_seed (42) so these conditions are unseen.
+    max_trajectories: trajectories per object per model (sampled from the
+                    SECOND half of tXUi — held out from BC training).
+    output_path   : optional path to write a JSON summary.
+
+    Returns
+    -------
+    dict: {label: {obj_name: {goal_dist, success_rate, collision_rate}}}
+    """
+    print("\n" + "=" * 70)
+    print("[CrossBenchmark] Held-out cross-cohort comparison")
+    print(f"  seed={benchmark_seed}  n={max_trajectories} traj/obj  "
+          f"models={[m['label'] for m in models]}")
+    print("=" * 70 + "\n")
+
+    # Pre-load scenes (uses global _SCENE_CACHE — may already be warm)
+    for scene_name, _ in flights:
+        _get_scene(scene_name, scenes_cfg_dir)
+    _preload_all_pkls(flights, scenes_cfg_dir)
+
+    # Precompute shared start_idxs per (scene, obj) so EVERY model gets
+    # identical starting conditions.
+    np.random.seed(benchmark_seed)
+    torch.manual_seed(benchmark_seed)
+
+    shared_starts: Dict[str, np.ndarray] = {}  # key: f"{scene}_{obj}"
+    for scene_name, _ in flights:
+        scene_data = _get_scene(scene_name, scenes_cfg_dir)
+        queries    = scene_data["queries"]
+        for obj_name in queries:
+            key      = f"{scene_name}_{obj_name}"
+            pkl_data = _get_pkl(scene_name, obj_name, scenes_cfg_dir)
+            if pkl_data is None:
+                continue
+            tXUi   = pkl_data["tXUi"]
+            n_cols = tXUi.shape[1]
+            half   = max(1, n_cols // 2)
+            shared_starts[key] = np.linspace(
+                half, n_cols - 1, max_trajectories, dtype=int
+            )
+
+    all_results: dict = {}
+
+    for model_cfg in models:
+        label       = model_cfg["label"]
+        cohort      = model_cfg["cohort"]
+        pilot_name  = model_cfg["pilot_name"]
+        model_path  = model_cfg["model_path"]
+
+        print(f"\n[CrossBenchmark] ▶ {label}")
+        print(f"  cohort={cohort}  pilot={pilot_name}  weights={model_path}")
+
+        pilot = Pilot(cohort, pilot_name)
+        pilot.set_mode("deploy")
+        pilot.model.to(DEVICE)
+        pilot = _swap_model(pilot, model_path)
+
+        label_results: dict = {}
+
+        for scene_name, _ in flights:
+            scene_data  = _get_scene(scene_name, scenes_cfg_dir)
+            simulator   = scene_data["simulator"]
+            obj_targets = scene_data["obj_targets"]
+            queries     = scene_data["queries"]
+
+            for obj_idx, obj_name in enumerate(queries):
+                key      = f"{scene_name}_{obj_name}"
+                pkl_data = _get_pkl(scene_name, obj_name, scenes_cfg_dir)
+                if pkl_data is None or key not in shared_starts:
+                    continue
+
+                tXUi       = pkl_data["tXUi"]
+                obj_target = (
+                    obj_targets[obj_idx] if obj_idx < len(obj_targets)
+                    else pkl_data.get("obj_loc", np.zeros(3))
+                )
+                t0 = float(tXUi[0,  0])
+                tf = float(tXUi[0, -1])
+                T  = tf - t0
+                start_idxs = shared_starts[key]
+
+                goal_dists, successes, collisions = [], [], []
+                for run_i, s_idx in enumerate(start_idxs):
+                    x0      = tXUi[1:11, s_idx].copy()
+                    t_start = float(tXUi[0, s_idx])
+                    t_end   = t_start + T
+
+                    _t = time.time()
+                    result    = simulator.simulate(
+                        policy=pilot, t0=t_start, tf=t_end, x0=x0,
+                        obj=np.zeros((18, 1)), query=obj_name,
+                        vision_processor=None, verbose=False,
+                    )
+                    Xro       = result[1]
+                    goal_dist = float(np.linalg.norm(Xro[:3, -1] - obj_target))
+
+                    pc_ev = scene_data.get("epcds_arr", np.zeros((0, 3)))
+                    collided = False
+                    if pc_ev.shape[0] > 0:
+                        Xro_t = torch.from_numpy(Xro[:3].T).float().to(DEVICE)
+                        pc_t  = torch.from_numpy(pc_ev).float().to(DEVICE)
+                        collided = bool((torch.cdist(Xro_t, pc_t) < 0.15).any().item())
+                        del Xro_t, pc_t
+
+                    success = goal_dist < 2.0 and not collided
+                    goal_dists.append(goal_dist)
+                    successes.append(success)
+                    collisions.append(collided)
+                    status = "✓" if success else ("💥" if collided else "✗")
+                    print(f"  [{label}] {status}  '{obj_name[:20]}'  "
+                          f"run {run_i+1}/{max_trajectories}"
+                          f"  goal_dist={goal_dist:.2f}m  ({time.time()-_t:.1f}s)")
+
+                sr   = float(np.mean(successes))
+                cr   = float(np.mean(collisions))
+                gd   = float(np.mean(goal_dists))
+                gd_s = float(np.std(goal_dists))
+                print(f"  [{label}] ── '{obj_name[:25]}'  "
+                      f"success={sr:.0%}  collision={cr:.0%}  "
+                      f"goal_dist={gd:.2f}±{gd_s:.2f}m")
+                label_results[obj_name] = {
+                    "goal_dist":      gd,
+                    "goal_dist_std":  gd_s,
+                    "goal_dist_min":  float(np.min(goal_dists)),
+                    "success_rate":   sr,
+                    "collision_rate": cr,
+                    "n_eval":         max_trajectories,
+                }
+
+            torch.cuda.empty_cache()
+
+        # Aggregate across objects
+        all_gd = [v["goal_dist"] for v in label_results.values()]
+        all_sr = [v["success_rate"] for v in label_results.values()]
+        all_cr = [v["collision_rate"] for v in label_results.values()]
+        label_results["__overall__"] = {
+            "goal_dist":      float(np.mean(all_gd)) if all_gd else np.nan,
+            "success_rate":   float(np.mean(all_sr)) if all_sr else np.nan,
+            "collision_rate": float(np.mean(all_cr)) if all_cr else np.nan,
+        }
+        all_results[label] = label_results
+
+        del pilot
+        gc.collect()
+        torch.cuda.empty_cache()
+
+    # ── Print comparison table ────────────────────────────────────────────────
+    print("\n" + "=" * 70)
+    print("[CrossBenchmark] COMPARISON TABLE")
+    print(f"  seed={benchmark_seed}  n={max_trajectories}/obj  "
+          f"(second half of tXUi, held out from BC training)")
+    print("=" * 70)
+
+    # Collect all object names (excluding __overall__)
+    all_objs = []
+    for label_res in all_results.values():
+        for k in label_res:
+            if k != "__overall__" and k not in all_objs:
+                all_objs.append(k)
+
+    col_w = 20
+    header = f"{'Object':<{col_w}}" + "".join(
+        f"  {m['label'][:18]:>18}" for m in models
+    )
+    print(header)
+    print("-" * len(header))
+
+    for obj_name in all_objs + ["__overall__"]:
+        display = "OVERALL" if obj_name == "__overall__" else obj_name[:col_w]
+        row = f"{display:<{col_w}}"
+        for m in models:
+            r = all_results.get(m["label"], {}).get(obj_name)
+            if r is None:
+                row += f"  {'N/A':>18}"
+            else:
+                cell = f"{r['goal_dist']:.2f}m {r['success_rate']:.0%}"
+                row += f"  {cell:>18}"
+        print(row)
+    print("  (format: mean_goal_dist  success_rate)")
+    print()
+
+    if output_path:
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+        with open(output_path, "w") as f:
+            json.dump(all_results, f, indent=2)
+        print(f"[CrossBenchmark] Results saved → {output_path}")
+
+    return all_results
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Per-iteration full-trajectory evaluation (no model swap, no rrt_backup)
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -482,11 +714,12 @@ def _eval_full_trajectories(
     scenes_cfg_dir: str,
     label: str = "eval",
     vision_processor=None,
+    n_eval: int = 1,
 ) -> dict:
     """
-    Run one full-trajectory simulation per object (t0→tf from PKL) and return
-    per-object {goal_dist, success}.  Reuses _SCENE_CACHE / _PKL_CACHE so no
-    gsplat reload.  Used for honest per-iteration progress tracking.
+    Run n_eval full-trajectory simulations per object, starting from uniformly
+    sampled positions along tXUi.  Returns per-object success_rate + goal_dist
+    stats for honest per-iteration progress tracking.
     """
     results = {}
     for scene_name, _ in flights:
@@ -499,29 +732,65 @@ def _eval_full_trajectories(
             pkl_data = _get_pkl(scene_name, obj_name, scenes_cfg_dir)
             if pkl_data is None:
                 continue
-            tXUi = pkl_data["tXUi"]
+            tXUi       = pkl_data["tXUi"]
             obj_target = (
                 obj_targets[obj_idx] if obj_idx < len(obj_targets)
                 else pkl_data.get("obj_loc", np.zeros(3))
             )
 
-            t0 = float(tXUi[0, 0])
+            t0 = float(tXUi[0,  0])
             tf = float(tXUi[0, -1])
-            x0 = tXUi[1:11, 0].copy()
+            T  = tf - t0          # full trajectory duration
 
-            _t = time.time()
-            result = simulator.simulate(
-                policy=pilot, t0=t0, tf=tf, x0=x0,
-                obj=np.zeros((18, 1)), query=obj_name,
-                vision_processor=vision_processor, verbose=False,
-            )
-            Xro = result[1]
-            goal_dist = float(np.linalg.norm(Xro[:3, -1] - obj_target))
-            success   = goal_dist < 2.0
-            status    = "✓" if success else "✗"
-            print(f"  [{label}] {status}  '{obj_name}'  "
-                  f"goal_dist={goal_dist:.2f}m  ({time.time()-_t:.1f}s)")
-            results[obj_name] = {"goal_dist": goal_dist, "success": success}
+            # Sample n_eval start indices uniformly along the FULL tXUi range
+            # (both halves — this eval tracks in-distribution progress during training)
+            n_cols     = tXUi.shape[1]
+            start_idxs = np.linspace(0, n_cols - 1, n_eval, dtype=int)
+
+            goal_dists, successes = [], []
+            for run_i, s_idx in enumerate(start_idxs):
+                x0      = tXUi[1:11, s_idx].copy()
+                t_start = float(tXUi[0, s_idx])
+                t_end   = t_start + T
+
+                _t = time.time()
+                result    = simulator.simulate(
+                    policy=pilot, t0=t_start, tf=t_end, x0=x0,
+                    obj=np.zeros((18, 1)), query=obj_name,
+                    vision_processor=vision_processor, verbose=False,
+                )
+                Xro       = result[1]
+                goal_dist = float(np.linalg.norm(Xro[:3, -1] - obj_target))
+                pc_ev = scene_data.get("epcds_arr", np.zeros((0,3)))
+                collided_ev = False
+                if pc_ev.shape[0] > 0:
+                    Xro_t  = torch.from_numpy(Xro[:3].T).float().to(DEVICE)
+                    pc_t   = torch.from_numpy(pc_ev).float().to(DEVICE)
+                    collided_ev = bool((torch.cdist(Xro_t, pc_t) < 0.15).any().item())
+                    del Xro_t, pc_t
+                success   = goal_dist < 2.0 and not collided_ev
+                goal_dists.append(goal_dist)
+                successes.append(success)
+                status = "✓" if success else ("💥" if collided_ev else "✗")
+                print(f"  [{label}] {status}  '{obj_name[:20]}'  "
+                      f"run {run_i+1}/{n_eval}  goal_dist={goal_dist:.2f}m  "
+                      f"coll={collided_ev}  ({time.time()-_t:.1f}s)")
+
+            sr        = sum(successes) / len(successes)
+            mean_dist = float(np.mean(goal_dists))
+            std_dist  = float(np.std(goal_dists))
+            print(f"  [{label}] ── '{obj_name[:25]}'  "
+                  f"success={sr:.0%}  "
+                  f"goal_dist={mean_dist:.2f}±{std_dist:.2f}m  "
+                  f"best={float(np.min(goal_dists)):.2f}m")
+            results[obj_name] = {
+                "goal_dist":     mean_dist,
+                "goal_dist_std": std_dist,
+                "goal_dist_min": float(np.min(goal_dists)),
+                "success":       sr >= 0.5,
+                "success_rate":  sr,
+                "n_eval":        n_eval,
+            }
 
         torch.cuda.empty_cache()
     return results
@@ -554,10 +823,14 @@ def _collect_dagger_rollout(
     if t_end is None:
         t_end = float(tXUi[0, -1])
 
-    # Extract x0 from tXUi at the time step nearest to t_start
+    # Extract x0: use perturbation if provided (may include position noise),
+    # otherwise fall back to tXUi reference.
     idx0 = int(np.searchsorted(tXUi[0, :], t_start))
     idx0 = min(idx0, tXUi.shape[1] - 1)
-    x0 = tXUi[1:11, idx0].copy()  # state is rows 1-10 (nx=10)
+    if perturbation is not None and "x0" in perturbation:
+        x0 = np.array(perturbation["x0"], dtype=float)[:10].copy()
+    else:
+        x0 = tXUi[1:11, idx0].copy()  # state is rows 1-10 (nx=10)
 
     t0 = t_start
     tf = t_end
@@ -640,26 +913,78 @@ def _collect_dagger_rollout(
     }
 
 
+def _filter_deviation_annotations(
+    annotations: List[dict],
+    Xro: np.ndarray,
+    tXUi: np.ndarray,
+    obj_target: np.ndarray,
+    idx0: int,
+    deviation_threshold: float = 0.3,
+    close_approach_dist: float = 5.0,
+) -> List[dict]:
+    """
+    Filter full-trajectory DAgger annotations to keep only useful ones:
+      - States where the pilot deviated from the reference tXUi (> deviation_threshold).
+      - States where the drone was within close_approach_dist of the goal.
+
+    This discards the majority of "fly straight from 25m away" timesteps that
+    would otherwise corrupt BC fine-grained approach behaviour.
+    """
+    T = len(annotations)
+    if T == 0:
+        return annotations
+
+    keep: set = set()
+    for i in range(T):
+        if i >= Xro.shape[1]:
+            break
+        pos = Xro[:3, i]
+
+        # Always keep near-goal states (final approach / arrival)
+        if np.linalg.norm(pos - obj_target) < close_approach_dist:
+            keep.add(i)
+            continue
+
+        # Keep if drone deviated from reference trajectory at this timestep
+        ref_idx = min(idx0 + i, tXUi.shape[1] - 1)
+        ref_pos = tXUi[1:4, ref_idx]
+        if np.linalg.norm(pos - ref_pos) > deviation_threshold:
+            keep.add(i)
+
+    return [annotations[i] for i in sorted(keep)]
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Métriques / Agrégation / Re-entraînement / W&B
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _compute_dagger_metrics(rollouts: List[dict], iteration: int, beta: float) -> dict:
-    total = len(rollouts)
+def _compute_dagger_metrics(
+    rollouts: List[dict], iteration: int, beta: float, n_annotations: int = 0,
+) -> dict:
+    total      = len(rollouts)
+    goal_dists = [-r["analysis"].get("total_reward", 0.0) for r in rollouts]
     return {
-        "iteration":      iteration,
-        "beta":           beta,
-        "total_rollouts": total,
-        "collision_rate": sum(1 for r in rollouts if r["collision_steps"]) / max(total, 1),
-        "drift_rate":     sum(1 for r in rollouts if r["drift_steps"])     / max(total, 1),
-        "success_rate":   sum(1 for r in rollouts if r["analysis"].get("success", False)) / max(total, 1),
+        "iteration":          iteration,
+        "beta":               beta,
+        "total_rollouts":     total,
+        "collision_rate":     sum(1 for r in rollouts if r["collision_steps"]) / max(total, 1),
+        "success_rate":       sum(1 for r in rollouts if r["analysis"].get("success", False)) / max(total, 1),
+        "window_goal_dist":   float(np.mean(goal_dists)) if goal_dists else 0.0,
+        "n_annotations":      n_annotations,
     }
 
 
 def _aggregate_dagger_dataset(
     all_annotations: List[dict], existing_file: Optional[str],
+    aggregate: bool = True,
 ) -> List[dict]:
-    if existing_file and os.path.exists(existing_file):
+    """
+    If aggregate=True (classic DAgger): accumulate all past annotations.
+    If aggregate=False (online DAgger): use ONLY current iteration's annotations.
+    Online mode prevents catastrophic forgetting when all starting states are fixed,
+    since accumulation just adds more copies of the same 8 reference states.
+    """
+    if aggregate and existing_file and os.path.exists(existing_file):
         return torch.load(existing_file) + all_annotations
     return all_annotations
 
@@ -732,12 +1057,13 @@ def _wandb_log_iteration(pilot_name: str, m: dict, step: int) -> None:
     try:
         import wandb
         if wandb.run is not None: wandb.log({
-            f"dagger/{pilot_name}/beta":           m["beta"],
-            f"dagger/{pilot_name}/collision_rate": m["collision_rate"],
-            f"dagger/{pilot_name}/drift_rate":     m["drift_rate"],
-            f"dagger/{pilot_name}/success_rate":   m["success_rate"],
-            f"dagger/{pilot_name}/total_rollouts": m["total_rollouts"],
-            "dagger/iteration":                     m["iteration"],
+            f"dagger/{pilot_name}/beta":             m["beta"],
+            f"dagger/{pilot_name}/collision_rate":   m["collision_rate"],
+            f"dagger/{pilot_name}/success_rate":     m["success_rate"],
+            f"dagger/{pilot_name}/window_goal_dist": m.get("window_goal_dist", 0.0),
+            f"dagger/{pilot_name}/n_annotations":    m.get("n_annotations", 0),
+            f"dagger/{pilot_name}/total_rollouts":   m["total_rollouts"],
+            "dagger/iteration":                       m["iteration"],
         }, step=step)
     except Exception as e:
         print(f"  [WARN] wandb: {e}")
@@ -843,11 +1169,16 @@ def train_dagger_policy(
     Nep_per_iter: int          = 50,
     lim_sv: int                = 10,
     max_trajectories: int      = 10,
+    n_eval_per_iter: int       = 10,
     benchmark_seed: int        = 42,
     use_wandb: bool            = False,
     wandb_project: str         = "singer-dagger",
     wandb_run_name: str        = "dagger",
     expert_type: str           = "mpc",
+    aggregate_dagger: bool     = False,
+    start_pos_noise: float     = 0.3,
+    deviation_filter_dist: float = 0.3,
+    close_approach_dist: float   = 5.0,
 ) -> dict:
 
     print(f"[DAgger] Device : {DEVICE}")
@@ -898,7 +1229,11 @@ def train_dagger_policy(
     )
     _Tdt_ro = _mcfg.get("sample_set", {}).get("duration", 2.0)
     print(f"[DAgger] VehicleRateMPC policy='{_base_policy_name}' frame='{_base_frame_name}' rollout='{_base_rollout_name}'")
-    print(f"[DAgger] Trajectory window  : {_Tdt_ro}s per segment (matches BC training)")
+    print(f"[DAgger] Mode            : Full-trajectory + deviation filter (Option B)")
+    print(f"[DAgger] Per-iter eval   : {n_eval_per_iter} runs/object  |  Benchmark: {max_trajectories} runs/object")
+    print(f"[DAgger] Aggregation     : {'cumulative' if aggregate_dagger else 'online (per-iter only)'}")
+    print(f"[DAgger] Start-pos noise : ±{start_pos_noise}m")
+    print(f"[DAgger] Ann filter      : keep if drift>{deviation_filter_dist}m OR goal_dist<{close_approach_dist}m")
 
     vision_processor = create_vision_processor(_vp_type)
     if vision_processor is not None and hasattr(vision_processor, "to"):
@@ -999,60 +1334,85 @@ def train_dagger_policy(
                     )
                     mixed_policy = MixedPolicy(expert, pilot, beta)
 
-                    # Split trajectory into 2s windows — mirrors BC training (compute_batches).
+                    # Option B: run the FULL trajectory (not 2s windows) so the
+                    # mixed policy encounters actual navigation states, then keep
+                    # only annotations at deviation / near-goal timesteps.
                     t_traj_start = float(tXUi[0, 0])
                     t_traj_end   = float(tXUi[0, -1])
-                    n_windows = max(1, int((t_traj_end - t_traj_start) // _Tdt_ro))
 
-                    for seg_idx in range(n_windows):
-                        t_seg_start = t_traj_start + seg_idx * _Tdt_ro
-                        t_seg_end   = min(t_seg_start + _Tdt_ro, t_traj_end)
-                        perturbation = {"t0": t_seg_start, "x0": tXUi[1:, int(np.searchsorted(tXUi[0, :], t_seg_start))].copy()}
+                    # Perturb initial position so each iteration starts slightly
+                    # differently → diverse states not seen during BC training.
+                    ref_idx0 = min(
+                        int(np.searchsorted(tXUi[0, :], t_traj_start)),
+                        tXUi.shape[1] - 1,
+                    )
+                    x0_ref = tXUi[1:, ref_idx0].copy()
+                    if start_pos_noise > 0.0:
+                        x0_ref[:3] += np.random.uniform(
+                            -start_pos_noise, start_pos_noise, size=3
+                        )
+                    perturbation = {"t0": t_traj_start, "x0": x0_ref}
 
-                        rollout = _collect_dagger_rollout(
-                            simulator=simulator,
-                            mixed_policy=mixed_policy,
-                            perturbation=perturbation,
-                            tXUi=tXUi,
-                            obj_name=obj_name,
-                            point_cloud=scene_data["epcds_arr"],
-                            obj_target=obj_target,
-                            collision_threshold=collision_threshold,
-                            drift_threshold=drift_threshold,
-                            vision_processor=vision_processor,
-                            t_start=t_seg_start,
-                            t_end=t_seg_end,
-                        )
-                        all_rollouts.append(rollout)
-                        all_annotations.extend(rollout["annotations"])
-                        _save_traj_plot(
-                            rollout["Tro"], rollout["Xro"], rollout["Uro"],
-                            save_path=os.path.join(
-                                dagger_dir, "plots",
-                                f"iter{iteration:03d}_{obj_name.replace(' ','_')}_seg{seg_idx:02d}.png",
-                            ),
-                            title=f"iter={iteration} β={beta:.2f} | {obj_name} seg {seg_idx}/{n_windows-1}",
-                        )
+                    rollout = _collect_dagger_rollout(
+                        simulator=simulator,
+                        mixed_policy=mixed_policy,
+                        perturbation=perturbation,
+                        tXUi=tXUi,
+                        obj_name=obj_name,
+                        point_cloud=scene_data["epcds_arr"],
+                        obj_target=obj_target,
+                        collision_threshold=collision_threshold,
+                        drift_threshold=drift_threshold,
+                        vision_processor=vision_processor,
+                        t_start=t_traj_start,
+                        t_end=t_traj_end,
+                    )
 
-                        used  = torch.cuda.memory_allocated() / 1024**3
-                        total = torch.cuda.get_device_properties(0).total_memory / 1024**3
-                        print(
-                            f"  [{obj_name} seg {seg_idx}/{n_windows-1}"
-                            f" t=[{t_seg_start:.1f},{t_seg_end:.1f}]s]"
-                            f"  coll={len(rollout['collision_steps'])}"
-                            f"  drift={len(rollout['drift_steps'])}"
-                            f"  ok={rollout['analysis'].get('success', False)}"
-                            f"  GPU={used:.1f}/{total:.0f}GB"
-                        )
+                    # Filter: keep only deviation + near-goal annotations.
+                    filtered_ann = _filter_deviation_annotations(
+                        annotations=rollout["annotations"],
+                        Xro=rollout["Xro"],
+                        tXUi=tXUi,
+                        obj_target=obj_target,
+                        idx0=ref_idx0,
+                        deviation_threshold=deviation_filter_dist,
+                        close_approach_dist=close_approach_dist,
+                    )
+
+                    all_rollouts.append(rollout)
+                    all_annotations.extend(filtered_ann)
+                    _save_traj_plot(
+                        rollout["Tro"], rollout["Xro"], rollout["Uro"],
+                        save_path=os.path.join(
+                            dagger_dir, "plots",
+                            f"iter{iteration:03d}_{obj_name.replace(' ','_')}_fulltraj.png",
+                        ),
+                        title=f"iter={iteration} β={beta:.2f} | {obj_name} {t_traj_start:.1f}→{t_traj_end:.1f}s",
+                    )
+
+                    used  = torch.cuda.memory_allocated() / 1024**3
+                    total = torch.cuda.get_device_properties(0).total_memory / 1024**3
+                    goal_dist = -rollout["analysis"].get("total_reward", 0.0)
+                    print(
+                        f"  [{obj_name[:20]}"
+                        f" t=[{t_traj_start:.1f},{t_traj_end:.1f}]s]"
+                        f"  coll={len(rollout['collision_steps'])}"
+                        f"  goal_dist={goal_dist:.2f}m"
+                        f"  ann_raw={len(rollout['annotations'])} → kept={len(filtered_ann)}"
+                        f"  GPU={used:.1f}/{total:.0f}GB"
+                    )
 
             # Agrégation
-            print(f"\n[DAgger] Aggregating {len(all_annotations)} new annotations...")
+            mode_str = "cumulative" if aggregate_dagger else "online (replacing)"
+            print(f"\n[DAgger] {mode_str} aggregation  {len(all_annotations)} new annotations...")
             _t_agg = time.time()
-            agg_data = _aggregate_dagger_dataset(all_annotations, aggregated_file)
+            agg_data = _aggregate_dagger_dataset(
+                all_annotations, aggregated_file, aggregate=aggregate_dagger
+            )
             torch.save(agg_data, aggregated_file)
             torch.save(all_annotations,
                        os.path.join(dagger_dir, f"dagger_iter_{iteration:03d}.pt"))
-            print(f"  [agg] {len(agg_data)} total samples → {aggregated_file}  ({time.time()-_t_agg:.1f}s)")
+            print(f"  [agg] {len(agg_data)} samples for retraining ({mode_str})  ({time.time()-_t_agg:.1f}s)")
 
             # Re-entraînement
             print(f"[DAgger] Retraining Commander  Nep={Nep_per_iter} lim_sv={lim_sv}...")
@@ -1066,7 +1426,8 @@ def train_dagger_policy(
             pilot.model.to(DEVICE)
 
             # ── Per-segment metrics (data-collection windows) ─────────────────
-            m = _compute_dagger_metrics(all_rollouts, iteration, beta)
+            m = _compute_dagger_metrics(all_rollouts, iteration, beta,
+                                        n_annotations=len(all_annotations))
             all_metrics[pilot_name].append(m)
 
             # ── Full-trajectory evaluation after retrain ──────────────────────
@@ -1078,6 +1439,7 @@ def train_dagger_policy(
                 pilot, flights, scenes_cfg_dir,
                 label=f"iter{iteration:03d}",
                 vision_processor=vision_processor,
+                n_eval=n_eval_per_iter,
             )
             n_ok  = sum(1 for v in iter_eval.values() if v["success"])
             n_tot = len(iter_eval)
@@ -1088,12 +1450,14 @@ def train_dagger_policy(
 
             print(f"[DAgger] Itération {iteration} done in {time.time()-_t_iter:.1f}s")
             print(f"  Segment metrics : collision={m['collision_rate']:.1%}"
-                  f"  drift={m['drift_rate']:.1%}"
-                  f"  success={m['success_rate']:.1%}")
-            print(f"  Full-traj ({n_ok}/{n_tot}) :", end="")
+                  f"  win_goal={m['window_goal_dist']:.2f}m"
+                  f"  ann_new={m['n_annotations']}  agg_total={len(agg_data)}")
+            print(f"  Full-traj eval ({n_ok}/{n_tot} objects, {10} runs/obj):", end="")
             for obj_name, r in iter_eval.items():
                 s = "✓" if r["success"] else "✗"
-                print(f"  {s} {obj_name.split()[-1]}({r['goal_dist']:.1f}m)", end="")
+                print(f"  {s} {obj_name.split()[-1]}"
+                      f"({r['goal_dist']:.1f}±{r['goal_dist_std']:.1f}m"
+                      f" {r['success_rate']:.0%})", end="")
             print()
 
             if use_wandb:
@@ -1102,9 +1466,14 @@ def train_dagger_policy(
                     import wandb
                     if wandb.run is not None:
                         wandb.log({
-                            f"dagger/{pilot_name}/full_traj_success": m["full_traj_success"],
-                            **{f"dagger/{pilot_name}/full_traj/{k.replace(' ','_')}":
+                            f"dagger/{pilot_name}/full_traj_success":
+                                m["full_traj_success"],
+                            f"dagger/{pilot_name}/full_traj_goal_dist_mean":
+                                float(np.mean([v["goal_dist"] for v in iter_eval.values()])),
+                            **{f"dagger/{pilot_name}/full_traj/{k.replace(' ','_')}_dist":
                                v["goal_dist"] for k, v in iter_eval.items()},
+                            **{f"dagger/{pilot_name}/full_traj/{k.replace(' ','_')}_sr":
+                               v["success_rate"] for k, v in iter_eval.items()},
                         }, step=global_step)
                 except Exception:
                     pass

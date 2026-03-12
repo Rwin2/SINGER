@@ -6,8 +6,16 @@ review: false
 Nep_his: 100
 Nep_com: 150
 
-Nep_dagger: 50
+Nep_dagger: 20
+n_eval_per_iter: 10
+n_benchmark: 50
 lim_sv: 10
+
+aggregate_dagger: false
+start_pos_noise: 0.5
+# Option B: full-trajectory collection + annotation filtering
+deviation_filter_dist: 0.3   # keep if drone drifted >0.3m from reference
+close_approach_dist: 5.0     # always keep if within 5m of goal
 
 flights:
   - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
