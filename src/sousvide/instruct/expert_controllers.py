@@ -37,8 +37,9 @@ class _GeometricMixin:
 
     Parameters (set as instance attributes by subclasses):
         goal       : (3,) target world-frame position [x, y, z]
+        max_speed  : cruise speed cap (m/s) — prevents runaway acceleration
         k_yaw      : yaw-rate proportional gain
-        k_pitch    : forward-pitch proportional gain
+        k_pitch    : forward velocity-error gain (speed controller, not position)
         k_alt      : altitude proportional gain
         k_alt_vel  : altitude velocity damping gain
     """
@@ -46,13 +47,17 @@ class _GeometricMixin:
     def _to_control(
         self,
         pos: np.ndarray,            # (3,) current position
-        vel: np.ndarray,            # (3,) current velocity
+        vel: np.ndarray,            # (3,) current velocity  (world frame)
         quat: np.ndarray,           # (4,) [qx, qy, qz, qw]
         desired_dir: np.ndarray,    # (3,) desired direction (unit or unnormalised)
     ) -> np.ndarray:
         """
         Map a desired 3-D direction to [thrust, wx, wy, wz].
-        The direction points from the current position toward where we want to go.
+
+        Pitch is computed as a VELOCITY ERROR (speed controller), not a position
+        error.  This prevents runaway acceleration: the drone accelerates until it
+        reaches max_speed, then holds level — producing stable, bounded commands
+        that the NN can safely imitate.
         """
         qx, qy, qz, qw = quat
 
@@ -72,20 +77,26 @@ class _GeometricMixin:
         # ── yaw rate ─────────────────────────────────────────────────────────
         wz = float(np.clip(self.k_yaw * e_yaw, -5.0, 5.0))
 
-        # ── pitch rate: tilt forward when aligned with goal direction ─────────
-        # d_xy: how much horizontal movement is needed
+        # ── pitch rate: VELOCITY-ERROR controller ─────────────────────────────
+        # Project world-frame velocity onto body heading (forward axis).
+        cos_yaw = float(np.cos(yaw))
+        sin_yaw = float(np.sin(yaw))
+        vel_fwd = cos_yaw * float(vel[0]) + sin_yaw * float(vel[1])
+
+        # Desired speed: max_speed when there is a direction and we are aligned;
+        # scale down by cos(e_yaw) so we slow down when turning.
         d_xy = float(np.linalg.norm(desired_dir[:2]))
-        # project onto aligned axis (only tilt when roughly facing the goal)
-        forward_drive = float(np.cos(e_yaw)) * d_xy
-        wy = float(np.clip(self.k_pitch * forward_drive, -5.0, 5.0))
+        aligned = max(float(np.cos(e_yaw)), 0.0)
+        desired_speed = self.max_speed * aligned if d_xy > 1e-3 else 0.0
+
+        # Pitch proportional to velocity error → naturally limits top speed
+        vel_err = desired_speed - vel_fwd
+        wy = float(np.clip(self.k_pitch * vel_err, -5.0, 5.0))
 
         # ── no roll for heading-based navigation ──────────────────────────────
         wx = 0.0
 
         # ── altitude: proportional + velocity damping ─────────────────────────
-        # z-convention check: in the scene, altitude = -1.0 with bounds z∈[-2,0]
-        # → z increases upward; hover at z = -1.0.
-        # u[0] convention: -0.5 ≈ hover, more-negative → more thrust (climb).
         alt_err = float(self.goal[2] - pos[2])
         vz      = float(vel[2])
         thrust  = float(np.clip(
@@ -129,9 +140,10 @@ class PotentialFieldExpert(_GeometricMixin):
         d0_rep:    float = 1.2,
         k_vel:     float = 0.8,
         k_yaw:     float = 3.0,
-        k_pitch:   float = 1.5,
+        k_pitch:   float = 2.0,
         k_alt:     float = 1.0,
         k_alt_vel: float = 0.3,
+        max_speed: float = 1.5,
     ) -> None:
         self.goal      = np.asarray(goal, dtype=float).ravel()[:3]
         self.hz        = 20
@@ -144,6 +156,7 @@ class PotentialFieldExpert(_GeometricMixin):
         self.k_pitch   = k_pitch
         self.k_alt     = k_alt
         self.k_alt_vel = k_alt_vel
+        self.max_speed = max_speed
 
         # Build KD-tree once for fast nearest-obstacle queries
         self._pcd: Optional[np.ndarray] = None
@@ -158,6 +171,7 @@ class PotentialFieldExpert(_GeometricMixin):
 
     # ------------------------------------------------------------------
     def control(self, tcr, xcr, upr=None, obj=None, icr=None, zcr=None):
+        _ = tcr, upr, obj, icr, zcr
         pos  = xcr[0:3].copy()
         vel  = xcr[3:6].copy()
         quat = xcr[6:10].copy()
@@ -233,9 +247,10 @@ class OnlineRRTExpert(_GeometricMixin):
         lookahead_dist:   float        = 1.5,
         speed:            float        = 1.0,
         k_yaw:            float        = 3.0,
-        k_pitch:          float        = 1.5,
+        k_pitch:          float        = 2.0,
         k_alt:            float        = 1.0,
         k_alt_vel:        float        = 0.3,
+        max_speed:        float        = 1.5,
     ) -> None:
         self.goal            = np.asarray(goal, dtype=float).ravel()[:3]
         self.hz              = 20
@@ -244,6 +259,7 @@ class OnlineRRTExpert(_GeometricMixin):
         self.k_pitch         = k_pitch
         self.k_alt           = k_alt
         self.k_alt_vel       = k_alt_vel
+        self.max_speed       = max_speed
         self.replan_interval = replan_interval
         self.lookahead_dist  = lookahead_dist
         self.speed           = speed
@@ -279,6 +295,7 @@ class OnlineRRTExpert(_GeometricMixin):
 
     # ------------------------------------------------------------------
     def control(self, tcr, xcr, upr=None, obj=None, icr=None, zcr=None):
+        _ = upr, obj, icr, zcr
         pos  = xcr[0:3].copy()
         vel  = xcr[3:6].copy()
         quat = xcr[6:10].copy()

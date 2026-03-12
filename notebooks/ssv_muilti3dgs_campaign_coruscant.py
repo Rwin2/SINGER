@@ -251,6 +251,10 @@ def train_dagger(
     drift_threshold: float = typer.Option(2.0),
     expert_type: str = typer.Option("mpc", help="Expert type: mpc | potential | rrt"),
     max_trajectories: int = typer.Option(10, help="Number of benchmark trajectories per evaluation"),
+    aggregate_dagger: bool = typer.Option(False, help="Cumulate all past DAgger data (True) or train only on current iter (False=online)"),
+    start_pos_noise: float = typer.Option(0.5, help="Random position noise (m) added to initial state for trajectory diversity"),
+    deviation_filter_dist: float = typer.Option(0.3, help="Keep annotations where drone drifted >this (m) from reference trajectory"),
+    close_approach_dist: float = typer.Option(5.0, help="Always keep annotations within this distance (m) of goal"),
     plot: bool = typer.Option(False),
     use_wandb: bool = typer.Option(False),
     wandb_project: Optional[str] = typer.Option(None),
@@ -289,8 +293,13 @@ def train_dagger(
         wandb_project=cfg.get("wandb_project", "singer-dagger"),
         wandb_run_name=cfg.get("wandb_run_name", "dagger"),
         lim_sv=cfg.get("lim_sv", 10),
-        max_trajectories=max_trajectories,
+        max_trajectories=cfg.get("n_benchmark", max_trajectories),
+        n_eval_per_iter=cfg.get("n_eval_per_iter", 10),
         expert_type=expert_type,
+        aggregate_dagger=cfg.get("aggregate_dagger", aggregate_dagger),
+        start_pos_noise=cfg.get("start_pos_noise", start_pos_noise),
+        deviation_filter_dist=cfg.get("deviation_filter_dist", deviation_filter_dist),
+        close_approach_dist=cfg.get("close_approach_dist", close_approach_dist),
     )
 
     # ── Résumé terminal ───────────────────────────────────────────────────────
@@ -439,6 +448,89 @@ def debug_trajectory(
 
     if cfg.get("use_wandb"):
         _log_figures_to_wandb("debug")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+@app.command("cross-benchmark")
+def cross_benchmark(
+    config_file: Path = typer.Option(..., exists=True, help="Config for scene/flight setup (e.g. ssv_dagger_potential.yml)"),
+    cohort_before:    str = typer.Option("ssv_CLIPSEG_NORMAL",  help="Cohort with BC-only model"),
+    cohort_potential: str = typer.Option("ssv_dagger_potential", help="Cohort after DAgger-potential"),
+    cohort_rrt:       str = typer.Option("ssv_dagger_rrt",       help="Cohort after DAgger-RRT"),
+    pilot_name: str        = typer.Option("InstinctJester"),
+    benchmark_seed: int    = typer.Option(123, help="Seed for start-position sampling (use != DAgger seed 42)"),
+    max_trajectories: int  = typer.Option(50,  help="Trajectories per object per model"),
+    output: Optional[str]  = typer.Option(None, help="Path to write JSON results"),
+):
+    """
+    Compare all 3 InstinctJester variants (before DAgger, after potential-field
+    DAgger, after RRT DAgger) on the SAME held-out start conditions.
+
+    Each model is evaluated on max_trajectories trajectories per object,
+    sampled from the second half of tXUi (unseen during BC training) using
+    the given benchmark_seed so conditions are identical across models.
+    """
+    from sousvide.instruct.train_dagger import run_cross_cohort_benchmark
+
+    cfg = common_options(config_file, False, False, None, None)
+    workspace_path = Path(__file__).resolve().parents[1]
+    scenes_cfg_dir = str(workspace_path / "configs" / "scenes")
+    flights        = [tuple(x) for x in cfg["flights"]]
+    cohort_base    = str(workspace_path / "cohorts")
+
+    def _model_path(cohort: str, label: str) -> str:
+        # After DAgger the final checkpoint is saved as model_after_dagger.pth;
+        # the original BC model is model.pth (the best-validation checkpoint).
+        bench_path = (
+            f"{cohort_base}/{cohort}/dagger_data/{pilot_name}/benchmark/model_after_dagger.pth"
+        )
+        if label == "before_dagger":
+            bc_path = f"{cohort_base}/{cohort}/roster/{pilot_name}/model.pth"
+            return bc_path
+        return bench_path
+
+    models = [
+        {
+            "label":      "before_dagger",
+            "cohort":     cohort_before,
+            "pilot_name": pilot_name,
+            "model_path": _model_path(cohort_before, "before_dagger"),
+        },
+        {
+            "label":      "after_potential",
+            "cohort":     cohort_potential,
+            "pilot_name": pilot_name,
+            "model_path": _model_path(cohort_potential, "after_potential"),
+        },
+        {
+            "label":      "after_rrt",
+            "cohort":     cohort_rrt,
+            "pilot_name": pilot_name,
+            "model_path": _model_path(cohort_rrt, "after_rrt"),
+        },
+    ]
+
+    typer.echo("=" * 70)
+    typer.echo("[CrossBenchmark] Models:")
+    for m in models:
+        typer.echo(f"  {m['label']:20s}  {m['model_path']}")
+    typer.echo(f"  seed={benchmark_seed}  n={max_trajectories}/obj")
+    typer.echo("=" * 70 + "\n")
+
+    out_path = output or str(
+        workspace_path / "logs" / f"cross_benchmark_seed{benchmark_seed}.json"
+    )
+
+    run_cross_cohort_benchmark(
+        models=models,
+        flights=flights,
+        scenes_cfg_dir=scenes_cfg_dir,
+        benchmark_seed=benchmark_seed,
+        max_trajectories=max_trajectories,
+        output_path=out_path,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
