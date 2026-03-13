@@ -1,0 +1,16 @@
+=== Smoke DAgger Run 3 — 2026-03-12 17:08 ===
+Cohort: ssv_dagger_rrt_smoke (model_before = already-DAgger-trained, NOT pure BC)
+n_iterations=3, Nep_dagger=50, dagger_lr=0.0001, DAgger-only training
+n_benchmark=20 per object (60 total), start from 2nd half of reference traj
+
+BEFORE:
+  green clock                                    coll=100%  return=-43.8  goal_dist=nanm
+  green and pink leafblower                      coll=100%  return=-257.7  goal_dist=nanm
+  yellow handheld cordless drill on two boxes    coll=70%  return=-357.8  goal_dist=nanm
+  TOTAL  coll=90%  return=-219.8
+
+AFTER (last model):
+  green clock                                    coll=0%  return=-31.0  goal_dist=nanm
+  green and pink leafblower                      coll=100%  return=-259.4  goal_dist=nanm
+  yellow handheld cordless drill on two boxes    coll=50%  return=-280.7  goal_dist=nanm
+  TOTAL  coll=50%  return=-190.4

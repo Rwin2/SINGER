@@ -1,0 +1,29 @@
+cohort: "SSV_DAGGER_20260312_185654"
+method: "rrt"
+
+review: false
+
+Nep_his: 100
+Nep_com: 150
+
+n_iterations: 10
+Nep_dagger: 50
+n_eval_per_iter: 10
+n_benchmark: 30
+lim_sv: 10
+dagger_lr: 0.0001       # DAgger-only training, lr matching BC Commander lr
+
+aggregate_dagger: true
+start_pos_noise: 0.4    # matches BC trajectory_set initial pos noise (±0.4m)
+
+# Annotation filtering
+deviation_filter_dist: 0.3       # keep if drone drifted >0.3m from reference
+close_approach_dist: 5.0         # always keep if within 5m of goal
+max_annotation_goal_dist: 50.0   # discard if drone >50m from goal
+max_deviation_dist: 8.0          # discard if drone deviated >8m from reference
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"

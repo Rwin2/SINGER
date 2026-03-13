@@ -283,7 +283,7 @@ def train_dagger(
         method_name=cfg["method"],
         roster=cfg.get("roster") or ["InstinctJester"],
         flights=[tuple(x) for x in cfg["flights"]],
-        n_iterations=n_iterations,
+        n_iterations=cfg.get("n_iterations", n_iterations),
         beta_start=beta_start,
         beta_decay=beta_decay,
         collision_threshold=collision_threshold,
@@ -300,6 +300,9 @@ def train_dagger(
         start_pos_noise=cfg.get("start_pos_noise", start_pos_noise),
         deviation_filter_dist=cfg.get("deviation_filter_dist", deviation_filter_dist),
         close_approach_dist=cfg.get("close_approach_dist", close_approach_dist),
+        max_annotation_goal_dist=float(cfg.get("max_annotation_goal_dist", 50.0)),
+        max_deviation_dist=float(cfg.get("max_deviation_dist", float('inf'))),
+        dagger_lr=float(cfg.get("dagger_lr", 1e-5)),
     )
 
     # ── Résumé terminal ───────────────────────────────────────────────────────
@@ -308,13 +311,13 @@ def train_dagger(
     typer.echo("=" * 70)
     for pilot_name, iter_metrics in all_metrics.items():
         typer.echo(f"\nPilot : {pilot_name}")
-        typer.echo(f"  {'Iter':>4}  {'β':>6}  {'Collisions':>10}  {'Dérives':>8}  {'Succès':>8}")
-        typer.echo(f"  {'-'*4}  {'-'*6}  {'-'*10}  {'-'*8}  {'-'*8}")
+        typer.echo(f"  {'Iter':>4}  {'β':>6}  {'Collisions':>10}  {'FT_Success':>10}  {'Succès':>8}")
+        typer.echo(f"  {'-'*4}  {'-'*6}  {'-'*10}  {'-'*10}  {'-'*8}")
         for m in iter_metrics:
             typer.echo(
                 f"  {m['iteration']:>4}  {m['beta']:>6.3f}"
                 f"  {m['collision_rate']:>10.1%}"
-                f"  {m['drift_rate']:>8.1%}"
+                f"  {m.get('full_traj_success', float('nan')):>10.1%}"
                 f"  {m['success_rate']:>8.1%}"
             )
 

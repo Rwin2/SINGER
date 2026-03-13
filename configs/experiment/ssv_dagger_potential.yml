@@ -11,8 +11,8 @@ n_eval_per_iter: 10
 n_benchmark: 50
 lim_sv: 10
 
-# DAgger mode: online (False) = retrain only on current iter, prevents forgetting
-aggregate_dagger: false
+# DAgger mode: cumulative = accumulate all past annotations across iterations
+aggregate_dagger: true
 # Position noise (m) added to initial state for trajectory diversity
 start_pos_noise: 0.5
 # Option B: full-trajectory collection + annotation filtering
