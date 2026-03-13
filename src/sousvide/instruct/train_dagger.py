@@ -78,11 +78,15 @@ def _get_scene(
     obj_targets, _, epcds_list, epcds_arr = bd.get_objectives(
         simulator.gsplat, objectives_list, similarities, False
     )
+    env_min = np.array(sc.get("minbound", [-1e6, -1e6, -1e6]), dtype=float)
+    env_max = np.array(sc.get("maxbound", [ 1e6,  1e6,  1e6]), dtype=float)
     _SCENE_CACHE[scene_name] = dict(
         simulator=simulator,
         obj_targets=obj_targets,
         epcds_arr=epcds_arr,
         queries=objectives_list,
+        env_min=env_min,
+        env_max=env_max,
     )
     print(f"  [SceneCache] ✅ '{scene_name}' en cache — {len(obj_targets)} targets")
     return _SCENE_CACHE[scene_name]
@@ -186,6 +190,7 @@ class MixedPolicy:
         self.hz          = pilot.hz          # requis par Simulator (n_sim2ctl)
         self.nzcr        = pilot.nzcr        # requis par Simulator (zcr init)
         self.annotations: List[dict] = []
+        self._u_exp_prev = np.zeros(4)       # expert-only prev action for clean history
 
     def control(
         self,
@@ -200,8 +205,13 @@ class MixedPolicy:
         # Expert MPC
         u_expert, _, _, _ = self.expert.control(tcr, xcr, upr, obj, icr, zcr)
 
-        # Pilot neural — use OODA directly to capture xnn for Commander retraining
-        u_pilot, znn, adv, xnn, tsol = self.pilot.OODA(upr, tcr, xcr, obj, icr, zcr)
+        # Pilot neural — pass u_exp_prev (pure expert history) to match BC distribution.
+        # BC training always uses upr = ucr (expert action), never a mixed action.
+        # Passing the mixed u_out_prev would corrupt dxu_par → HistoryEncoder breakdown.
+        u_pilot, znn, adv, xnn, tsol = self.pilot.OODA(self._u_exp_prev, tcr, xcr, obj, icr, zcr)
+
+        # Update expert-only history for next step (mirrors BC: upr = ucr each step)
+        self._u_exp_prev = u_expert.copy()
 
         # Annotation : expert command + pilot observation (xnn) for retraining
         # Detach xnn tensors to CPU so they can be saved/aggregated safely
@@ -219,6 +229,7 @@ class MixedPolicy:
 
     def reset_annotations(self):
         self.annotations = []
+        self._u_exp_prev = np.zeros(4)   # mirrors BC: upr = np.zeros(4) at rollout start
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -454,6 +465,7 @@ def _run_benchmark_pilot(
 def _extract_metrics_from_analyses(analyses: list, point_cloud) -> dict:
     """Calcule les métriques directement depuis les analyses (sans load_simulation_results)."""
     collision_rates, clearances_mean, fov_rates, returns_ = [], [], [], []
+    successes_, goal_dists_ = [], []
 
     pc = point_cloud
     if isinstance(pc, list):
@@ -478,12 +490,21 @@ def _extract_metrics_from_analyses(analyses: list, point_cloud) -> dict:
         ret = a.get("total_reward") or a.get("return_sum")
         returns_.append(float(ret) if ret is not None else np.nan)
 
+        successes_.append(float(a.get("success", False)))
+        # total_reward = -goal_dist
+        gd = a.get("goal_dist")
+        if gd is None and ret is not None:
+            gd = -float(ret)
+        goal_dists_.append(float(gd) if gd is not None else np.nan)
+
     return {
         "collision_rate": np.array(collision_rates),
         "clearance_mean": np.array(clearances_mean),
         "fov_rate":       np.array(fov_rates),
         "return_sum":     np.array(returns_),
         "traj_length":    np.array([1.0] * len(analyses)),
+        "success_rate":   np.array(successes_),
+        "goal_dist":      np.array(goal_dists_),
     }
 
 
@@ -747,7 +768,7 @@ def _eval_full_trajectories(
             n_cols     = tXUi.shape[1]
             start_idxs = np.linspace(0, n_cols - 1, n_eval, dtype=int)
 
-            goal_dists, successes = [], []
+            goal_dists, successes, collisions = [], [], []
             for run_i, s_idx in enumerate(start_idxs):
                 x0      = tXUi[1:11, s_idx].copy()
                 t_start = float(tXUi[0, s_idx])
@@ -771,25 +792,28 @@ def _eval_full_trajectories(
                 success   = goal_dist < 2.0 and not collided_ev
                 goal_dists.append(goal_dist)
                 successes.append(success)
+                collisions.append(collided_ev)
                 status = "✓" if success else ("💥" if collided_ev else "✗")
                 print(f"  [{label}] {status}  '{obj_name[:20]}'  "
                       f"run {run_i+1}/{n_eval}  goal_dist={goal_dist:.2f}m  "
                       f"coll={collided_ev}  ({time.time()-_t:.1f}s)")
 
             sr        = sum(successes) / len(successes)
+            cr        = sum(collisions) / len(collisions)
             mean_dist = float(np.mean(goal_dists))
             std_dist  = float(np.std(goal_dists))
             print(f"  [{label}] ── '{obj_name[:25]}'  "
-                  f"success={sr:.0%}  "
+                  f"success={sr:.0%}  collision={cr:.0%}  "
                   f"goal_dist={mean_dist:.2f}±{std_dist:.2f}m  "
                   f"best={float(np.min(goal_dists)):.2f}m")
             results[obj_name] = {
-                "goal_dist":     mean_dist,
-                "goal_dist_std": std_dist,
-                "goal_dist_min": float(np.min(goal_dists)),
-                "success":       sr >= 0.5,
-                "success_rate":  sr,
-                "n_eval":        n_eval,
+                "goal_dist":      mean_dist,
+                "goal_dist_std":  std_dist,
+                "goal_dist_min":  float(np.min(goal_dists)),
+                "success":        sr >= 0.5,
+                "success_rate":   sr,
+                "collision_rate": cr,
+                "n_eval":         n_eval,
             }
 
         torch.cuda.empty_cache()
@@ -921,11 +945,21 @@ def _filter_deviation_annotations(
     idx0: int,
     deviation_threshold: float = 0.3,
     close_approach_dist: float = 5.0,
+    collision_steps: Optional[List[int]] = None,
+    max_goal_dist: float = float('inf'),
+    max_deviation_dist: float = float('inf'),
 ) -> List[dict]:
     """
     Filter full-trajectory DAgger annotations to keep only useful ones:
       - States where the pilot deviated from the reference tXUi (> deviation_threshold).
       - States where the drone was within close_approach_dist of the goal.
+      - Hard cutoff: discard all annotations at or after the first collision step,
+        since post-crash drone physics diverge and those states are garbage.
+      - max_goal_dist: discard annotations where drone is more than this distance
+        from the goal (catches runaway trajectories where drone flies away from target).
+      - max_deviation_dist: discard annotations where drone deviated MORE than this
+        from the reference trajectory (catches extreme altitude/position excursions
+        that are physically outside the scene and would corrupt Commander training).
 
     This discards the majority of "fly straight from 25m away" timesteps that
     would otherwise corrupt BC fine-grained approach behaviour.
@@ -934,21 +968,53 @@ def _filter_deviation_annotations(
     if T == 0:
         return annotations
 
+    # Hard cutoff at first collision — post-crash positions are physically invalid
+    cutoff = T
+    if collision_steps:
+        cutoff = min(int(collision_steps[0]), T)
+
+    # Trajectory-level runaway detection: if no collision and the drone's final
+    # position is beyond max_goal_dist, this is a runaway trajectory.
+    # For runaway trajectories we only keep near-goal states (< close_approach_dist),
+    # NOT deviation-based states (those just teach the model to fly away).
+    is_runaway = (not collision_steps) and max_goal_dist < float('inf') and (
+        Xro.shape[1] > 0 and
+        np.linalg.norm(Xro[:3, min(cutoff - 1, Xro.shape[1] - 1)] - obj_target) > max_goal_dist
+    )
+
     keep: set = set()
-    for i in range(T):
+    for i in range(min(T, cutoff)):
         if i >= Xro.shape[1]:
             break
         pos = Xro[:3, i]
 
+        # Compute reference position and deviation distance (used in multiple checks below)
+        ref_idx = min(idx0 + i, tXUi.shape[1] - 1)
+        ref_pos = tXUi[1:4, ref_idx]
+        dev_dist = float(np.linalg.norm(pos - ref_pos))
+
+        # Discard if drone has gone completely off-course (extreme altitude or position
+        # excursion). These states are outside the scene bounds and train the Commander
+        # to produce destabilising commands.
+        if dev_dist > max_deviation_dist:
+            continue
+
+        # Discard if drone is too far from goal (per-step runaway filter)
+        goal_dist = np.linalg.norm(pos - obj_target)
+        if goal_dist > max_goal_dist:
+            continue
+
         # Always keep near-goal states (final approach / arrival)
-        if np.linalg.norm(pos - obj_target) < close_approach_dist:
+        if goal_dist < close_approach_dist:
             keep.add(i)
             continue
 
+        # For runaway trajectories: skip deviation-based annotations
+        if is_runaway:
+            continue
+
         # Keep if drone deviated from reference trajectory at this timestep
-        ref_idx = min(idx0 + i, tXUi.shape[1] - 1)
-        ref_pos = tXUi[1:4, ref_idx]
-        if np.linalg.norm(pos - ref_pos) > deviation_threshold:
+        if dev_dist > deviation_threshold:
             keep.add(i)
 
     return [annotations[i] for i in sorted(keep)]
@@ -993,9 +1059,16 @@ def _retrain_commander(
     cohort_name: str, pilot_name: str,
     aggregated_file: str, Nep: int, lim_sv: int,
     default_mass: float = 0.3, default_fn: float = 0.3,
+    lr: float = 1e-4,
 ) -> None:
     """
-    Convert DAgger annotations to BC observation format and retrain the Commander.
+    Convert DAgger annotations to BC observation format and fine-tune the Commander
+    ONLY on DAgger data (course_name="dagger").
+
+    Training only on DAgger data ensures:
+    1. DAgger annotations actually affect the Commander weights (not diluted by 330 BC files).
+    2. The Commander learns targeted corrections for states the student visits, without
+       re-optimising on the full BC distribution every iteration (which drifts the model).
 
     The DAgger aggregated file is a flat list of step-level dicts:
         {"xnn": {...}, "x": ndarray, "u": ndarray, "t": float, "query": ndarray}
@@ -1004,7 +1077,7 @@ def _retrain_commander(
         {"data": [{"Xnn": [...], "Ynn": [...], "Ndata": int, ...}], "set": "", ...}
 
     We save the converted file into a dedicated "dagger" course subdirectory so
-    that get_data_paths() finds it alongside the existing BC observations.
+    that get_data_paths() with course_name="dagger" finds only this file.
     """
     workspace_path = str(Path(__file__).resolve().parents[3])
     annotations = torch.load(aggregated_file, weights_only=False)
@@ -1048,9 +1121,14 @@ def _retrain_commander(
     os.makedirs(course_dir, exist_ok=True)
     dst = os.path.join(course_dir, "observations_dagger.pt")
     torch.save(obs_data, dst)
-    print(f"  [retrain] {len(Xnn)} samples → {dst}")
+    print(f"  [retrain] {len(Xnn)} DAgger samples → {dst}")
 
-    tp.train_roster(cohort_name, [pilot_name], "Commander", Nep, lim_sv=lim_sv)
+    # Fine-tune ONLY on DAgger data (course_name="dagger").
+    # Training on all BC data would dilute DAgger corrections by ~1000x
+    # (330 BC files vs 1 DAgger file with 40-50 samples), making DAgger annotations
+    # have negligible effect. DAgger-only training lets targeted corrections land.
+    tp.train_roster(cohort_name, [pilot_name], "Commander", Nep, lim_sv=lim_sv, lr=lr,
+                    course_name="dagger")
 
 
 def _wandb_log_iteration(pilot_name: str, m: dict, step: int) -> None:
@@ -1092,25 +1170,34 @@ def _wandb_log_benchmark(pilot_name: str, before: dict, after: dict) -> None:
 def _print_benchmark_comparison(before: dict, after: dict, pilot_name: str) -> None:
     fin = lambda x: x[np.isfinite(x)]
     def _s(m):
-        cr = m["collision_rate"]; clr = fin(m["clearance_mean"]); fov = fin(m["fov_rate"])
+        cr  = m["collision_rate"]
+        sr  = m.get("success_rate",  np.zeros_like(cr))
+        gd  = m.get("goal_dist",     np.full_like(cr, np.nan))
+        clr = fin(m["clearance_mean"])
+        fov = fin(m["fov_rate"])
         print(f"\n  ── {m['label']} ({len(cr)} rollouts) ──")
         print(f"    collision_rate : {cr.mean()*100:.1f}%  ({int(cr.sum())}/{len(cr)})")
-        print(f"    clearance_mean : {clr.mean():.3f} m")
-        print(f"    fov_rate       : {np.nanmean(fov)*100:.1f}%")
+        print(f"    success_rate   : {sr.mean()*100:.1f}%  ({int(sr.sum())}/{len(sr)})")
+        print(f"    goal_dist_mean : {np.nanmean(gd):.2f} m")
         print(f"    return mean    : {fin(m['return_sum']).mean():.1f}")
+        if clr.size:
+            print(f"    clearance_mean : {clr.mean():.3f} m")
     print("\n" + "=" * 62)
     print(f"  BENCHMARK DAgger — {pilot_name}")
     print("=" * 62)
     _s(before); _s(after)
+    b_gd = np.nanmean(before.get("goal_dist", np.array([np.nan])))
+    a_gd = np.nanmean(after.get("goal_dist",  np.array([np.nan])))
     for name, delta, better_if in [
         ("collision_rate", (after["collision_rate"].mean()  - before["collision_rate"].mean())*100,  "<"),
-        ("clearance_mean", fin(after["clearance_mean"]).mean() - fin(before["clearance_mean"]).mean(), ">"),
-        ("fov_rate",       (np.nanmean(after["fov_rate"]) - np.nanmean(before["fov_rate"]))*100,     ">"),
+        ("success_rate",   (after.get("success_rate", np.zeros(1)).mean() -
+                            before.get("success_rate", np.zeros(1)).mean())*100,                     ">"),
+        ("goal_dist_mean", a_gd - b_gd,                                                              "<"),
         ("return_mean",    fin(after["return_sum"]).mean() - fin(before["return_sum"]).mean(),        ">"),
     ]:
         ok = (delta < 0) if better_if == "<" else (delta > 0)
-        unit = "pp" if "rate" in name or "fov" in name else ""
-        print(f"  Δ {name:<15}: {delta:+.1f}{unit}  {'✓ better' if ok else '✗ worse'}")
+        unit = "pp" if "rate" in name else ("m" if "dist" in name else "")
+        print(f"  Δ {name:<15}: {delta:+.2f}{unit}  {'✓ better' if ok else '✗ worse'}")
     print("=" * 62)
 
 
@@ -1179,6 +1266,9 @@ def train_dagger_policy(
     start_pos_noise: float     = 0.3,
     deviation_filter_dist: float = 0.3,
     close_approach_dist: float   = 5.0,
+    max_annotation_goal_dist: float = 50.0,
+    max_deviation_dist: float  = float('inf'),
+    dagger_lr: float           = 1e-5,
 ) -> dict:
 
     print(f"[DAgger] Device : {DEVICE}")
@@ -1233,7 +1323,7 @@ def train_dagger_policy(
     print(f"[DAgger] Per-iter eval   : {n_eval_per_iter} runs/object  |  Benchmark: {max_trajectories} runs/object")
     print(f"[DAgger] Aggregation     : {'cumulative' if aggregate_dagger else 'online (per-iter only)'}")
     print(f"[DAgger] Start-pos noise : ±{start_pos_noise}m")
-    print(f"[DAgger] Ann filter      : keep if drift>{deviation_filter_dist}m OR goal_dist<{close_approach_dist}m")
+    print(f"[DAgger] Ann filter      : keep if drift>{deviation_filter_dist}m OR goal_dist<{close_approach_dist}m  |  discard if goal_dist>{max_annotation_goal_dist}m")
 
     vision_processor = create_vision_processor(_vp_type)
     if vision_processor is not None and hasattr(vision_processor, "to"):
@@ -1263,9 +1353,10 @@ def train_dagger_policy(
         pilot.set_mode("deploy")
         pilot.model.to(DEVICE)
 
-        dagger_dir = os.path.join(cohort_path, "dagger_data", pilot_name)
-        bench_dir  = os.path.join(dagger_dir, "benchmark")
-        rrt_backup = os.path.join(dagger_dir, "_benchmark_rrt_backup")
+        dagger_dir  = os.path.join(cohort_path, "dagger_data", pilot_name)
+        run_ts      = time.strftime("%Y%m%d_%H%M%S")
+        bench_dir   = os.path.join(dagger_dir, f"benchmark_{run_ts}")
+        rrt_backup  = os.path.join(dagger_dir, "_benchmark_rrt_backup")
         os.makedirs(bench_dir,  exist_ok=True)
         os.makedirs(rrt_backup, exist_ok=True)
 
@@ -1295,7 +1386,18 @@ def train_dagger_policy(
         )
 
         aggregated_file = os.path.join(dagger_dir, "dagger_aggregated.pt")
+        # Fresh campaign: back up any aggregated file from a previous run so it
+        # is not re-loaded by _aggregate_dagger_dataset (cross-campaign contamination).
+        if os.path.isfile(aggregated_file):
+            backup_agg = aggregated_file.replace(".pt", f"_backup_{run_ts}.pt")
+            shutil.move(aggregated_file, backup_agg)
+            print(f"[DAgger] Backed up previous aggregated file → {os.path.basename(backup_agg)}")
+
         beta, global_step = beta_start, 0
+        # Track best model by mean goal_dist (lower = better). Initialise to inf
+        # so the first iteration always saves a checkpoint regardless of success_rate.
+        best_score = float('inf')   # stores best (lowest) mean goal_dist seen
+        best_model_path = os.path.join(bench_dir, "model_best_dagger.pth")
 
         # ── Boucle DAgger ─────────────────────────────────────────────────
         for iteration in range(n_iterations):
@@ -1348,9 +1450,21 @@ def train_dagger_policy(
                     )
                     x0_ref = tXUi[1:, ref_idx0].copy()
                     if start_pos_noise > 0.0:
-                        x0_ref[:3] += np.random.uniform(
-                            -start_pos_noise, start_pos_noise, size=3
-                        )
+                        # Position noise — BC uses ±0.4m; clamp to env bounds
+                        env_min = scene_data.get("env_min", np.array([-1e6, -1e6, -1e6]))
+                        env_max = scene_data.get("env_max", np.array([ 1e6,  1e6,  1e6]))
+                        x0_ref[:3] += np.random.uniform(-start_pos_noise, start_pos_noise, size=3)
+                        x0_ref[:3]  = np.clip(x0_ref[:3], env_min, env_max)
+                        # Velocity noise — BC uses ±0.4 m/s (trajectory_set["initial"][3:6])
+                        x0_ref[3:6] += np.random.uniform(-0.4, 0.4, size=3)
+                        # Quaternion noise — BC uses ±0.2, then re-normalize + sign-align
+                        q_ref = tXUi[7:11, ref_idx0]  # reference quaternion (row 7..10 of tXUi)
+                        x0_ref[6:10] += np.random.uniform(-0.2, 0.2, size=4)
+                        q_norm = np.linalg.norm(x0_ref[6:10])
+                        if q_norm > 1e-6:
+                            x0_ref[6:10] /= q_norm
+                        if np.dot(x0_ref[6:10], q_ref) < 0:
+                            x0_ref[6:10] *= -1
                     perturbation = {"t0": t_traj_start, "x0": x0_ref}
 
                     rollout = _collect_dagger_rollout(
@@ -1368,7 +1482,10 @@ def train_dagger_policy(
                         t_end=t_traj_end,
                     )
 
-                    # Filter: keep only deviation + near-goal annotations.
+                    # Filter: keep only deviation + near-goal annotations,
+                    # discarding all timesteps at or after the first collision,
+                    # and any states where drone deviated beyond max_deviation_dist
+                    # (extreme altitude / out-of-scene excursions).
                     filtered_ann = _filter_deviation_annotations(
                         annotations=rollout["annotations"],
                         Xro=rollout["Xro"],
@@ -1377,7 +1494,55 @@ def train_dagger_policy(
                         idx0=ref_idx0,
                         deviation_threshold=deviation_filter_dist,
                         close_approach_dist=close_approach_dist,
+                        collision_steps=rollout["collision_steps"],
+                        max_goal_dist=max_annotation_goal_dist,
+                        max_deviation_dist=max_deviation_dist,
                     )
+
+                    # Expert-rescue: if crash happened too early (< 30 pre-crash
+                    # annotations), run a β=1 expert-only backup rollout to get
+                    # clean demonstrations the model never saw during BC training.
+                    RESCUE_THRESHOLD = 10
+                    if len(filtered_ann) < RESCUE_THRESHOLD and rollout["collision_steps"]:
+                        # Fresh expert to avoid stale waypoint state from main rollout
+                        rescue_expert = _make_expert(
+                            expert_type, tXUi, obj_target, obj_idx,
+                            scene_data, objective_configs[scene_name],
+                            _base_policy_name, _base_frame_name, pilot_name,
+                        )
+                        expert_only = MixedPolicy(rescue_expert, pilot, beta=1.0)
+                        backup_rollout = _collect_dagger_rollout(
+                            simulator=simulator,
+                            mixed_policy=expert_only,
+                            perturbation=perturbation,
+                            tXUi=tXUi,
+                            obj_name=obj_name,
+                            point_cloud=scene_data["epcds_arr"],
+                            obj_target=obj_target,
+                            collision_threshold=collision_threshold,
+                            drift_threshold=drift_threshold,
+                            vision_processor=vision_processor,
+                            t_start=t_traj_start,
+                            t_end=t_traj_end,
+                        )
+                        # For expert-rescue rollouts: keep ALL annotations
+                        # (the expert's path is useful to imitate entirely).
+                        # Only apply collision cutoff + max_deviation_dist sanity guard.
+                        backup_filtered = _filter_deviation_annotations(
+                            annotations=backup_rollout["annotations"],
+                            Xro=backup_rollout["Xro"],
+                            tXUi=tXUi,
+                            obj_target=obj_target,
+                            idx0=ref_idx0,
+                            deviation_threshold=0.0,   # keep all (no deviation filter)
+                            close_approach_dist=1e9,   # keep all (no distance filter)
+                            collision_steps=backup_rollout["collision_steps"],
+                            max_deviation_dist=max_deviation_dist,
+                        )
+                        RESCUE_MAX_ANN = 20  # cap rescue to prevent dominating the dataset
+                        backup_filtered = backup_filtered[:RESCUE_MAX_ANN]
+                        print(f"  [rescue] β=1.0: {len(backup_filtered)} expert annotations added for '{obj_name[:20]}'")
+                        filtered_ann = filtered_ann + backup_filtered
 
                     all_rollouts.append(rollout)
                     all_annotations.extend(filtered_ann)
@@ -1417,7 +1582,7 @@ def train_dagger_policy(
             # Re-entraînement
             print(f"[DAgger] Retraining Commander  Nep={Nep_per_iter} lim_sv={lim_sv}...")
             _t_retrain = time.time()
-            _retrain_commander(cohort_name, pilot_name, aggregated_file, Nep_per_iter, lim_sv)
+            _retrain_commander(cohort_name, pilot_name, aggregated_file, Nep_per_iter, lim_sv, lr=dagger_lr)
             print(f"[DAgger] Retraining done in {time.time()-_t_retrain:.1f}s")
 
             # Recharger pilot avec nouveaux poids
@@ -1448,16 +1613,25 @@ def train_dagger_policy(
             m["full_traj_eval"]    = iter_eval
             m["full_traj_success"] = n_ok / max(n_tot, 1)
 
+            # Save best model checkpoint by mean per-object goal_dist (lower = better).
+            # Using goal_dist instead of success_rate so progress is tracked even
+            # when no trajectory fully succeeds (success_rate stays 0 throughout early training).
+            iter_score = float(np.mean([v["goal_dist"] for v in iter_eval.values()]))
+            if iter_score < best_score:
+                best_score = iter_score
+                _save_model_checkpoint(pilot, best_model_path)
+                print(f"[DAgger] ★ New best model at iter {iteration}  mean_goal_dist={best_score:.2f}m  → {best_model_path}")
+
             print(f"[DAgger] Itération {iteration} done in {time.time()-_t_iter:.1f}s")
             print(f"  Segment metrics : collision={m['collision_rate']:.1%}"
                   f"  win_goal={m['window_goal_dist']:.2f}m"
                   f"  ann_new={m['n_annotations']}  agg_total={len(agg_data)}")
-            print(f"  Full-traj eval ({n_ok}/{n_tot} objects, {10} runs/obj):", end="")
+            print(f"  Full-traj eval ({n_ok}/{n_tot} objects, {n_eval_per_iter} runs/obj):", end="")
             for obj_name, r in iter_eval.items():
                 s = "✓" if r["success"] else "✗"
                 print(f"  {s} {obj_name.split()[-1]}"
                       f"({r['goal_dist']:.1f}±{r['goal_dist_std']:.1f}m"
-                      f" {r['success_rate']:.0%})", end="")
+                      f" sr={r['success_rate']:.0%} cr={r['collision_rate']:.0%})", end="")
             print()
 
             if use_wandb:
@@ -1481,8 +1655,19 @@ def train_dagger_policy(
             global_step += 1
             beta *= beta_decay
 
-        # Checkpoint final + benchmark after
+        # Restore best model (lowest mean goal_dist) to pilot roster before final benchmark.
+        # best_score tracks the lowest goal_dist seen — if it improved from inf, restore it.
         model_after_path = os.path.join(bench_dir, "model_after_dagger.pth")
+        if os.path.isfile(best_model_path) and best_score < float('inf'):
+            print(f"[DAgger] Restoring best model (mean_goal_dist={best_score:.2f}m) → pilot roster")
+            pilot = _swap_model(pilot, best_model_path)
+            pilot.set_mode("deploy")
+            roster_model_path = os.path.join(pilot.path, "model.pth")
+            torch.save(pilot.model.cpu(), roster_model_path)
+            pilot.model.to(DEVICE)
+            print(f"[DAgger] Best model saved to {roster_model_path}")
+        else:
+            print(f"[DAgger] No best model checkpoint found — using final iter model")
         _save_model_checkpoint(pilot, model_after_path)
 
         # 0 gsplat reload — utilise _SCENE_CACHE
@@ -1501,12 +1686,18 @@ def train_dagger_policy(
             _wandb_log_benchmark(pilot_name, metrics_before, metrics_after)
 
         bench_json = os.path.join(bench_dir, "benchmark_results.json")
+        def _safe_json(m):
+            out = {}
+            for k, v in m.items():
+                if isinstance(v, np.ndarray):
+                    out[k] = [float(x) if np.isfinite(x) else None for x in v.tolist()]
+                else:
+                    out[k] = v
+            return out
         with open(bench_json, "w") as f:
             json.dump({
-                "before": {k: v.tolist() if isinstance(v, np.ndarray) else v
-                           for k, v in metrics_before.items()},
-                "after":  {k: v.tolist() if isinstance(v, np.ndarray) else v
-                           for k, v in metrics_after.items()},
+                "before": _safe_json(metrics_before),
+                "after":  _safe_json(metrics_after),
             }, f, indent=2)
         print(f"[DAgger] Benchmark → {bench_json}")
 

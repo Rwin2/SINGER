@@ -318,10 +318,15 @@ class OnlineRRTExpert(_GeometricMixin):
         t0_plan = time.time()
         try:
             from figs.tsampling.rrt_datagen_v10 import RRT
+            # Clamp start to scene bounds — handles post-crash out-of-bounds positions
+            start_2d = np.array([
+                float(np.clip(pos[0], self._bounds[0][0], self._bounds[0][1])),
+                float(np.clip(pos[1], self._bounds[1][0], self._bounds[1][1])),
+            ])
             rrt = RRT(
                 env_arr                    = self._pcd_arr,
-                env_pts                    = None,      # KDTree built from env_arr
-                start                      = pos[:2].copy(),
+                env_pts                    = self._pcd_arr,  # non-None → obstacle_kdtree built
+                start                      = start_2d,
                 obj                        = self.goal[:2].copy(),
                 bounds                     = self._bounds,
                 altitude                   = float(pos[2]) if abs(pos[2]) > 0.05
@@ -353,8 +358,10 @@ class OnlineRRTExpert(_GeometricMixin):
         except Exception as exc:
             print(f"  [OnlineRRT] replan FAILED ({exc})  → straight-line fallback")
             alt = float(pos[2]) if abs(pos[2]) > 0.05 else self._altitude
+            sx = float(np.clip(pos[0], self._bounds[0][0], self._bounds[0][1]))
+            sy = float(np.clip(pos[1], self._bounds[1][0], self._bounds[1][1]))
             self._waypoints = np.array([
-                [pos[0], pos[1], alt],
+                [sx, sy, alt],
                 [self.goal[0], self.goal[1], alt],
                 self.goal.copy(),
             ])
@@ -387,7 +394,8 @@ class OnlineRRTExpert(_GeometricMixin):
     @staticmethod
     def _extract_path_2d(rrt) -> Optional[List[list]]:
         """Return 2-D waypoint list from RRT root to nearest-to-goal leaf."""
-        goal_pos = rrt.goal_node.position
+        # obj_exclusion[0] = actual navigation target; goal_node = root (drone start)
+        goal_pos = rrt.obj_exclusion[0]
         leaves   = [n for n in rrt.nodes if not n.children]
         if not leaves:
             return None

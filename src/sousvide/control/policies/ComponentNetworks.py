@@ -319,11 +319,14 @@ class VisionMLP(nn.Module):
         """
 
         # Check if the image is a batch
-        if img.dim() == 3:
+        inference_mode = img.dim() == 3
+        if inference_mode:
             img = img.unsqueeze(0)
 
         # Vision CNN
-        yim = self.networks[0](img).squeeze()
+        yim_raw = self.networks[0](img)
+        # Inference: squeeze all dims (tx is 1D); Training: keep batch dim (tx is 2D)
+        yim = yim_raw.squeeze() if inference_mode else yim_raw.reshape(img.shape[0], -1)
 
         # Vision MLPs
         xvs = self.networks[1](yim)
@@ -395,11 +398,14 @@ class VisionEncoder(nn.Module):
 
         
         # Check if the image is a batch
-        if img.dim() == 3:
+        inference_mode = img.dim() == 3
+        if inference_mode:
             img = img.unsqueeze(0)
 
         # Vision CNN
-        yim = self.networks[0](img).squeeze()
+        yim_raw = self.networks[0](img)
+        # Inference: squeeze all dims (tx is 1D); Training: keep batch dim (tx is 2D)
+        yim = yim_raw.squeeze() if inference_mode else yim_raw.reshape(img.shape[0], -1)
 
         # Vision MLPs
         xvs = self.networks[1](yim)

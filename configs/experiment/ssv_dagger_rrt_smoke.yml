@@ -1,4 +1,4 @@
-cohort: "ssv_dagger_rrt"
+cohort: "ssv_dagger_rrt_smoke"
 method: "rrt"
 
 review: false
@@ -6,11 +6,12 @@ review: false
 Nep_his: 100
 Nep_com: 150
 
-Nep_dagger: 20
+n_iterations: 3
+Nep_dagger: 50          # epochs on DAgger-only data (fast: ~40-50 samples per iter)
 n_eval_per_iter: 10
-n_benchmark: 50
+n_benchmark: 20
 lim_sv: 10
-dagger_lr: 0.00001
+dagger_lr: 0.0001       # normal Commander lr — DAgger-only training, no BC dilution
 
 aggregate_dagger: true
 start_pos_noise: 0.5
@@ -19,7 +20,6 @@ deviation_filter_dist: 0.3   # keep if drone drifted >0.3m from reference
 close_approach_dist: 5.0     # always keep if within 5m of goal
 max_annotation_goal_dist: 50.0  # discard annotations if drone >50m from goal (runaway filter)
 max_deviation_dist: 8.0         # discard annotations if drone deviated >8m from reference (extreme excursions)
-n_iterations: 10
 
 flights:
   - ["flightroom_ssv_exp", "flightroom_ssv_exp"]

@@ -15,18 +15,20 @@ from enum import Enum
 def train_roster(cohort_name:str,roster:List[str],
                  mode:Literal["Parameter","Odometry","Commander"],
                  Neps:int,lim_sv:int,
-                 lr:float=1e-4,batch_size:int=64):
+                 lr:float=1e-4,batch_size:int=64,
+                 course_name:str=None):
 
     for student_name in roster:
         # Load Student
         student = Pilot(cohort_name,student_name)
         student.set_mode('train')
 
-        train_student(cohort_name,student,mode,Neps,lim_sv,lr,batch_size)
+        train_student(cohort_name,student,mode,Neps,lim_sv,lr,batch_size,course_name=course_name)
 
 def train_student(cohort_name:str,student:Pilot,
                   mode:Literal["Parameter","Odometry","Commander"],
-                  Neps:int,lim_sv:int,lr:float,batch_size:int):
+                  Neps:int,lim_sv:int,lr:float,batch_size:int,
+                  course_name:str=None):
 
     # Pytorch Config
     use_cuda = torch.cuda.is_available()
@@ -92,7 +94,7 @@ def train_student(cohort_name:str,student:Pilot,
             unlock_networks(student,mode)
 
             # Get Observation Data Files (Paths)
-            od_train_files,od_test_files,od_val_files,od_rol_files = get_data_paths(cohort_name,student.name)
+            od_train_files,od_test_files,od_val_files,od_rol_files = get_data_paths(cohort_name,student.name,course_name=course_name)
 
             # Training
             loss_log_tn =[]
