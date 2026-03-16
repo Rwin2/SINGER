@@ -36,12 +36,14 @@ class _GeometricMixin:
     Shared yaw + altitude heading controller used by both expert classes.
 
     Parameters (set as instance attributes by subclasses):
-        goal       : (3,) target world-frame position [x, y, z]
-        max_speed  : cruise speed cap (m/s) — prevents runaway acceleration
-        k_yaw      : yaw-rate proportional gain
-        k_pitch    : forward velocity-error gain (speed controller, not position)
-        k_alt      : altitude proportional gain
-        k_alt_vel  : altitude velocity damping gain
+        goal         : (3,) target world-frame position [x, y, z]
+        max_speed    : cruise speed cap (m/s) — prevents runaway acceleration
+        k_yaw        : yaw-rate proportional gain
+        k_pitch      : forward velocity-error gain (speed controller, not position)
+        k_alt        : altitude proportional gain
+        k_alt_vel    : altitude velocity damping gain
+        hover_thrust : normalised thrust at hover equilibrium (calibrated from BC
+                       training data; default -0.407 matches MPC hover on this drone)
     """
 
     def _to_control(
@@ -97,10 +99,15 @@ class _GeometricMixin:
         wx = 0.0
 
         # ── altitude: proportional + velocity damping ─────────────────────────
+        # hover_thrust is the normalised thrust needed to maintain altitude at
+        # equilibrium (no altitude error, no vertical velocity).  Calibrated from
+        # BC training data: mean MPC thrust at on-trajectory states = -0.407.
+        # Using -0.5 (the old value) caused the drone to over-thrust at hover,
+        # producing altitude oscillations and collisions.
         alt_err = float(self.goal[2] - pos[2])
         vz      = float(vel[2])
         thrust  = float(np.clip(
-            -0.5 - self.k_alt * alt_err - self.k_alt_vel * vz,
+            self.hover_thrust - self.k_alt * alt_err - self.k_alt_vel * vz,
             -1.0, 0.0,
         ))
 
@@ -135,28 +142,30 @@ class PotentialFieldExpert(_GeometricMixin):
         self,
         goal:        np.ndarray,
         point_cloud: Optional[np.ndarray],
-        k_att:     float = 2.5,
-        k_rep:     float = 0.8,
-        d0_rep:    float = 1.2,
-        k_vel:     float = 0.8,
-        k_yaw:     float = 3.0,
-        k_pitch:   float = 2.0,
-        k_alt:     float = 1.0,
-        k_alt_vel: float = 0.3,
-        max_speed: float = 1.5,
+        k_att:        float = 2.5,
+        k_rep:        float = 0.8,
+        d0_rep:       float = 1.2,
+        k_vel:        float = 0.8,
+        k_yaw:        float = 3.0,
+        k_pitch:      float = 2.0,
+        k_alt:        float = 1.0,
+        k_alt_vel:    float = 0.3,
+        max_speed:    float = 1.5,
+        hover_thrust: float = -0.407,
     ) -> None:
-        self.goal      = np.asarray(goal, dtype=float).ravel()[:3]
-        self.hz        = 20
-        self.nzcr      = None
-        self.k_att     = k_att
-        self.k_rep     = k_rep
-        self.d0        = d0_rep
-        self.k_vel     = k_vel
-        self.k_yaw     = k_yaw
-        self.k_pitch   = k_pitch
-        self.k_alt     = k_alt
-        self.k_alt_vel = k_alt_vel
-        self.max_speed = max_speed
+        self.goal         = np.asarray(goal, dtype=float).ravel()[:3]
+        self.hz           = 20
+        self.nzcr         = None
+        self.k_att        = k_att
+        self.k_rep        = k_rep
+        self.d0           = d0_rep
+        self.k_vel        = k_vel
+        self.k_yaw        = k_yaw
+        self.k_pitch      = k_pitch
+        self.k_alt        = k_alt
+        self.k_alt_vel    = k_alt_vel
+        self.max_speed    = max_speed
+        self.hover_thrust = hover_thrust
 
         # Build KD-tree once for fast nearest-obstacle queries
         self._pcd: Optional[np.ndarray] = None
@@ -251,6 +260,7 @@ class OnlineRRTExpert(_GeometricMixin):
         k_alt:            float        = 1.0,
         k_alt_vel:        float        = 0.3,
         max_speed:        float        = 1.5,
+        hover_thrust:     float        = -0.407,
     ) -> None:
         self.goal            = np.asarray(goal, dtype=float).ravel()[:3]
         self.hz              = 20
@@ -260,6 +270,7 @@ class OnlineRRTExpert(_GeometricMixin):
         self.k_alt           = k_alt
         self.k_alt_vel       = k_alt_vel
         self.max_speed       = max_speed
+        self.hover_thrust    = hover_thrust
         self.replan_interval = replan_interval
         self.lookahead_dist  = lookahead_dist
         self.speed           = speed

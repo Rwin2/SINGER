@@ -255,20 +255,37 @@ def train_dagger(
     start_pos_noise: float = typer.Option(0.5, help="Random position noise (m) added to initial state for trajectory diversity"),
     deviation_filter_dist: float = typer.Option(0.3, help="Keep annotations where drone drifted >this (m) from reference trajectory"),
     close_approach_dist: float = typer.Option(5.0, help="Always keep annotations within this distance (m) of goal"),
+    run_simulate: bool = typer.Option(False, help="Run simulation + video generation after DAgger completes"),
     plot: bool = typer.Option(False),
-    use_wandb: bool = typer.Option(False),
-    wandb_project: Optional[str] = typer.Option(None),
+    use_wandb: bool = typer.Option(True, help="Enable W&B logging (default: True)"),
+    wandb_project: Optional[str] = typer.Option("singer-dagger"),
     wandb_run_name: Optional[str] = typer.Option(None),
     wandb_run_id: Optional[str] = typer.Option(None),
     wandb_resume: Optional[str] = typer.Option("allow"),
 ):
     from sousvide.instruct.train_dagger import train_dagger_policy
+    from datetime import datetime
+
+    # Auto-generate wandb run name from cohort if not specified
+    if wandb_run_name is None:
+        _cfg_tmp = load_yaml(config_file)
+        wandb_run_name = f"dagger_{_cfg_tmp['cohort']}_{datetime.now().strftime('%m%d_%H%M')}"
 
     cfg = common_options(
         config_file, plot, use_wandb, wandb_project, wandb_run_name,
         wandb_run_id=wandb_run_id, wandb_resume=wandb_resume,
     )
     init_wandb(cfg, "train_dagger")
+
+    # Define separate metric steps so training and DAgger don't conflict
+    if use_wandb:
+        try:
+            wandb.define_metric("train/*", step_metric="epoch")
+            wandb.define_metric("test/*", step_metric="epoch")
+            wandb.define_metric("dagger/*")
+            wandb.define_metric("benchmark/*")
+        except Exception:
+            pass
 
     typer.echo("=" * 70)
     typer.echo(f"[DAgger] Démarrage  —  {n_iterations} itérations")
@@ -295,7 +312,7 @@ def train_dagger(
         lim_sv=cfg.get("lim_sv", 10),
         max_trajectories=cfg.get("n_benchmark", max_trajectories),
         n_eval_per_iter=cfg.get("n_eval_per_iter", 10),
-        expert_type=expert_type,
+        expert_type=cfg.get("expert_type", expert_type),
         aggregate_dagger=cfg.get("aggregate_dagger", aggregate_dagger),
         start_pos_noise=cfg.get("start_pos_noise", start_pos_noise),
         deviation_filter_dist=cfg.get("deviation_filter_dist", deviation_filter_dist),
@@ -303,6 +320,9 @@ def train_dagger(
         max_annotation_goal_dist=float(cfg.get("max_annotation_goal_dist", 50.0)),
         max_deviation_dist=float(cfg.get("max_deviation_dist", float('inf'))),
         dagger_lr=float(cfg.get("dagger_lr", 1e-5)),
+        bc_cohort_name=cfg.get("bc_cohort", None),
+        eval_seed=cfg.get("eval_seed", None),
+        reset_to_best=cfg.get("reset_to_best", False),
     )
 
     # ── Résumé terminal ───────────────────────────────────────────────────────
@@ -329,6 +349,17 @@ def train_dagger(
             wandb.finish()
         except Exception:
             pass
+
+    # Auto-run simulation + video generation if requested
+    if run_simulate:
+        typer.echo("\n" + "=" * 70)
+        typer.echo("[DAgger] Running simulation to generate videos...")
+        typer.echo("=" * 70)
+        df.simulate_roster(
+            cfg["cohort"], cfg["method"], cfg["flights"], cfg["roster"],
+            review=False,
+        )
+        typer.echo("[DAgger] Simulation + video generation complete!")
 
 
 @app.command()

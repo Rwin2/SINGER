@@ -1,0 +1,38 @@
+cohort: "SSV_DAGGER_FULL_CAMPAIGN"
+method: "rrt"
+
+review: false
+
+Nep_his: 100
+Nep_com: 150
+
+bc_cohort: "ssv_CLIPSEG_NORMAL"
+expert_type: "mpc"
+
+# Full campaign: more iterations + more eval for statistical significance
+n_iterations: 8
+Nep_dagger: 8
+n_eval_per_iter: 20
+n_benchmark: 50
+lim_sv: 5
+dagger_lr: 0.00003
+
+# V3 validated settings
+aggregate_dagger: false
+reset_to_best: true
+eval_seed: 42
+
+# Wider position perturbation for more diverse DAgger data
+start_pos_noise: 0.5
+
+# Annotation filtering
+deviation_filter_dist: 0.3
+close_approach_dist: 5.0
+max_annotation_goal_dist: 50.0
+max_deviation_dist: 8.0
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"
