@@ -46,8 +46,8 @@ FRAME_NAME = "carl"
 ROLLOUT_NAME = "baseline"
 POLICY_NAME = "vrmpc_rrt"
 
-BC_COHORT = "ssv_BC_6S"
-DAGGER_COHORT = "SSV_DAGGER_BC6S_V8"
+BC_COHORT = "ssv_BC_CENTROID_V9"
+DAGGER_COHORT = "SSV_DAGGER_CENTROID_V9"
 PILOT_NAME = "InstinctJester"
 
 N_BRANCHES = 5  # per object

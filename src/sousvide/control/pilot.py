@@ -212,10 +212,76 @@ class Pilot():
         self.tx_cr.copy_(torch.cat((tcr.unsqueeze(0),xcr)).flatten())
         self.znn_cr.copy_(zcr)
 
+        # Compute centroid features from raw image (before normalization)
+        # CLIPSeg/semantic images highlight the target — centroid gives bearing/elevation/size
+        centroid = self._compute_centroid(icr)
+        obj_with_centroid = obj.reshape(self.Obj.shape).clone()
+        obj_with_centroid[0, 0] = centroid[0]  # bearing  [-1, 1]
+        obj_with_centroid[1, 0] = centroid[1]  # elevation [-1, 1]
+        obj_with_centroid[2, 0] = centroid[2]  # apparent_size [0, 1]
+
         # Update Network Input Variables
-        self.Obj.copy_(obj.reshape(self.Obj.shape))
+        self.Obj.copy_(obj_with_centroid)
         self.Img.copy_(icr)
             
+    def _compute_centroid(self, icr):
+        """Compute target bearing, elevation, and apparent size from CLIPSeg/semantic image.
+
+        The CLIPSeg heatmap highlights the target object with brighter pixels.
+        This extracts a simple geometric summary: where is the highlight in the image
+        and how large is it (proxy for distance).
+
+        Returns:
+            torch.Tensor of shape (3,): [bearing, elevation, apparent_size]
+                bearing:       [-1, 1]  (-1=left edge, +1=right edge)
+                elevation:     [-1, 1]  (-1=top edge, +1=bottom edge)
+                apparent_size: [0, 1]   fraction of image pixels above threshold
+        """
+        if icr is None:
+            return torch.zeros(3, device=self.device)
+
+        # Convert to numpy
+        if isinstance(icr, torch.Tensor):
+            img = icr.detach().cpu().numpy()
+        else:
+            img = np.array(icr, dtype=np.float32)
+
+        # Compute brightness map
+        if img.ndim == 3:
+            if img.shape[0] in (1, 3):   # (C, H, W)
+                heat = img.mean(axis=0)
+            else:                          # (H, W, C)
+                heat = img.mean(axis=2)
+        elif img.ndim == 2:
+            heat = img.astype(np.float32)
+        else:
+            return torch.zeros(3, device=self.device)
+
+        # Normalize to [0, 1]
+        if heat.max() > 1.0:
+            heat = heat / 255.0
+
+        # Threshold: 75th percentile (top quarter of brightness)
+        threshold = np.percentile(heat, 75)
+        mask = heat > threshold
+
+        if mask.sum() < 5:
+            return torch.zeros(3, device=self.device)
+
+        H, W = heat.shape
+        ys, xs = np.where(mask)
+        weights = heat[mask]
+
+        cx = np.average(xs, weights=weights) / W   # [0, 1]
+        cy = np.average(ys, weights=weights) / H   # [0, 1]
+
+        bearing = 2.0 * cx - 1.0                   # [-1, 1]
+        elevation = 2.0 * cy - 1.0                 # [-1, 1]
+        apparent_size = float(mask.sum()) / (H * W) # [0, 1]
+
+        return torch.tensor([bearing, elevation, apparent_size],
+                            dtype=torch.float32, device=self.device)
+
     def orient(self):
         """
         Function that performs the orientation step of the OODA loop where we generate the history

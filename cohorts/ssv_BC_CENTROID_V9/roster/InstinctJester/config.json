@@ -1,5 +1,4 @@
 {
-    "retrain": false,
     "type": "SVNet",
     "networks": [
         {
@@ -53,7 +52,7 @@
             "output_size": 128
         },
         {
-            "type": "CommandSV1",
+            "type": "CommandSV",
             "state": [
                 3,
                 4,
@@ -64,7 +63,11 @@
                 9,
                 10
             ],
-            "objective": [],
+            "objective": [
+                0,
+                1,
+                2
+            ],
             "hidden_sizes": [
                 100,
                 100

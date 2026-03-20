@@ -1,0 +1,22 @@
+# BC training with CLIPSeg centroid features (V9)
+# Same as ssv_bc_6s but with new cohort to preserve baseline
+# Centroid features (bearing, elevation, apparent_size) added to obj_com
+# Commander input: 147-dim (was 144)
+cohort: "ssv_BC_CENTROID_V9"
+method: "rrt_6s"
+
+review: false
+
+# Training epochs
+Nep_his: 100
+Nep_com: 150
+
+# DAgger parameters (not used for BC, but required by config)
+Nep_dagger: 50
+lim_sv: 10
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"
