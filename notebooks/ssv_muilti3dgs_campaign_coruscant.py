@@ -250,6 +250,7 @@ def train_dagger(
     collision_threshold: float = typer.Option(0.15),
     drift_threshold: float = typer.Option(2.0),
     expert_type: str = typer.Option("mpc", help="Expert type: mpc | potential | rrt"),
+    n_rollouts_per_object: int = typer.Option(5, help="Number of different branches to fly per object per DAgger iteration"),
     max_trajectories: int = typer.Option(10, help="Number of benchmark trajectories per evaluation"),
     aggregate_dagger: bool = typer.Option(False, help="Cumulate all past DAgger data (True) or train only on current iter (False=online)"),
     start_pos_noise: float = typer.Option(0.5, help="Random position noise (m) added to initial state for trajectory diversity"),
@@ -287,9 +288,13 @@ def train_dagger(
         except Exception:
             pass
 
+    _n_iter = cfg.get("n_iterations", n_iterations)
+    _beta_s = cfg.get("beta_start", beta_start)
+    _beta_d = cfg.get("beta_decay", beta_decay)
+    _pat    = cfg.get("patience", 2)
     typer.echo("=" * 70)
-    typer.echo(f"[DAgger] Démarrage  —  {n_iterations} itérations")
-    typer.echo(f"         β initial  : {beta_start}  |  decay : {beta_decay}")
+    typer.echo(f"[DAgger] Démarrage  —  {_n_iter} itérations  (patience={_pat})")
+    typer.echo(f"         β initial  : {_beta_s}  |  decay : {_beta_d}")
     typer.echo(f"         collision  : {collision_threshold} m")
     typer.echo(f"         dérive max : {drift_threshold} m")
     typer.echo(f"         W&B        : {'ON  → ' + cfg.get('wandb_project','') if use_wandb else 'OFF'}")
@@ -301,8 +306,8 @@ def train_dagger(
         roster=cfg.get("roster") or ["InstinctJester"],
         flights=[tuple(x) for x in cfg["flights"]],
         n_iterations=cfg.get("n_iterations", n_iterations),
-        beta_start=beta_start,
-        beta_decay=beta_decay,
+        beta_start=cfg.get("beta_start", beta_start),
+        beta_decay=cfg.get("beta_decay", beta_decay),
         collision_threshold=collision_threshold,
         drift_threshold=drift_threshold,
         Nep_per_iter=cfg.get("Nep_dagger", 50),
@@ -315,6 +320,7 @@ def train_dagger(
         expert_type=cfg.get("expert_type", expert_type),
         aggregate_dagger=cfg.get("aggregate_dagger", aggregate_dagger),
         start_pos_noise=cfg.get("start_pos_noise", start_pos_noise),
+        n_rollouts_per_object=cfg.get("n_rollouts_per_object", n_rollouts_per_object),
         deviation_filter_dist=cfg.get("deviation_filter_dist", deviation_filter_dist),
         close_approach_dist=cfg.get("close_approach_dist", close_approach_dist),
         max_annotation_goal_dist=float(cfg.get("max_annotation_goal_dist", 50.0)),
@@ -323,6 +329,11 @@ def train_dagger(
         bc_cohort_name=cfg.get("bc_cohort", None),
         eval_seed=cfg.get("eval_seed", None),
         reset_to_best=cfg.get("reset_to_best", False),
+        patience=cfg.get("patience", 2),
+        dagger_only=cfg.get("dagger_only", False),
+        dagger_oversample=int(cfg.get("dagger_oversample", 1)),
+        orientation_deviation_deg=cfg.get("orientation_deviation_deg", None),
+        max_orientation_dev_deg=float(cfg.get("max_orientation_dev_deg", 180.0)),
     )
 
     # ── Résumé terminal ───────────────────────────────────────────────────────

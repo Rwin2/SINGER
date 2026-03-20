@@ -1,0 +1,51 @@
+# DAgger V3 on BC 6s — Mixed BC+DAgger with DAgger oversampling
+# V1 (mixed, no oversample): 34%→67% success at iter 1 — but DAgger=0.3% of data, 33min/iter
+# V2 (DAgger-only, oversample=50): catastrophic forgetting → 0% success
+# V3 fix: Mixed BC+DAgger, oversample DAgger ×50 → 12% of data, ~5min/iter
+# NOTE: V3 results INVALIDATED — used unknown-origin pkl files. See V4.
+cohort: "SSV_DAGGER_BC6S_V3"
+method: "rrt_6s"
+
+review: false
+
+Nep_his: 100
+Nep_com: 150
+
+bc_cohort: "ssv_BC_6S"
+expert_type: "mpc"
+
+# Mixed training with DAgger oversampling (NOT dagger_only)
+dagger_only: false
+dagger_oversample: 50
+
+# 20 epochs on 179K samples ≈ 4-5 min/iter (vs 33 min at 150 epochs)
+n_iterations: 12
+Nep_dagger: 20
+n_eval_per_iter: 40
+n_benchmark: 50
+lim_sv: 10
+dagger_lr: 0.00005
+
+# Same proven settings from V1
+aggregate_dagger: true
+reset_to_best: true
+eval_seed: 42
+patience: 4
+
+beta_start: 0.80
+beta_decay: 0.92
+
+n_rollouts_per_object: 8
+
+start_pos_noise: 0.4
+
+deviation_filter_dist: 0.15
+close_approach_dist: 5.0
+max_annotation_goal_dist: 50.0
+max_deviation_dist: 8.0
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"

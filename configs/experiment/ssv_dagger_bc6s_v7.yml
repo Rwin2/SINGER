@@ -1,0 +1,54 @@
+# DAgger V7 on BC 6s — Anti-overfitting: less DAgger dominance, stricter annotation filter
+# V6 result: 34.7% baseline → 38% best (iter 2), then overfitting/degradation
+# V7 changes: oversample 50→20, deviation_filter 0.15→0.3, Nep_dagger 20→10, lr 5e-5→2e-5
+# deviation_filter=0.3: expert MPC tracking noise is ~0.2m mean, 0.3m 95th pct
+# At 0.15m: 50-95% of expert steps pass (= no filtering). At 0.3m: only 6-30% pass.
+cohort: "SSV_DAGGER_BC6S_V7"
+method: "rrt_6s"
+
+review: false
+
+Nep_his: 100
+Nep_com: 150
+
+bc_cohort: "ssv_BC_6S"
+expert_type: "mpc"
+
+# Reduced DAgger oversampling to prevent DAgger data from overwhelming BC data
+# V6: 50x oversample → 722K DAgger vs 158K BC (4.6:1 ratio, caused overfitting)
+# V7: 20x oversample → ~280K DAgger vs 158K BC (1.8:1 ratio)
+dagger_only: false
+dagger_oversample: 20
+
+n_iterations: 12
+Nep_dagger: 10
+n_eval_per_iter: 40
+n_benchmark: 50
+lim_sv: 10
+dagger_lr: 0.00002
+
+aggregate_dagger: true
+reset_to_best: true
+eval_seed: 42
+patience: 5
+
+beta_start: 0.80
+beta_decay: 0.92
+
+n_rollouts_per_object: 8
+
+start_pos_noise: 0.4
+
+# Raised from 0.15 to 0.3: expert MPC tracking noise is ~0.2m (mean), ~0.3m (95th pct)
+# At 0.15m → 50-95% of expert steps pass (no meaningful filtering)
+# At 0.3m → only 6-30% of expert steps pass, all student deviations still captured
+deviation_filter_dist: 0.3
+close_approach_dist: 5.0
+max_annotation_goal_dist: 50.0
+max_deviation_dist: 8.0
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"

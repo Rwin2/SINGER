@@ -28,6 +28,7 @@ from sousvide.instruct.expert_controllers import PotentialFieldExpert, OnlineRRT
 
 from sousvide.control.pilot import Pilot
 import sousvide.instruct.train_policy as tp
+from scipy.spatial.transform import Rotation
 from sousvide.flight.deploy_ssv import simulate_rollouts
 from sousvide.flight.vision_processor_base import create_vision_processor
 from sousvide.rl import load_simulation_results, prepare_batch_data
@@ -50,6 +51,9 @@ _SCENE_CACHE: Dict[str, dict] = {}
 
 # {f"{scene_name}_{obj_name}": {"tXUi": ndarray, ...}}
 _PKL_CACHE: Dict[str, dict] = {}
+
+# {f"{scene_name}_{obj_name}": [list of (18, N_i) tXUd arrays]}  — from BC rollout data
+_BC_TRAJ_CACHE: Dict[str, List[np.ndarray]] = {}
 
 
 def _get_scene(
@@ -130,6 +134,347 @@ def _preload_all_pkls(flights: List[Tuple[str, str]], scenes_cfg_dir: str) -> in
             if data is not None:
                 n += 1
     return n
+
+
+def _preload_bc_trajectories(
+    bc_cohort_name: str,
+    flights: List[Tuple[str, str]],
+    scenes_cfg_dir: str,
+) -> int:
+    """
+    Load ALL tXUd from BC rollout data and assign to objects by goal proximity.
+    Populates _BC_TRAJ_CACHE and _PKL_CACHE (for backwards compat with _get_pkl).
+    Returns number of trajectories loaded.
+    """
+    workspace_path = str(Path(__file__).resolve().parents[3])
+    total = 0
+
+    for scene_name, _ in flights:
+        # Get object targets from scene cache (must be preloaded)
+        scene_data = _SCENE_CACHE.get(scene_name)
+        if scene_data is None:
+            print(f"  [BC-Traj] ⚠️ Scene '{scene_name}' not in cache — skip")
+            continue
+        obj_targets = scene_data["obj_targets"]  # list of (3,) arrays
+        queries = scene_data["queries"]
+
+        if not queries or not obj_targets:
+            continue
+
+        # Load all trajectory files
+        rollout_dir = os.path.join(
+            workspace_path, "cohorts", bc_cohort_name,
+            "rollout_data", scene_name,
+        )
+        traj_files = sorted(glob.glob(os.path.join(rollout_dir, "trajectories*.pt")))
+        if not traj_files:
+            print(f"  [BC-Traj] ⚠️ No trajectory files in {rollout_dir}")
+            continue
+
+        # Collect all tXUd and match to nearest object
+        # obj_targets may be (1,3) or (3,) — squeeze to (3,) each
+        obj_locs = np.array([np.squeeze(t) for t in obj_targets])  # (n_obj, 3)
+        per_obj: Dict[int, List[np.ndarray]] = {i: [] for i in range(len(queries))}
+
+        for tf in traj_files:
+            data = torch.load(tf, map_location="cpu", weights_only=False)
+            tXUd = data.get("tXUd")
+            if tXUd is None or not hasattr(tXUd, "shape") or tXUd.shape[0] != 18:
+                continue
+            # Goal = last position in trajectory
+            goal = tXUd[1:4, -1]
+            dists = np.linalg.norm(obj_locs - goal, axis=1)
+            best_obj = int(np.argmin(dists))
+            if float(dists[best_obj]) < 5.0:  # within 5m (objects are far apart; goal ≠ centroid)
+                per_obj[best_obj].append(tXUd)
+
+        for obj_idx, obj_name in enumerate(queries):
+            key = f"{scene_name}_{obj_name}"
+            trajs = per_obj[obj_idx]
+            if not trajs:
+                continue
+            _BC_TRAJ_CACHE[key] = trajs
+            total += len(trajs)
+
+            # Also populate _PKL_CACHE so _get_pkl() works without pkl files
+            if key not in _PKL_CACHE:
+                _PKL_CACHE[key] = {
+                    "tXUi": trajs[0],
+                    "obj_loc": trajs[0][1:4, -1],
+                }
+
+            print(f"  [BC-Traj] ✅ '{obj_name}': {len(trajs)} branches from BC rollout data")
+
+    return total
+
+
+# ── Consistent success evaluation (matches BC analysis pipeline) ───────────
+
+EXCLUSION_RADIUS = 2.0       # r1: exclusion zone radius from scene config
+COLLISION_RADIUS = 0.15      # r2: collision detection radius
+# Max's soft_success_radius = r1 + 2*r2 = 2.0 + 0.3 = 2.3m
+SUCCESS_RADIUS   = EXCLUSION_RADIUS + 2 * COLLISION_RADIUS  # 2.3m — matches Max's analysis
+HORIZONTAL_FOV   = np.radians(85)  # 85° camera FOV (logged, not enforced)
+
+
+def _evaluate_run(
+    Xro: np.ndarray,
+    obj_target: np.ndarray,
+    pc_bench: np.ndarray,
+    success_radius: float = SUCCESS_RADIUS,
+    collision_radius: float = COLLISION_RADIUS,
+    check_fov: bool = True,
+    env_min: np.ndarray = None,
+    env_max: np.ndarray = None,
+    tXUi: np.ndarray = None,
+    idx0: int = 0,
+) -> dict:
+    """
+    Evaluate a single simulation run.
+
+    Success criteria (per Max's analyze_simulated_experiments.py):
+      1. Drone enters within success_radius (r1+2*r2=2.3m) of obj_target (centroid)
+      2. No collision BEFORE first entry into the goal zone
+      FOV is computed and logged but NOT part of success (matches Max's code).
+
+    Collision is detected via:
+      a. Point-cloud proximity (< collision_radius from any Gaussian center)
+      b. Out-of-bounds (drone exits env_min/env_max scene boundaries)
+
+    Returns dict with: success, collision, collided_before_goal, goal_dist,
+                       min_goal_dist, first_entry_step, goal_in_fov, out_of_bounds
+    """
+    n_steps = Xro.shape[1]
+    positions = Xro[:3, :].T  # (N, 3)
+
+    # Ensure obj_target is a flat (3,) array
+    obj_target = np.asarray(obj_target).flatten()[:3]
+
+    # Distance to goal at each timestep
+    goal_dists = np.linalg.norm(positions - obj_target, axis=1)
+    min_goal_dist = float(goal_dists.min())
+    final_goal_dist = float(goal_dists[-1])
+
+    # First entry into goal zone (any timestep)
+    in_zone = goal_dists <= success_radius
+    reached_goal = bool(in_zone.any())
+    first_entry_step = int(np.argmax(in_zone)) if reached_goal else -1
+
+    # ── Collision detection ──
+
+    # (a) Point-cloud proximity
+    collided_pc = False
+    collision_step = n_steps
+    if pc_bench.shape[0] > 0:
+        Xro_t = torch.from_numpy(Xro[:3].T).float().to(DEVICE)
+        pc_t  = torch.from_numpy(pc_bench).float().to(DEVICE)
+        dists_to_pc = torch.cdist(Xro_t, pc_t)  # (N, M)
+        collision_mask = (dists_to_pc < collision_radius).any(dim=1)  # (N,)
+        if collision_mask.any():
+            collided_pc = True
+            collision_step = int(collision_mask.nonzero()[0][0])
+        del Xro_t, pc_t, dists_to_pc
+
+    # (b) Out-of-bounds (drone exits scene boundaries)
+    out_of_bounds = False
+    oob_step = n_steps
+    if env_min is not None and env_max is not None:
+        env_min_arr = np.asarray(env_min).flatten()[:3]
+        env_max_arr = np.asarray(env_max).flatten()[:3]
+        below = (positions < env_min_arr).any(axis=1)
+        above = (positions > env_max_arr).any(axis=1)
+        oob_mask = below | above
+        if oob_mask.any():
+            out_of_bounds = True
+            oob_step = int(np.argmax(oob_mask))
+
+    # Combined collision: point-cloud OR out-of-bounds
+    collided = collided_pc or out_of_bounds
+    if collided:
+        collision_step = min(
+            collision_step if collided_pc else n_steps,
+            oob_step if out_of_bounds else n_steps,
+        )
+
+    # Collision BEFORE reaching goal zone (what matters for success)
+    collided_before_goal = collided and (
+        not reached_goal or collision_step < first_entry_step
+    )
+
+    # FOV check at the moment of first entry to goal zone
+    goal_in_fov = False
+    if reached_goal and not collided_before_goal and check_fov:
+        check_step = first_entry_step
+        cam_pos = Xro[:3, check_step]
+        # Xro state layout: [x,y,z, vx,vy,vz, qx,qy,qz,qw, ...] = 10+ rows
+        if Xro.shape[0] >= 10:
+            quat = Xro[6:10, check_step]  # [qx, qy, qz, qw]
+            dx = obj_target[0] - cam_pos[0]
+            dy = obj_target[1] - cam_pos[1]
+            required_yaw = np.arctan2(dy, dx)
+            # Drone yaw from quaternion — same formula as BC analysis pipeline
+            qx, qy, qz, qw = quat
+            actual_yaw = np.arctan2(2 * (qw * qz + qx * qy),
+                                    1 - 2 * (qy**2 + qz**2))
+            yaw_error = abs(actual_yaw - required_yaw)
+            if yaw_error > np.pi:
+                yaw_error = 2 * np.pi - yaw_error
+            goal_in_fov = yaw_error <= (HORIZONTAL_FOV / 2)
+        else:
+            goal_in_fov = True
+    elif reached_goal and not collided_before_goal:
+        goal_in_fov = True  # skip FOV check if disabled
+
+    # Success = first entry into goal zone + no collision before entry
+    # (FOV is logged but not enforced, matching Max's analyze_simulated_experiments.py)
+    success = reached_goal and not collided_before_goal
+
+    # ── Deviation analysis (cheap post-processing if tXUi provided) ──
+    # Only measure deviation UNTIL first entry into success zone.
+    # After the drone reaches the goal, divergence from reference is expected.
+    mean_pos_dev = float('nan')
+    mean_orient_dev_deg = float('nan')
+    fov_pct = float('nan')
+    if tXUi is not None and Xro.shape[0] >= 10 and tXUi.shape[0] >= 11:
+        T_ref = min(n_steps, tXUi.shape[1] - idx0)
+        # Cutoff at first entry into success zone (deviation after is irrelevant)
+        T_dev = first_entry_step if (reached_goal and first_entry_step > 0) else T_ref
+        T_dev = min(T_dev, T_ref)
+        if T_dev > 0:
+            # Position deviation: ||Xro[0:3,t] - tXUi[1:4, idx0+t]||
+            ref_pos = tXUi[1:4, idx0:idx0 + T_dev]  # (3, T_dev)
+            act_pos = Xro[:3, :T_dev]                # (3, T_dev)
+            pos_devs = np.linalg.norm(act_pos - ref_pos, axis=0)  # (T_dev,)
+            mean_pos_dev = float(np.mean(pos_devs))
+
+            # Orientation deviation: quaternion angle between Xro[6:10] and tXUi[7:11]
+            ref_quat = tXUi[7:11, idx0:idx0 + T_dev]  # (4, T_dev)
+            act_quat = Xro[6:10, :T_dev]               # (4, T_dev)
+            dots = np.clip(np.abs(np.sum(act_quat * ref_quat, axis=0)), 0.0, 1.0)
+            orient_devs_deg = np.degrees(2.0 * np.arccos(dots))
+            mean_orient_dev_deg = float(np.mean(orient_devs_deg))
+
+            # FOV percentage: what fraction of timesteps have goal in camera FOV
+            fov_count = 0
+            for t in range(T_dev):
+                q = Xro[6:10, t]
+                qx, qy, qz, qw = q
+                cam_pos_t = Xro[:3, t]
+                dx_t = obj_target[0] - cam_pos_t[0]
+                dy_t = obj_target[1] - cam_pos_t[1]
+                req_yaw = np.arctan2(dy_t, dx_t)
+                act_yaw = np.arctan2(2 * (qw * qz + qx * qy),
+                                     1 - 2 * (qy**2 + qz**2))
+                yaw_err = abs(act_yaw - req_yaw)
+                if yaw_err > np.pi:
+                    yaw_err = 2 * np.pi - yaw_err
+                if yaw_err <= (HORIZONTAL_FOV / 2):
+                    fov_count += 1
+            fov_pct = fov_count / max(T_dev, 1)
+
+    return {
+        "success":              success,
+        "collision":            collided_before_goal,
+        "collided_before_goal": collided_before_goal,
+        "goal_dist":            final_goal_dist,
+        "min_goal_dist":        min_goal_dist,
+        "first_entry_step":     first_entry_step,
+        "goal_in_fov":          goal_in_fov,
+        "out_of_bounds":        out_of_bounds,
+        "total_reward":         -final_goal_dist,
+        "mean_pos_dev":         mean_pos_dev,
+        "mean_orient_dev_deg":  mean_orient_dev_deg,
+        "fov_pct":              fov_pct,
+    }
+
+
+# ── Multi-branch cache: all parameterized branches per object ──────────────
+_BRANCHES_CACHE: Dict[str, List[np.ndarray]] = {}
+
+
+def _load_all_branches(
+    scene_name: str,
+    obj_name: str,
+    cohort_path: str,
+    scenes_cfg_dir: str,
+    fallback_tXUi: np.ndarray,
+) -> List[np.ndarray]:
+    """
+    Load all parameterized branches (18×N tXUi arrays) for an object.
+    Sources, in priority order:
+      1. BC rollout trajectories (_BC_TRAJ_CACHE) — authoritative source
+      2. Filtered branch pkl from simulation_data/*/rrt_planning/ (raw waypoints → parameterize)
+      3. Fallback: just the single branch from configs/scenes/ pkl
+
+    Returns a list of (18, N_i) arrays.  Results are cached in _BRANCHES_CACHE.
+    """
+    key = f"{scene_name}_{obj_name}"
+    if key in _BRANCHES_CACHE:
+        return _BRANCHES_CACHE[key]
+
+    # Priority 1: BC rollout trajectories (authoritative — same data BC trained on)
+    if key in _BC_TRAJ_CACHE:
+        branches_tXUi = _BC_TRAJ_CACHE[key]
+        print(f"  [Branches] ✅ {len(branches_tXUi)} branches from BC rollout data for '{obj_name}'")
+        _BRANCHES_CACHE[key] = branches_tXUi
+        return branches_tXUi
+
+    # Priority 2: filtered pkl with all branches (raw waypoints)
+    branches_tXUi = []
+    sim_data_root = os.path.join(cohort_path, "simulation_data")
+    if os.path.isdir(sim_data_root):
+        # Find most recent rrt_planning dir
+        rrt_dirs = sorted(glob.glob(os.path.join(sim_data_root, "*/rrt_planning")))
+        for rrt_dir in reversed(rrt_dirs):
+            filtered_pkl = os.path.join(rrt_dir, f"{scene_name}_filtered_{obj_name}.pkl")
+            if os.path.isfile(filtered_pkl):
+                with open(filtered_pkl, "rb") as f:
+                    raw_branches = pickle.load(f)
+                if isinstance(raw_branches, list) and len(raw_branches) > 0:
+                    # Load scene config for parameterization
+                    scene_cfg_path = os.path.join(scenes_cfg_dir, f"{scene_name}.yml")
+                    with open(scene_cfg_path) as f:
+                        scene_cfg = yaml.safe_load(f)
+                    queries = scene_cfg.get("queries", [])
+                    obj_idx = queries.index(obj_name) if obj_name in queries else 0
+                    altitudes = scene_cfg.get("altitudes", [-1.0])
+                    alt = float(altitudes[min(obj_idx, len(altitudes) - 1)])
+                    obj_loc = fallback_tXUi[1:4, -1]  # goal from reference
+
+                    print(f"  [Branches] Parameterizing {len(raw_branches)} branches for '{obj_name}'...")
+                    for br_idx, waypoints in enumerate(raw_branches):
+                        wps = np.array(waypoints)
+                        if wps.ndim != 2 or wps.shape[1] < 2:
+                            continue
+                        # waypoints are (N, 3) — already 3D with altitude set
+                        try:
+                            tXUi_br, _, _ = process_branch(
+                                branch_id=br_idx,
+                                positions=wps.tolist(),
+                                dt=1.0 / 20,
+                                constant_velocity=1.5,
+                                obj_loc=obj_loc,
+                                pad_t=2,
+                                viz=False,
+                                threshold_distance=1.5,
+                            )
+                            if tXUi_br is not None:
+                                # Copy motor values from reference
+                                tXUi_br[14:18, :] = fallback_tXUi[14:18, 0:1]
+                                branches_tXUi.append(tXUi_br)
+                        except Exception:
+                            continue
+                    if branches_tXUi:
+                        print(f"  [Branches] ✅ {len(branches_tXUi)}/{len(raw_branches)} branches parameterized for '{obj_name}'")
+                break
+
+    if not branches_tXUi:
+        # Fallback: single branch from configs/scenes pkl
+        branches_tXUi = [fallback_tXUi]
+        print(f"  [Branches] ⚠️ Using single fallback branch for '{obj_name}'")
+
+    _BRANCHES_CACHE[key] = branches_tXUi
+    return branches_tXUi
 
 
 def _save_traj_plot(Tro: np.ndarray, Xro: np.ndarray, Uro, save_path: str, title: str = "") -> None:
@@ -390,30 +735,45 @@ def _run_benchmark_pilot(
             if pkl_data is None:
                 continue
 
-            tXUi       = pkl_data["tXUi"]
+            tXUi_default = pkl_data["tXUi"]
             obj_target = (
                 obj_targets[obj_idx] if obj_idx < len(obj_targets)
                 else pkl_data.get("obj_loc", np.zeros(3))
             )
 
-            t0 = float(tXUi[0,  0])
-            tf = float(tXUi[0, -1])
-            T  = tf - t0
+            # Load all branches for multi-branch benchmarking
+            all_branches = _load_all_branches(
+                scene_name, obj_name, cohort_path,
+                scenes_cfg_dir, tXUi_default,
+            )
 
-            # Sample max_trajectories start positions from the SECOND half of
-            # tXUi — unseen during BC training (per-iter eval uses first half).
-            # before/after both sample the same indices → fully comparable.
-            n_cols     = tXUi.shape[1]
-            half       = max(1, n_cols // 2)
-            start_idxs = np.linspace(half, n_cols - 1, max_trajectories, dtype=int)
+            # Sample max_trajectories branches (each run = different route)
+            n_available = len(all_branches)
+            n_sample = min(max_trajectories, n_available)
+            branch_idxs = np.random.choice(n_available, size=n_sample, replace=False)
+            # If we need more runs than branches, allow repeats with offset starts
+            if max_trajectories > n_available:
+                extra = np.random.choice(n_available, size=max_trajectories - n_available, replace=True)
+                branch_idxs = np.concatenate([branch_idxs, extra])
 
-            print(f"  [{label}] '{obj_name}'  {max_trajectories} runs  "
-                  f"t_dur={T:.1f}s  seed={benchmark_seed}")
+            print(f"  [{label}] '{obj_name}'  {max_trajectories} runs across "
+                  f"{n_available} branches  seed={benchmark_seed}")
             obj_analyses = []
-            for run_i, s_idx in enumerate(start_idxs):
-                x0      = tXUi[1:11, s_idx].copy()
-                t_start = float(tXUi[0, s_idx])
-                t_end   = t_start + T
+            for run_i, br_idx in enumerate(branch_idxs):
+                # Reset pilot history between benchmark runs
+                pilot.hy_flag = False
+                pilot.hy_idx = 0
+                pilot.DxU.zero_()
+                if hasattr(pilot, 'Znn'):
+                    pilot.Znn.zero_()
+
+                tXUi = all_branches[br_idx]
+                t0 = float(tXUi[0, 0])
+                tf = float(tXUi[0, -1])
+                T  = tf - t0
+                x0      = tXUi[1:11, 0].copy()
+                t_start = t0
+                t_end   = tf
 
                 _t_sim = time.time()
                 result  = simulator.simulate(
@@ -424,25 +784,39 @@ def _run_benchmark_pilot(
                 Tro, Xro = result[0], result[1]
                 Uro = result[2] if len(result) > 2 else None
 
-                goal_dist = float(np.linalg.norm(Xro[:3, -1] - obj_target))
                 pc_bench = scene_data.get("epcds_arr", np.zeros((0,3)))
-                collided  = False
-                if pc_bench.shape[0] > 0:
-                    Xro_t  = torch.from_numpy(Xro[:3].T).float().to(DEVICE)
-                    pc_t   = torch.from_numpy(pc_bench).float().to(DEVICE)
-                    collided = bool((torch.cdist(Xro_t, pc_t) < 0.15).any().item())
-                    del Xro_t, pc_t
-                success   = goal_dist < 2.0 and not collided
-                status    = "✓" if success else ("💥" if collided else "✗")
+                ev = _evaluate_run(Xro, obj_target, pc_bench,
+                                   env_min=scene_data.get("env_min"),
+                                   env_max=scene_data.get("env_max"),
+                                   tXUi=tXUi, idx0=0)
+                goal_dist = ev["goal_dist"]
+                collided  = ev["collision"]
+                success   = ev["success"]
+                fov_ok    = ev["goal_in_fov"]
+                oob       = ev.get("out_of_bounds", False)
+                pos_dev = ev.get("mean_pos_dev", float('nan'))
+                ori_dev = ev.get("mean_orient_dev_deg", float('nan'))
+                fov_p   = ev.get("fov_pct", float('nan'))
+                status    = "✓" if success else ("🚧" if oob else ("💥" if collided else ("👁" if not fov_ok else "✗")))
+                fov_str   = "fov=✓" if fov_ok else "fov=✗"
+                min_gd    = ev["min_goal_dist"]
+                oob_str   = "  OOB!" if oob else ""
+                dev_str = f"  pos_dev={pos_dev:.2f}m  ori_dev={ori_dev:.1f}°  fov={fov_p:.0%}" if not np.isnan(pos_dev) else ""
                 print(f"  [{label}] {status}  '{obj_name[:20]}'  run {run_i+1}/{max_trajectories}"
-                      f"  goal_dist={goal_dist:.2f}m  coll={collided}  ({time.time()-_t_sim:.1f}s)")
+                      f"  goal_dist={goal_dist:.2f}m  min={min_gd:.2f}m  coll={collided}  {fov_str}{oob_str}{dev_str}  ({time.time()-_t_sim:.1f}s)")
                 analysis = {
                     "collision":               collided,
                     "success":                 success,
                     "clearance_series":        None,
                     "goal_in_camera_fov_series": None,
+                    "goal_in_camera_fov":      fov_ok,
                     "total_reward":            -goal_dist,
+                    "goal_dist":               goal_dist,
+                    "min_goal_dist":           min_gd,
                     "min_clearance":           None,
+                    "mean_pos_dev":            pos_dev,
+                    "mean_orient_dev_deg":     ori_dev,
+                    "fov_pct":                 fov_p,
                 }
                 all_analyses.append(analysis)
                 obj_analyses.append(analysis)
@@ -454,8 +828,13 @@ def _run_benchmark_pilot(
             sr = sum(1 for a in obj_analyses if a["success"]) / max(len(obj_analyses), 1)
             cr = sum(1 for a in obj_analyses if a["collision"]) / max(len(obj_analyses), 1)
             gd = float(np.mean([-a["total_reward"] for a in obj_analyses]))
-            print(f"  [{label}] ── '{obj_name[:25]}'  success={sr:.0%}  mean_goal_dist={gd:.2f}m")
-            per_object[obj_name] = {"success_rate": sr, "collision_rate": cr, "goal_dist": gd}
+            avg_pd = float(np.nanmean([a.get("mean_pos_dev", float('nan')) for a in obj_analyses]))
+            avg_od = float(np.nanmean([a.get("mean_orient_dev_deg", float('nan')) for a in obj_analyses]))
+            avg_fp = float(np.nanmean([a.get("fov_pct", float('nan')) for a in obj_analyses]))
+            dev_summary = f"  pos_dev={avg_pd:.2f}m  ori_dev={avg_od:.1f}°  fov={avg_fp:.0%}" if not np.isnan(avg_pd) else ""
+            print(f"  [{label}] ── '{obj_name[:25]}'  success={sr:.0%}  mean_goal_dist={gd:.2f}m{dev_summary}")
+            per_object[obj_name] = {"success_rate": sr, "collision_rate": cr, "goal_dist": gd,
+                                    "mean_pos_dev": avg_pd, "mean_orient_dev_deg": avg_od, "fov_pct": avg_fp}
 
         torch.cuda.empty_cache()
 
@@ -625,9 +1004,16 @@ def run_cross_cohort_benchmark(
 
                 goal_dists, successes, collisions = [], [], []
                 for run_i, s_idx in enumerate(start_idxs):
+                    # Reset pilot history between runs
+                    pilot.hy_flag = False
+                    pilot.hy_idx = 0
+                    pilot.DxU.zero_()
+                    if hasattr(pilot, 'Znn'):
+                        pilot.Znn.zero_()
+
                     x0      = tXUi[1:11, s_idx].copy()
                     t_start = float(tXUi[0, s_idx])
-                    t_end   = t_start + T
+                    t_end   = tf
 
                     _t = time.time()
                     result    = simulator.simulate(
@@ -639,21 +1025,24 @@ def run_cross_cohort_benchmark(
                     goal_dist = float(np.linalg.norm(Xro[:3, -1] - obj_target))
 
                     pc_ev = scene_data.get("epcds_arr", np.zeros((0, 3)))
-                    collided = False
-                    if pc_ev.shape[0] > 0:
-                        Xro_t = torch.from_numpy(Xro[:3].T).float().to(DEVICE)
-                        pc_t  = torch.from_numpy(pc_ev).float().to(DEVICE)
-                        collided = bool((torch.cdist(Xro_t, pc_t) < 0.15).any().item())
-                        del Xro_t, pc_t
-
-                    success = goal_dist < 2.0 and not collided
+                    ev = _evaluate_run(Xro, obj_target, pc_ev,
+                                       env_min=scene_data.get("env_min"),
+                                       env_max=scene_data.get("env_max"),
+                                       tXUi=tXUi, idx0=int(s_idx))
+                    success  = ev["success"]
+                    collided = ev["collision"]
+                    fov_ok   = ev["goal_in_fov"]
+                    pos_dev = ev.get("mean_pos_dev", float('nan'))
+                    ori_dev = ev.get("mean_orient_dev_deg", float('nan'))
+                    fov_p   = ev.get("fov_pct", float('nan'))
                     goal_dists.append(goal_dist)
                     successes.append(success)
                     collisions.append(collided)
-                    status = "✓" if success else ("💥" if collided else "✗")
+                    status = "✓" if success else ("💥" if collided else ("👁" if not fov_ok else "✗"))
+                    dev_str = f"  pos_dev={pos_dev:.2f}m  ori_dev={ori_dev:.1f}°  fov={fov_p:.0%}" if not np.isnan(pos_dev) else ""
                     print(f"  [{label}] {status}  '{obj_name[:20]}'  "
                           f"run {run_i+1}/{max_trajectories}"
-                          f"  goal_dist={goal_dist:.2f}m  ({time.time()-_t:.1f}s)")
+                          f"  goal_dist={goal_dist:.2f}m{dev_str}  ({time.time()-_t:.1f}s)")
 
                 sr   = float(np.mean(successes))
                 cr   = float(np.mean(collisions))
@@ -744,6 +1133,7 @@ def _eval_full_trajectories(
     vision_processor=None,
     n_eval: int = 1,
     eval_seed: int = None,
+    cohort_path: str = None,
 ) -> dict:
     """
     Run n_eval full-trajectory simulations per object, starting from uniformly
@@ -767,28 +1157,38 @@ def _eval_full_trajectories(
             pkl_data = _get_pkl(scene_name, obj_name, scenes_cfg_dir)
             if pkl_data is None:
                 continue
-            tXUi       = pkl_data["tXUi"]
+            tXUi_default = pkl_data["tXUi"]
             obj_target = (
                 obj_targets[obj_idx] if obj_idx < len(obj_targets)
                 else pkl_data.get("obj_loc", np.zeros(3))
             )
 
-            t0 = float(tXUi[0,  0])
-            tf = float(tXUi[0, -1])
-            T  = tf - t0          # full trajectory duration
-
-            # Sample n_eval start indices from the SECOND HALF of tXUi — same
-            # distribution as the final benchmark so per-iter eval is predictive.
-            n_cols     = tXUi.shape[1]
-            half       = max(1, n_cols // 2)
-            start_idxs = np.linspace(half, n_cols - 1, n_eval, dtype=int)
+            # Multi-branch eval: each run tests a different route from t=0
+            all_branches = _load_all_branches(
+                scene_name, obj_name, cohort_path,
+                scenes_cfg_dir, tXUi_default,
+            )
+            n_available = len(all_branches)
+            n_sample = min(n_eval, n_available)
+            branch_idxs = np.random.choice(n_available, size=n_sample, replace=False)
+            if n_eval > n_available:
+                extra = np.random.choice(n_available, size=n_eval - n_available, replace=True)
+                branch_idxs = np.concatenate([branch_idxs, extra])
 
             goal_dists, successes, collisions = [], [], []
-            for run_i, s_idx in enumerate(start_idxs):
-                x0      = tXUi[1:11, s_idx].copy()
-                t_start = float(tXUi[0, s_idx])
-                t_end   = t_start + T
+            pos_devs_all, ori_devs_all, fov_pcts_all = [], [], []
+            for run_i, br_idx in enumerate(branch_idxs):
+                # Reset pilot history between eval runs
+                pilot.hy_flag = False
+                pilot.hy_idx = 0
+                pilot.DxU.zero_()
+                if hasattr(pilot, 'Znn'):
+                    pilot.Znn.zero_()
 
+                tXUi = all_branches[br_idx]
+                t_start = float(tXUi[0, 0])
+                t_end   = float(tXUi[0, -1])
+                x0      = tXUi[1:11, 0].copy()
                 _t = time.time()
                 result    = simulator.simulate(
                     policy=pilot, t0=t_start, tf=t_end, x0=x0,
@@ -796,31 +1196,45 @@ def _eval_full_trajectories(
                     vision_processor=vision_processor, verbose=False,
                 )
                 Xro       = result[1]
-                goal_dist = float(np.linalg.norm(Xro[:3, -1] - obj_target))
                 pc_ev = scene_data.get("epcds_arr", np.zeros((0,3)))
-                collided_ev = False
-                if pc_ev.shape[0] > 0:
-                    Xro_t  = torch.from_numpy(Xro[:3].T).float().to(DEVICE)
-                    pc_t   = torch.from_numpy(pc_ev).float().to(DEVICE)
-                    collided_ev = bool((torch.cdist(Xro_t, pc_t) < 0.15).any().item())
-                    del Xro_t, pc_t
-                success   = goal_dist < 2.0 and not collided_ev
+                ev = _evaluate_run(Xro, obj_target, pc_ev,
+                                   env_min=scene_data.get("env_min"),
+                                   env_max=scene_data.get("env_max"),
+                                   tXUi=tXUi, idx0=0)
+                goal_dist = ev["goal_dist"]
+                collided_ev = ev["collision"]
+                success   = ev["success"]
+                fov_ok    = ev["goal_in_fov"]
                 goal_dists.append(goal_dist)
                 successes.append(success)
                 collisions.append(collided_ev)
-                status = "✓" if success else ("💥" if collided_ev else "✗")
+                oob = ev.get("out_of_bounds", False)
+                pos_dev = ev.get("mean_pos_dev", float('nan'))
+                ori_dev = ev.get("mean_orient_dev_deg", float('nan'))
+                fov_p   = ev.get("fov_pct", float('nan'))
+                pos_devs_all.append(pos_dev)
+                ori_devs_all.append(ori_dev)
+                fov_pcts_all.append(fov_p)
+                status = "✓" if success else ("🚧" if oob else ("💥" if collided_ev else ("👁" if not fov_ok else "✗")))
+                oob_str = "  OOB!" if oob else ""
+                dev_str = f"  pos_dev={pos_dev:.2f}m  ori_dev={ori_dev:.1f}°  fov={fov_p:.0%}" if not np.isnan(pos_dev) else ""
                 print(f"  [{label}] {status}  '{obj_name[:20]}'  "
                       f"run {run_i+1}/{n_eval}  goal_dist={goal_dist:.2f}m  "
-                      f"coll={collided_ev}  ({time.time()-_t:.1f}s)")
+                      f"min={ev['min_goal_dist']:.2f}m  coll={collided_ev}  "
+                      f"fov={'✓' if fov_ok else '✗'}{oob_str}{dev_str}  ({time.time()-_t:.1f}s)")
 
             sr        = sum(successes) / len(successes)
             cr        = sum(collisions) / len(collisions)
             mean_dist = float(np.mean(goal_dists))
             std_dist  = float(np.std(goal_dists))
+            avg_pd = float(np.nanmean(pos_devs_all))
+            avg_od = float(np.nanmean(ori_devs_all))
+            avg_fp = float(np.nanmean(fov_pcts_all))
+            dev_summary = f"  pos_dev={avg_pd:.2f}m  ori_dev={avg_od:.1f}°  fov={avg_fp:.0%}" if not np.isnan(avg_pd) else ""
             print(f"  [{label}] ── '{obj_name[:25]}'  "
                   f"success={sr:.0%}  collision={cr:.0%}  "
                   f"goal_dist={mean_dist:.2f}±{std_dist:.2f}m  "
-                  f"best={float(np.min(goal_dists)):.2f}m")
+                  f"best={float(np.min(goal_dists)):.2f}m{dev_summary}")
             results[obj_name] = {
                 "goal_dist":      mean_dist,
                 "goal_dist_std":  std_dist,
@@ -829,6 +1243,9 @@ def _eval_full_trajectories(
                 "success_rate":   sr,
                 "collision_rate": cr,
                 "n_eval":         n_eval,
+                "mean_pos_dev":   avg_pd,
+                "mean_orient_dev_deg": avg_od,
+                "fov_pct":        avg_fp,
             }
 
         torch.cuda.empty_cache()
@@ -952,6 +1369,12 @@ def _collect_dagger_rollout(
     }
 
 
+def _quat_angle_deg(q1: np.ndarray, q2: np.ndarray) -> float:
+    """Compute angle in degrees between two quaternions (scalar-first: w,x,y,z)."""
+    dot = float(np.clip(np.abs(np.dot(q1, q2)), 0.0, 1.0))
+    return float(np.degrees(2.0 * np.arccos(dot)))
+
+
 def _filter_deviation_annotations(
     annotations: List[dict],
     Xro: np.ndarray,
@@ -963,10 +1386,13 @@ def _filter_deviation_annotations(
     collision_steps: Optional[List[int]] = None,
     max_goal_dist: float = float('inf'),
     max_deviation_dist: float = float('inf'),
+    orientation_deviation_deg: Optional[float] = None,
+    max_orientation_dev_deg: float = 180.0,
 ) -> List[dict]:
     """
     Filter full-trajectory DAgger annotations to keep only useful ones:
       - States where the pilot deviated from the reference tXUi (> deviation_threshold).
+      - States where the pilot's orientation deviated from reference (> orientation_deviation_deg).
       - States where the drone was within close_approach_dist of the goal.
       - Hard cutoff: discard all annotations at or after the first collision step,
         since post-crash drone physics diverge and those states are garbage.
@@ -975,6 +1401,8 @@ def _filter_deviation_annotations(
       - max_deviation_dist: discard annotations where drone deviated MORE than this
         from the reference trajectory (catches extreme altitude/position excursions
         that are physically outside the scene and would corrupt Commander training).
+      - max_orientation_dev_deg: discard annotations where orientation deviated MORE
+        than this (catches flipped/tumbling states).
 
     This discards the majority of "fly straight from 25m away" timesteps that
     would otherwise corrupt BC fine-grained approach behaviour.
@@ -983,10 +1411,11 @@ def _filter_deviation_annotations(
     if T == 0:
         return annotations
 
-    # Hard cutoff at first collision — post-crash positions are physically invalid
+    # Hard cutoff at first collision — post-crash positions are physically invalid.
     cutoff = T
     if collision_steps:
-        cutoff = min(int(collision_steps[0]), T)
+        first_coll = int(collision_steps[0])
+        cutoff = min(first_coll, T)
 
     # Trajectory-level runaway detection: if no collision and the drone's final
     # position is beyond max_goal_dist, this is a runaway trajectory.
@@ -997,8 +1426,19 @@ def _filter_deviation_annotations(
         np.linalg.norm(Xro[:3, min(cutoff - 1, Xro.shape[1] - 1)] - obj_target) > max_goal_dist
     )
 
-    keep: set = set()
+    # Hard cutoff at exclusion zone entry — once the drone reaches the goal,
+    # the mission is accomplished. Post-success divergence from reference is
+    # expected and should NOT generate annotations.
+    goal_entry_cutoff = cutoff
     for i in range(min(T, cutoff)):
+        if i >= Xro.shape[1]:
+            break
+        if np.linalg.norm(Xro[:3, i] - obj_target) <= SUCCESS_RADIUS:
+            goal_entry_cutoff = i
+            break
+
+    keep: set = set()
+    for i in range(min(T, cutoff, goal_entry_cutoff)):
         if i >= Xro.shape[1]:
             break
         pos = Xro[:3, i]
@@ -1008,10 +1448,24 @@ def _filter_deviation_annotations(
         ref_pos = tXUi[1:4, ref_idx]
         dev_dist = float(np.linalg.norm(pos - ref_pos))
 
+        # Compute orientation deviation (quaternion angle)
+        # Xro layout: pos=0:3, vel=3:6, quat=6:10 (scalar first)
+        # tXUi layout: time=0, pos=1:4, vel=4:7, quat=7:11 (scalar first)
+        orient_dev = 0.0
+        if orientation_deviation_deg is not None or max_orientation_dev_deg < 180.0:
+            if Xro.shape[0] >= 10 and tXUi.shape[0] >= 11:
+                quat_actual = Xro[6:10, i]
+                quat_ref = tXUi[7:11, ref_idx]
+                orient_dev = _quat_angle_deg(quat_actual, quat_ref)
+
         # Discard if drone has gone completely off-course (extreme altitude or position
         # excursion). These states are outside the scene bounds and train the Commander
         # to produce destabilising commands.
         if dev_dist > max_deviation_dist:
+            continue
+
+        # Discard if orientation is extreme (flipped/tumbling)
+        if orient_dev > max_orientation_dev_deg:
             continue
 
         # Discard if drone is too far from goal (per-step runaway filter)
@@ -1019,7 +1473,7 @@ def _filter_deviation_annotations(
         if goal_dist > max_goal_dist:
             continue
 
-        # Always keep near-goal states (final approach / arrival)
+        # Keep near-goal states (approach phase, but not inside exclusion zone)
         if goal_dist < close_approach_dist:
             keep.add(i)
             continue
@@ -1029,10 +1483,18 @@ def _filter_deviation_annotations(
             continue
 
         # Keep if drone deviated from reference trajectory at this timestep
+        # (position OR orientation deviation triggers keep)
         if dev_dist > deviation_threshold:
             keep.add(i)
+        elif orientation_deviation_deg is not None and orient_dev > orientation_deviation_deg:
+            keep.add(i)
 
-    return [annotations[i] for i in sorted(keep)]
+    # Build filtered list
+    filtered = []
+    for i in sorted(keep):
+        filtered.append(annotations[i])
+
+    return filtered
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1076,24 +1538,29 @@ def _retrain_commander(
     default_mass: float = 0.3, default_fn: float = 0.3,
     lr: float = 1e-4,
     bc_cohort_name: str = None,
+    dagger_only: bool = False,
+    oversample: int = 1,
+    freeze_vision: bool = True,
 ) -> None:
     """
-    Convert DAgger annotations to BC observation format and fine-tune the Commander
-    ONLY on DAgger data (course_name="dagger").
+    Convert DAgger annotations to BC observation format and fine-tune the Commander.
 
-    Training only on DAgger data ensures:
-    1. DAgger annotations actually affect the Commander weights (not diluted by 330 BC files).
-    2. The Commander learns targeted corrections for states the student visits, without
-       re-optimising on the full BC distribution every iteration (which drifts the model).
+    Modes:
+      - dagger_only=True:  Train ONLY on DAgger annotations (fast, focused corrections)
+      - dagger_only=False: Train on BC + DAgger mixed data (slow, preserves BC distribution)
+
+    oversample: Duplicate DAgger annotations N times to increase their weight.
+
+    freeze_vision: If True (default), freeze VisionMLP during retraining — only update
+      CommanderSV weights. This preserves the semantic object discrimination learned
+      during BC training. Without this, DAgger data overwhelms BC data and the model
+      "forgets" which object to navigate to (catastrophic forgetting of visual features).
 
     The DAgger aggregated file is a flat list of step-level dicts:
         {"xnn": {...}, "x": ndarray, "u": ndarray, "t": float, "query": ndarray}
 
     The BC observation format expected by generate_dataset / extract_data is:
         {"data": [{"Xnn": [...], "Ynn": [...], "Ndata": int, ...}], "set": "", ...}
-
-    We save the converted file into a dedicated "dagger" course subdirectory so
-    that get_data_paths() with course_name="dagger" finds only this file.
     """
     workspace_path = str(Path(__file__).resolve().parents[3])
     annotations = torch.load(aggregated_file, weights_only=False)
@@ -1109,16 +1576,26 @@ def _retrain_commander(
         xnn = ann.get("xnn")
         if not xnn:
             continue
-        Xnn.append(xnn)
-        Ynn.append({
+        ynn = {
             "unn": np.array(ann["u"], dtype=np.float32),
             "mfn": default_mfn.copy(),
             "onn": np.array(ann["x"], dtype=np.float32),
-        })
+        }
+        Xnn.append(xnn)
+        Ynn.append(ynn)
 
     if not Xnn:
         print("  [retrain] No valid xnn entries in annotations — skipping.")
         return
+
+    # Oversample DAgger annotations to increase their influence
+    if oversample > 1:
+        Xnn_orig, Ynn_orig = Xnn, Ynn
+        Xnn = Xnn_orig * oversample
+        Ynn = Ynn_orig * oversample
+        print(f"  [retrain] {len(Xnn_orig)} annotations × {oversample} = {len(Xnn)} samples")
+    else:
+        print(f"  [retrain] {len(Xnn)} annotation samples")
 
     obs_data = {
         "data": [{
@@ -1139,38 +1616,58 @@ def _retrain_commander(
     torch.save(obs_data, dst)
     print(f"  [retrain] {len(Xnn)} DAgger samples → {dst}")
 
-    # Symlink BC observation course dirs into DAgger cohort so that
-    # course_name=None picks up both BC data and DAgger data for mixed training.
-    if bc_cohort_name:
-        bc_obs_base = os.path.join(
-            workspace_path, "cohorts", bc_cohort_name,
-            "observation_data", pilot_name,
-        )
-        dag_obs_base = os.path.join(
-            workspace_path, "cohorts", cohort_name,
-            "observation_data", pilot_name,
-        )
-        if os.path.isdir(bc_obs_base):
-            for entry in os.scandir(bc_obs_base):
-                if not entry.is_dir():
-                    continue
-                if entry.name == "dagger":
-                    continue  # skip BC's own dagger dir — use ours
-                link_path = os.path.join(dag_obs_base, entry.name)
-                if not os.path.exists(link_path):
-                    os.symlink(entry.path, link_path)
-                    print(f"  [retrain] symlink BC data: {entry.name} → {entry.path}")
-                else:
-                    print(f"  [retrain] BC symlink already exists: {link_path}")
-        else:
-            print(f"  [retrain] WARNING: bc_cohort_name={bc_cohort_name} not found at {bc_obs_base}")
+    if dagger_only:
+        course = "dagger"
+        print(f"  [retrain] DAgger-only mode: {len(Xnn)} samples, {Nep} epochs, lr={lr}")
+    else:
+        course = None   # all courses (BC + DAgger mixed)
+        # Symlink BC observation course dirs into DAgger cohort so that
+        # course_name=None picks up both BC data and DAgger data for mixed training.
+        if bc_cohort_name:
+            bc_obs_base = os.path.join(
+                workspace_path, "cohorts", bc_cohort_name,
+                "observation_data", pilot_name,
+            )
+            dag_obs_base = os.path.join(
+                workspace_path, "cohorts", cohort_name,
+                "observation_data", pilot_name,
+            )
+            if os.path.isdir(bc_obs_base):
+                for entry in os.scandir(bc_obs_base):
+                    if not entry.is_dir():
+                        continue
+                    if entry.name == "dagger":
+                        continue  # skip BC's own dagger dir — use ours
+                    link_path = os.path.join(dag_obs_base, entry.name)
+                    if not os.path.exists(link_path):
+                        os.symlink(entry.path, link_path)
+                        print(f"  [retrain] symlink BC data: {entry.name} → {entry.path}")
+                    else:
+                        print(f"  [retrain] BC symlink already exists: {link_path}")
+            else:
+                print(f"  [retrain] WARNING: bc_cohort_name={bc_cohort_name} not found at {bc_obs_base}")
+        print(f"  [retrain] Mixed BC+DAgger mode: {Nep} epochs, lr={lr}")
 
-    # Fine-tune on BC + DAgger mixed data (course_name=None = all courses).
-    # With few epochs (Nep=5) and low lr, DAgger annotations provide small
-    # corrections for deviation states while BC data prevents catastrophic
-    # forgetting of on-trajectory behaviour.
-    tp.train_roster(cohort_name, [pilot_name], "Commander", Nep, lim_sv=lim_sv, lr=lr,
-                    course_name=None)
+    # ── Freeze VisionMLP during DAgger retraining ──
+    # By default, Commander unlock list includes both CommanderSV and VisionMLP
+    # (svnet.py line 96). DAgger data overwhelms BC data, causing the VisionMLP
+    # to forget semantic object discrimination → drone navigates to wrong objects.
+    # Fix: create Pilot directly, patch its unlock list, call train_student.
+    from sousvide.control.pilot import Pilot as _Pilot
+    student = _Pilot(cohort_name, pilot_name)
+    student.set_mode('train')
+
+    if freeze_vision and hasattr(student.model, 'get_network') and "Commander" in student.model.get_network:
+        # Patch unlock list: only CommanderSV, NOT VisionMLP
+        original_unlock = student.model.get_network["Commander"]["Unlock"]
+        import torch.nn as nn
+        student.model.get_network["Commander"]["Unlock"] = nn.ModuleList([student.model.network["CommanderSV"]])
+        n_frozen = sum(p.numel() for p in student.model.network["VisionMLP"].parameters())
+        n_unlocked = sum(p.numel() for p in student.model.network["CommanderSV"].parameters())
+        print(f"  [retrain] VisionMLP FROZEN ({n_frozen:,} params) — only CommanderSV ({n_unlocked:,} params) updated")
+
+    tp.train_student(cohort_name, student, "Commander", Nep,
+                     lim_sv=lim_sv, lr=lr, batch_size=64, course_name=course)
 
 
 def _wandb_log_iteration(pilot_name: str, m: dict, iteration: int) -> None:
@@ -1289,116 +1786,6 @@ def _print_benchmark_comparison(before: dict, after: dict, pilot_name: str) -> N
 # Expert factory
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _build_rrt_trajectory(
-    start_pos:  np.ndarray,   # (3,) perturbed start position
-    goal:       np.ndarray,   # (3,) goal position — may be (1,3) or (3,)
-    scene_cfg:  dict,
-    scene_data: dict,
-    tXUi_ref:   np.ndarray,   # BC reference trajectory (18 rows, for hover + fallback)
-    obj_idx:    int = 0,
-    speed:      float = 1.5,
-    hz:         int   = 20,
-) -> np.ndarray:
-    """
-    Plan RRT* from start_pos to goal, then build an 18-row tXUi-format array for
-    VehicleRateMPC using the same process_branch() pipeline as BC training.
-    Falls back to tXUi_ref on any failure.
-
-    Uses:
-      - OnlineRRTExpert._extract_path_2d() for path extraction (same as BC)
-      - process_branch() from trajectory_helper for cubic spline smoothing,
-        velocity-derived quaternions, SLERP blending, and angular rate computation
-        (same pipeline as rollout_generator.py)
-    """
-    goal_3d = np.asarray(goal).ravel()[:3]
-
-    try:
-        from figs.tsampling.rrt_datagen_v10 import RRT
-
-        altitudes  = scene_cfg.get("altitudes", [-1.0])
-        radii_list = scene_cfg.get("radii",     [[2.0, 0.4]])
-        idx        = min(obj_idx, len(altitudes) - 1)
-        r_goal     = float(radii_list[min(idx, len(radii_list) - 1)][0])
-        r_coll     = float(radii_list[min(idx, len(radii_list) - 1)][1])
-        bounds     = [
-            (float(scene_cfg.get("minbound", [-10, -10, -2])[0]),
-             float(scene_cfg.get("maxbound", [ 10,  10,  0])[0])),
-            (float(scene_cfg.get("minbound", [-10, -10, -2])[1]),
-             float(scene_cfg.get("maxbound", [ 10,  10,  0])[1])),
-        ]
-        step_size  = float(scene_cfg.get("step_size", 1.0))
-        pcd_arr    = scene_data.get("epcds_arr", np.zeros((0, 3)))
-
-        start_2d = np.array([
-            float(np.clip(start_pos[0], bounds[0][0], bounds[0][1])),
-            float(np.clip(start_pos[1], bounds[1][0], bounds[1][1])),
-        ])
-        altitude = float(start_pos[2]) if abs(start_pos[2]) > 0.05 else float(altitudes[idx])
-
-        rrt = RRT(
-            env_arr                    = pcd_arr,
-            env_pts                    = pcd_arr,
-            start                      = start_2d,
-            obj                        = goal_3d[:2].copy(),
-            bounds                     = bounds,
-            altitude                   = altitude,
-            dimension                  = 2,
-            algorithm                  = "RRT*",
-            step_size                  = step_size,
-            collision_check_radius     = r_coll,
-            goal_exclusion_radius      = r_goal,
-            collision_check_resolution = 0.1,
-            max_iter                   = 400,
-            exact_step                 = False,
-            bounded_step               = True,
-            prevent_edge_overlap       = True,
-        )
-        rrt.build_rrt()
-
-        # Reuse OnlineRRTExpert._extract_path_2d — same function as BC uses
-        path_2d = OnlineRRTExpert._extract_path_2d(rrt)
-        if path_2d is None or len(path_2d) < 2:
-            return tXUi_ref
-
-        # Build 3-D waypoints: 2-D path + constant altitude, then append 3-D goal
-        # — same as OnlineRRTExpert._replan() (lines 359-362 in expert_controllers.py)
-        wps_3d = np.array([[p[0], p[1], altitude] for p in path_2d])
-        wps_3d = np.vstack([wps_3d, goal_3d[np.newaxis, :]])
-
-    except Exception as exc:
-        print(f"  [rrt_mpc] RRT planning failed ({exc}) → BC reference fallback")
-        return tXUi_ref
-
-    # ── Parameterise trajectory using the canonical BC pipeline ───────────
-    # process_branch() does: cubic spline smoothing, velocity-derived quaternions,
-    # SLERP blending toward goal orientation, angular rate computation.
-    # Output is already (18, N) transposed — same layout as tXUi.
-    try:
-        tXUi_rrt, _, _ = process_branch(
-            branch_id         = 0,
-            positions         = wps_3d.tolist(),
-            dt                = 1.0 / hz,
-            constant_velocity = speed,
-            obj_loc           = goal_3d,
-            pad_t             = 2,
-            viz               = False,
-            threshold_distance= 1.5,
-        )
-    except Exception as exc:
-        print(f"  [rrt_mpc] process_branch failed ({exc}) → BC reference fallback")
-        return tXUi_ref
-
-    if tXUi_rrt is None:
-        return tXUi_ref
-
-    # process_branch sets motors to 0.4; replace with actual BC hover motor values
-    # so that VehicleRateMPC initial conditions match the BC training distribution
-    tXUi_rrt[14:18, :] = tXUi_ref[14:18, 0:1]
-
-    print(f"  [rrt_mpc] RRT path {len(wps_3d)} pts → traj ({tXUi_rrt.shape[1]} steps)")
-    return tXUi_rrt
-
-
 def _make_expert(
     expert_type: str,
     tXUi:        np.ndarray,
@@ -1413,10 +1800,9 @@ def _make_expert(
 ):
     """
     Return the expert controller for this DAgger iteration segment.
-      "mpc"     – VehicleRateMPC tracking the BC reference trajectory (recovery-to-ref)
-      "rrt_mpc" – RRT* plan from perturbed start → VehicleRateMPC on the new path
-      "potential"– PotentialFieldExpert (goal-seeking + obstacle avoidance)
-      "rrt"     – OnlineRRTExpert (RRT* replanning + pure-pursuit geometric controller)
+      "mpc"      – VehicleRateMPC tracking the BC reference trajectory (recovery-to-ref)
+      "potential" – PotentialFieldExpert (goal-seeking + obstacle avoidance)
+      "rrt"      – OnlineRRTExpert (RRT* replanning + pure-pursuit geometric controller)
     """
     if expert_type == "potential":
         return PotentialFieldExpert(
@@ -1431,10 +1817,6 @@ def _make_expert(
             obj_idx=obj_idx,
             replan_interval=2.0,
         )
-    elif expert_type == "rrt_mpc":
-        start = x0_start if x0_start is not None else tXUi[1:4, 0]
-        tXUd  = _build_rrt_trajectory(start, obj_target, scene_cfg, scene_data, tXUi, obj_idx)
-        return VehicleRateMPC(tXUd, policy_name, frame_name, pilot_name)
     else:   # "mpc" — default, original behaviour
         return VehicleRateMPC(tXUi, policy_name, frame_name, pilot_name)
 
@@ -1464,14 +1846,20 @@ def train_dagger_policy(
     expert_type: str           = "mpc",
     aggregate_dagger: bool     = False,
     start_pos_noise: float     = 0.3,
+    n_rollouts_per_object: int = 5,
     deviation_filter_dist: float = 0.3,
     close_approach_dist: float   = 5.0,
     max_annotation_goal_dist: float = 50.0,
     max_deviation_dist: float  = float('inf'),
+    orientation_deviation_deg: float = None,
+    max_orientation_dev_deg: float = 180.0,
     dagger_lr: float           = 1e-5,
     bc_cohort_name: str        = None,
     eval_seed: int             = None,
     reset_to_best: bool        = False,
+    patience: int              = 2,
+    dagger_only: bool          = False,
+    dagger_oversample: int     = 1,
 ) -> dict:
 
     print(f"[DAgger] Device : {DEVICE}")
@@ -1523,22 +1911,33 @@ def train_dagger_policy(
     _Tdt_ro = _mcfg.get("sample_set", {}).get("duration", 2.0)
     print(f"[DAgger] VehicleRateMPC policy='{_base_policy_name}' frame='{_base_frame_name}' rollout='{_base_rollout_name}'")
     print(f"[DAgger] Mode            : Full-trajectory + deviation filter (Option B)")
+    print(f"[DAgger] Rollouts/object : {n_rollouts_per_object} branches per iteration")
     print(f"[DAgger] Per-iter eval   : {n_eval_per_iter} runs/object  |  Benchmark: {max_trajectories} runs/object")
     print(f"[DAgger] Aggregation     : {'cumulative' if aggregate_dagger else 'online (per-iter only)'}")
     print(f"[DAgger] Start-pos noise : ±{start_pos_noise}m")
-    print(f"[DAgger] Ann filter      : keep if drift>{deviation_filter_dist}m OR goal_dist<{close_approach_dist}m  |  discard if goal_dist>{max_annotation_goal_dist}m")
+    _orient_str = f" OR orient_dev>{orientation_deviation_deg}°" if orientation_deviation_deg else ""
+    print(f"[DAgger] Ann filter      : keep if drift>{deviation_filter_dist}m{_orient_str} OR goal_dist<{close_approach_dist}m  |  discard if goal_dist>{max_annotation_goal_dist}m or orient>{max_orientation_dev_deg}°")
 
     vision_processor = create_vision_processor(_vp_type)
     if vision_processor is not None and hasattr(vision_processor, "to"):
         vision_processor = vision_processor.to(DEVICE)
         print(f"[DAgger] vision_processor → {DEVICE}")
 
-    # ── PERF : précharger gsplat + pkl UNE SEULE FOIS ────────────────────────
-    print("\n[DAgger] ⏳ Préchargement scènes + pkl (1 seule fois pour tout le run)...")
+    # ── PERF : précharger gsplat + trajectoires UNE SEULE FOIS ──────────────
+    print("\n[DAgger] ⏳ Préchargement scènes + trajectoires (1 seule fois pour tout le run)...")
     for scene_name in scene_names:
         _get_scene(scene_name, scenes_cfg_dir, _base_frame_name, _base_rollout_name)
-    n_pkls = _preload_all_pkls(flights, scenes_cfg_dir)
-    print(f"[DAgger] ✅ {len(_SCENE_CACHE)} scène(s), {n_pkls} pkl en cache\n")
+
+    # Load trajectories from BC rollout data (authoritative source)
+    n_bc_traj = 0
+    if bc_cohort_name:
+        n_bc_traj = _preload_bc_trajectories(bc_cohort_name, flights, scenes_cfg_dir)
+        print(f"[DAgger] ✅ {n_bc_traj} BC trajectories loaded as reference branches")
+    else:
+        # Fallback to pkl files if no BC cohort specified
+        n_pkls = _preload_all_pkls(flights, scenes_cfg_dir)
+        print(f"[DAgger] ✅ {n_pkls} pkl en cache (no bc_cohort specified)")
+    print(f"[DAgger] ✅ {len(_SCENE_CACHE)} scène(s) loaded\n")
 
     # ── Boucle par pilot ─────────────────────────────────────────────────────
     for pilot_name in roster:
@@ -1618,6 +2017,65 @@ def train_dagger_policy(
             benchmark_seed=benchmark_seed, max_trajectories=max_trajectories,
         )
 
+        # ── Expert (MPC) baseline: establish gold standard deviation ──────
+        print("\n[DAgger] Running expert (MPC) evaluation — gold standard deviation baseline...")
+        np.random.seed(benchmark_seed)
+        torch.manual_seed(benchmark_seed)
+        n_expert_eval = min(20, max_trajectories)  # quick eval, 20 runs/object
+        for scene_name, _ in flights:
+            scene_data  = _get_scene(scene_name, scenes_cfg_dir)
+            simulator   = scene_data["simulator"]
+            obj_targets = scene_data["obj_targets"]
+            queries     = scene_data["queries"]
+            for obj_idx, obj_name in enumerate(queries):
+                pkl_data = _get_pkl(scene_name, obj_name, scenes_cfg_dir)
+                if pkl_data is None:
+                    continue
+                tXUi_default = pkl_data["tXUi"]
+                obj_target = (
+                    obj_targets[obj_idx] if obj_idx < len(obj_targets)
+                    else pkl_data.get("obj_loc", np.zeros(3))
+                )
+                all_branches = _load_all_branches(
+                    scene_name, obj_name, cohort_path,
+                    scenes_cfg_dir, tXUi_default,
+                )
+                n_available = len(all_branches)
+                branch_idxs = np.random.choice(n_available, size=min(n_expert_eval, n_available), replace=False)
+                exp_sr, exp_pd, exp_od, exp_fp = [], [], [], []
+                for br_idx in branch_idxs:
+                    tXUi_br = all_branches[br_idx]
+                    expert_policy = _make_expert(
+                        expert_type, tXUi_br, obj_target, obj_idx,
+                        scene_data, objective_configs[scene_name],
+                        _base_policy_name, _base_frame_name, pilot_name,
+                        x0_start=tXUi_br[1:4, 0],
+                    )
+                    result = simulator.simulate(
+                        policy=expert_policy, t0=float(tXUi_br[0, 0]),
+                        tf=float(tXUi_br[0, -1]), x0=tXUi_br[1:11, 0].copy(),
+                        obj=np.zeros((18, 1)), query=obj_name,
+                        vision_processor=None, verbose=False,
+                    )
+                    Xro_exp = result[1]
+                    pc_ev = scene_data.get("epcds_arr", np.zeros((0, 3)))
+                    ev_exp = _evaluate_run(Xro_exp, obj_target, pc_ev,
+                                           env_min=scene_data.get("env_min"),
+                                           env_max=scene_data.get("env_max"),
+                                           tXUi=tXUi_br, idx0=0)
+                    exp_sr.append(ev_exp["success"])
+                    exp_pd.append(ev_exp.get("mean_pos_dev", float('nan')))
+                    exp_od.append(ev_exp.get("mean_orient_dev_deg", float('nan')))
+                    exp_fp.append(ev_exp.get("fov_pct", float('nan')))
+                avg_sr = float(np.mean(exp_sr))
+                avg_pd = float(np.nanmean(exp_pd))
+                avg_od = float(np.nanmean(exp_od))
+                avg_fp = float(np.nanmean(exp_fp))
+                print(f"  [expert_mpc] ── '{obj_name[:25]}'  "
+                      f"success={avg_sr:.0%}  pos_dev={avg_pd:.2f}m  ori_dev={avg_od:.1f}°  fov={avg_fp:.0%}")
+            torch.cuda.empty_cache()
+        print("[DAgger] Expert baseline complete — deviation values above are the ideal target\n")
+
         aggregated_file = os.path.join(dagger_dir, "dagger_aggregated.pt")
         # Fresh campaign: back up any aggregated file from a previous run so it
         # is not re-loaded by _aggregate_dagger_dataset (cross-campaign contamination).
@@ -1635,6 +2093,7 @@ def train_dagger_policy(
         # Best model checkpoint (staging copy — model.pth is the deploy path)
         best_model_staging = os.path.join(roster_dir, "model_best_staging.pth")
         consecutive_drops = 0  # early stopping: count consecutive iters without improvement
+        _patience = max(patience, 2)  # minimum 2
 
         # ── Boucle DAgger ─────────────────────────────────────────────────
         for iteration in range(n_iterations):
@@ -1665,94 +2124,69 @@ def train_dagger_policy(
                     if pkl_data is None:
                         continue
 
-                    tXUi = pkl_data["tXUi"]
+                    tXUi_default = pkl_data["tXUi"]
                     obj_target = (
                         obj_targets[obj_idx]
                         if obj_idx < len(obj_targets)
                         else pkl_data.get("obj_loc", np.zeros(3))
                     )
 
-                    # Option B: run the FULL trajectory (not 2s windows) so the
-                    # mixed policy encounters actual navigation states, then keep
-                    # only annotations at deviation / near-goal timesteps.
-                    t_traj_start = float(tXUi[0, 0])
-                    t_traj_end   = float(tXUi[0, -1])
-
-                    # Perturb initial position FIRST — needed by rrt_mpc expert so
-                    # RRT plans from the actual perturbed start, not the BC origin.
-                    ref_idx0 = min(
-                        int(np.searchsorted(tXUi[0, :], t_traj_start)),
-                        tXUi.shape[1] - 1,
-                    )
-                    x0_ref = tXUi[1:, ref_idx0].copy()
-                    if start_pos_noise > 0.0:
-                        # Position noise only — vel/quat perturbations cause MPC divergence
-                        env_min = scene_data.get("env_min", np.array([-1e6, -1e6, -1e6]))
-                        env_max = scene_data.get("env_max", np.array([ 1e6,  1e6,  1e6]))
-                        x0_ref[:3] += np.random.uniform(-start_pos_noise, start_pos_noise, size=3)
-                        x0_ref[:3]  = np.clip(x0_ref[:3], env_min, env_max)
-                    perturbation = {"t0": t_traj_start, "x0": x0_ref}
-
-                    # Build expert once per object.
-                    # For "mpc": ACADOS setup is expensive → reused across all 2s windows.
-                    # For "rrt_mpc": RRT plans from perturbed x0_ref, then MPC tracks.
-                    # For "potential"/"rrt": lightweight, also reused across windows.
-                    expert       = _make_expert(
-                        expert_type, tXUi, obj_target, obj_idx,
-                        scene_data, objective_configs[scene_name],
-                        _base_policy_name, _base_frame_name, pilot_name,
-                        x0_start=x0_ref[:3],
-                    )
-                    mixed_policy = MixedPolicy(expert, pilot, beta)
-
-                    rollout = _collect_dagger_rollout(
-                        simulator=simulator,
-                        mixed_policy=mixed_policy,
-                        perturbation=perturbation,
-                        tXUi=tXUi,
-                        obj_name=obj_name,
-                        point_cloud=scene_data["epcds_arr"],
-                        obj_target=obj_target,
-                        collision_threshold=collision_threshold,
-                        drift_threshold=drift_threshold,
-                        vision_processor=vision_processor,
-                        t_start=t_traj_start,
-                        t_end=t_traj_end,
+                    # Load all available branches for this object
+                    all_branches = _load_all_branches(
+                        scene_name, obj_name, cohort_path,
+                        scenes_cfg_dir, tXUi_default,
                     )
 
-                    # Filter: keep only deviation + near-goal annotations,
-                    # discarding all timesteps at or after the first collision,
-                    # and any states where drone deviated beyond max_deviation_dist
-                    # (extreme altitude / out-of-scene excursions).
-                    filtered_ann = _filter_deviation_annotations(
-                        annotations=rollout["annotations"],
-                        Xro=rollout["Xro"],
-                        tXUi=tXUi,
-                        obj_target=obj_target,
-                        idx0=ref_idx0,
-                        deviation_threshold=deviation_filter_dist,
-                        close_approach_dist=close_approach_dist,
-                        collision_steps=rollout["collision_steps"],
-                        max_goal_dist=max_annotation_goal_dist,
-                        max_deviation_dist=max_deviation_dist,
-                    )
+                    # Sample n_rollouts_per_object branches (with replacement if needed)
+                    n_sample = min(n_rollouts_per_object, len(all_branches))
+                    branch_idxs = np.random.choice(len(all_branches), size=n_sample, replace=False)
+                    print(f"  [iter{iteration:03d}] '{obj_name}': {n_sample} branches sampled from {len(all_branches)} available")
 
-                    # Expert-rescue: if crash happened too early (< 30 pre-crash
-                    # annotations), run a β=1 expert-only backup rollout to get
-                    # clean demonstrations the model never saw during BC training.
-                    RESCUE_THRESHOLD = 10
-                    if len(filtered_ann) < RESCUE_THRESHOLD and rollout["collision_steps"]:
-                        # Fresh expert to avoid stale waypoint state from main rollout
-                        rescue_expert = _make_expert(
+                    for br_i, br_idx in enumerate(branch_idxs):
+                        tXUi = all_branches[br_idx]
+
+                        # Reset pilot history between rollouts to prevent cross-object
+                        # history contamination. Without this, the pilot's DxU buffer
+                        # carries state from the previous rollout (possibly a different
+                        # object), which corrupts the first few steps of annotations.
+                        pilot.hy_flag = False
+                        pilot.hy_idx = 0
+                        pilot.DxU.zero_()
+                        if hasattr(pilot, 'Znn'):
+                            pilot.Znn.zero_()
+
+                        # Option B: run the FULL trajectory (not 2s windows) so the
+                        # mixed policy encounters actual navigation states, then keep
+                        # only annotations at deviation / near-goal timesteps.
+                        t_traj_start = float(tXUi[0, 0])
+                        t_traj_end   = float(tXUi[0, -1])
+
+                        # Perturb initial position
+                        ref_idx0 = min(
+                            int(np.searchsorted(tXUi[0, :], t_traj_start)),
+                            tXUi.shape[1] - 1,
+                        )
+                        x0_ref = tXUi[1:, ref_idx0].copy()
+                        if start_pos_noise > 0.0:
+                            # Position noise only — vel/quat perturbations cause MPC divergence
+                            env_min = scene_data.get("env_min", np.array([-1e6, -1e6, -1e6]))
+                            env_max = scene_data.get("env_max", np.array([ 1e6,  1e6,  1e6]))
+                            x0_ref[:3] += np.random.uniform(-start_pos_noise, start_pos_noise, size=3)
+                            x0_ref[:3]  = np.clip(x0_ref[:3], env_min, env_max)
+                        perturbation = {"t0": t_traj_start, "x0": x0_ref}
+
+                        # Build expert for this branch
+                        expert       = _make_expert(
                             expert_type, tXUi, obj_target, obj_idx,
                             scene_data, objective_configs[scene_name],
                             _base_policy_name, _base_frame_name, pilot_name,
                             x0_start=x0_ref[:3],
                         )
-                        expert_only = MixedPolicy(rescue_expert, pilot, beta=1.0)
-                        backup_rollout = _collect_dagger_rollout(
+                        mixed_policy = MixedPolicy(expert, pilot, beta)
+
+                        rollout = _collect_dagger_rollout(
                             simulator=simulator,
-                            mixed_policy=expert_only,
+                            mixed_policy=mixed_policy,
                             perturbation=perturbation,
                             tXUi=tXUi,
                             obj_name=obj_name,
@@ -1764,47 +2198,94 @@ def train_dagger_policy(
                             t_start=t_traj_start,
                             t_end=t_traj_end,
                         )
-                        # For expert-rescue rollouts: keep ALL annotations
-                        # (the expert's path is useful to imitate entirely).
-                        # Only apply collision cutoff + max_deviation_dist sanity guard.
-                        backup_filtered = _filter_deviation_annotations(
-                            annotations=backup_rollout["annotations"],
-                            Xro=backup_rollout["Xro"],
+
+                        # Filter: keep only deviation + near-goal annotations,
+                        # discarding all timesteps at or after the first collision,
+                        # and any states where drone deviated beyond max_deviation_dist
+                        # (extreme altitude / out-of-scene excursions).
+                        filtered_ann = _filter_deviation_annotations(
+                            annotations=rollout["annotations"],
+                            Xro=rollout["Xro"],
                             tXUi=tXUi,
                             obj_target=obj_target,
+                            idx0=ref_idx0,
+                            deviation_threshold=deviation_filter_dist,
+                            close_approach_dist=close_approach_dist,
+                            collision_steps=rollout["collision_steps"],
+                            max_goal_dist=max_annotation_goal_dist,
+                            max_deviation_dist=max_deviation_dist,
+                            orientation_deviation_deg=orientation_deviation_deg,
+                            max_orientation_dev_deg=max_orientation_dev_deg,
+                        )
+
+                        # Expert-rescue: if crash happened too early (< 10 pre-crash
+                        # annotations), run a β=1 expert-only backup rollout to get
+                        # clean demonstrations the model never saw during BC training.
+                        RESCUE_THRESHOLD = 10
+                        if len(filtered_ann) < RESCUE_THRESHOLD and rollout["collision_steps"]:
+                            # Fresh expert to avoid stale waypoint state from main rollout
+                            rescue_expert = _make_expert(
+                                expert_type, tXUi, obj_target, obj_idx,
+                                scene_data, objective_configs[scene_name],
+                                _base_policy_name, _base_frame_name, pilot_name,
+                                x0_start=x0_ref[:3],
+                            )
+                            expert_only = MixedPolicy(rescue_expert, pilot, beta=1.0)
+                            backup_rollout = _collect_dagger_rollout(
+                                simulator=simulator,
+                                mixed_policy=expert_only,
+                                perturbation=perturbation,
+                                tXUi=tXUi,
+                                obj_name=obj_name,
+                                point_cloud=scene_data["epcds_arr"],
+                                obj_target=obj_target,
+                                collision_threshold=collision_threshold,
+                                drift_threshold=drift_threshold,
+                                vision_processor=vision_processor,
+                                t_start=t_traj_start,
+                                t_end=t_traj_end,
+                            )
+                            # For expert-rescue rollouts: keep ALL annotations
+                            # (the expert's path is useful to imitate entirely).
+                            # Only apply collision cutoff + max_deviation_dist sanity guard.
+                            backup_filtered = _filter_deviation_annotations(
+                                annotations=backup_rollout["annotations"],
+                                Xro=backup_rollout["Xro"],
+                                tXUi=tXUi,
+                                obj_target=obj_target,
                             idx0=ref_idx0,
                             deviation_threshold=0.0,   # keep all (no deviation filter)
                             close_approach_dist=1e9,   # keep all (no distance filter)
                             collision_steps=backup_rollout["collision_steps"],
                             max_deviation_dist=max_deviation_dist,
                         )
-                        RESCUE_MAX_ANN = 20  # cap rescue to prevent dominating the dataset
-                        backup_filtered = backup_filtered[:RESCUE_MAX_ANN]
-                        print(f"  [rescue] β=1.0: {len(backup_filtered)} expert annotations added for '{obj_name[:20]}'")
-                        filtered_ann = filtered_ann + backup_filtered
+                            RESCUE_MAX_ANN = 20  # cap rescue to prevent dominating the dataset
+                            backup_filtered = backup_filtered[:RESCUE_MAX_ANN]
+                            print(f"  [rescue] β=1.0: {len(backup_filtered)} expert annotations added for '{obj_name[:20]}'")
+                            filtered_ann = filtered_ann + backup_filtered
 
-                    all_rollouts.append(rollout)
-                    all_annotations.extend(filtered_ann)
-                    _save_traj_plot(
-                        rollout["Tro"], rollout["Xro"], rollout["Uro"],
-                        save_path=os.path.join(
-                            dagger_dir, "plots",
-                            f"iter{iteration:03d}_{obj_name.replace(' ','_')}_fulltraj.png",
-                        ),
-                        title=f"iter={iteration} β={beta:.2f} | {obj_name} {t_traj_start:.1f}→{t_traj_end:.1f}s",
-                    )
+                        all_rollouts.append(rollout)
+                        all_annotations.extend(filtered_ann)
+                        _save_traj_plot(
+                            rollout["Tro"], rollout["Xro"], rollout["Uro"],
+                            save_path=os.path.join(
+                                dagger_dir, "plots",
+                                f"iter{iteration:03d}_{obj_name.replace(' ','_')}_br{br_idx:03d}.png",
+                            ),
+                            title=f"iter={iteration} β={beta:.2f} | {obj_name} br{br_idx} {t_traj_start:.1f}→{t_traj_end:.1f}s",
+                        )
 
-                    used  = torch.cuda.memory_allocated() / 1024**3
-                    total = torch.cuda.get_device_properties(0).total_memory / 1024**3
-                    goal_dist = -rollout["analysis"].get("total_reward", 0.0)
-                    print(
-                        f"  [{obj_name[:20]}"
-                        f" t=[{t_traj_start:.1f},{t_traj_end:.1f}]s]"
-                        f"  coll={len(rollout['collision_steps'])}"
-                        f"  goal_dist={goal_dist:.2f}m"
-                        f"  ann_raw={len(rollout['annotations'])} → kept={len(filtered_ann)}"
-                        f"  GPU={used:.1f}/{total:.0f}GB"
-                    )
+                        used  = torch.cuda.memory_allocated() / 1024**3
+                        total = torch.cuda.get_device_properties(0).total_memory / 1024**3
+                        goal_dist = -rollout["analysis"].get("total_reward", 0.0)
+                        print(
+                            f"  [{obj_name[:20]}"
+                            f" br{br_idx} t=[{t_traj_start:.1f},{t_traj_end:.1f}]s]"
+                            f"  coll={len(rollout['collision_steps'])}"
+                            f"  goal_dist={goal_dist:.2f}m"
+                            f"  ann_raw={len(rollout['annotations'])} → kept={len(filtered_ann)}"
+                            f"  GPU={used:.1f}/{total:.0f}GB"
+                        )
 
             # Agrégation
             mode_str = "cumulative" if aggregate_dagger else "online (replacing)"
@@ -1828,7 +2309,8 @@ def train_dagger_policy(
             print(f"[DAgger] Retraining Commander  Nep={Nep_per_iter} lim_sv={lim_sv}...")
             _t_retrain = time.time()
             _retrain_commander(cohort_name, pilot_name, aggregated_file, Nep_per_iter, lim_sv, lr=dagger_lr,
-                               bc_cohort_name=bc_cohort_name)
+                               bc_cohort_name=bc_cohort_name, dagger_only=dagger_only,
+                               oversample=dagger_oversample)
             print(f"[DAgger] Retraining done in {time.time()-_t_retrain:.1f}s")
 
             # Recharger pilot avec nouveaux poids
@@ -1852,6 +2334,7 @@ def train_dagger_policy(
                 vision_processor=vision_processor,
                 n_eval=n_eval_per_iter,
                 eval_seed=eval_seed,
+                cohort_path=cohort_path,
             )
             n_ok  = sum(1 for v in iter_eval.values() if v["success"])
             n_tot = len(iter_eval)
@@ -1884,7 +2367,7 @@ def train_dagger_policy(
                 if os.path.isfile(best_model_staging):
                     shutil.copy2(best_model_staging, roster_model_path)
                 print(f"[DAgger] ⚠ No improvement (iter sr={iter_sr:.0%} vs best={best_success_rate:.0%})  "
-                      f"consecutive_drops={consecutive_drops}/2  → restored best to model.pth")
+                      f"consecutive_drops={consecutive_drops}/{_patience}  → restored best to model.pth")
 
             print(f"[DAgger] Itération {iteration} done in {time.time()-_t_iter:.1f}s")
             print(f"  Segment metrics : collision={m['collision_rate']:.1%}"
@@ -1933,11 +2416,11 @@ def train_dagger_policy(
             global_step += 1
             beta *= beta_decay
 
-            # Early stopping: if 2 consecutive iterations failed to improve,
+            # Early stopping: if N consecutive iterations failed to improve,
             # the model has likely converged — stop to avoid wasting compute.
-            if consecutive_drops >= 2:
+            if consecutive_drops >= _patience:
                 print(f"\n[DAgger] ⛔ Early stopping at iter {iteration}: "
-                      f"2 consecutive iterations without improvement "
+                      f"{_patience} consecutive iterations without improvement "
                       f"(best sr={best_success_rate:.0%} gd={best_goal_dist:.2f}m)")
                 break
 

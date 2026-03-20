@@ -349,9 +349,14 @@ After BC training, the pilot can fly reasonably well on the expert's trajectorie
 
 ### What happens during a DAgger Iteration
 
-**Per iteration: 1 full-trajectory rollout per object** (3 rollouts total with 3 objects).
+**Per iteration: `n_rollouts_per_object` full-trajectory rollouts per object** (default 5).
+With 3 objects and 5 branches each, that's 15 rollouts per iteration.
 Unlike BC (which flies thousands of short 2s segments), DAgger flies the **entire trajectory
 from start to goal**, recording annotations at every 20Hz timestep.
+
+Each rollout uses a **different RRT branch** randomly sampled from the 110 pre-computed branches,
+giving the pilot exposure to diverse approach angles and obstacle avoidance strategies.
+Across 8 iterations × 5 branches = 40 branches sampled per object (~36% of the 110 available).
 
 ```
 ITERATION i:
@@ -359,11 +364,12 @@ ITERATION i:
 ├── 1. RESET TO BEST MODEL (if i > 0)
 │   Load model_best_staging.pth → pilot, restore to model.pth
 │
-├── 2. COLLECT DATA (1 rollout per object)
+├── 2. COLLECT DATA (n_rollouts_per_object rollouts per object)
 │   For each object (clock, leafblower, drill):
-│   │   Build fresh RRT trajectory from (perturbed) start → goal
+│    For each of n_rollouts_per_object randomly sampled branches:
+│   │   Select a different RRT branch from the 110 pre-computed ones
 │   │   Perturb start position by ±start_pos_noise (position only, no vel/quat)
-│   │   Build MPC expert tracking this RRT reference
+│   │   Build MPC expert tracking this branch's reference trajectory
 │   │   MixedPolicy = β·expert + (1-β)·pilot
 │   │   Run simulator on FULL trajectory (3-10s, ~60-190 timesteps):
 │   │     At each 20Hz timestep:
@@ -372,7 +378,7 @@ ITERATION i:
 │   │       Record annotation: {xnn, state, u_expert}
 │   │       Execute: u_expert (prob β) or u_pilot (prob 1-β)
 │   │
-│   └── Filter annotations (~60-180 raw → ~100-300 kept per iteration)
+│   └── Filter annotations (~300-900 raw → ~500-1500 kept per iteration)
 │
 ├── 3. RETRAIN COMMANDER
 │   │   Restore best model to model.pth
@@ -456,13 +462,12 @@ Both per-iteration evaluation and the final benchmark use the **same BC referenc
 After each DAgger iteration, the pilot is tested:
 ```
 For each object:
-    tXUi = load pre-computed BC reference trajectory
-    Sample n_eval_per_iter=20 start indices from the 2ND HALF of tXUi
-       (the 1st half was used during BC training → 2nd half is held-out)
+    tXUi = load pre-computed BC reference trajectory (single canonical branch from .pkl)
+    Sample n_eval_per_iter=20 start indices from the FULL trajectory
     Seed with eval_seed=42 → same 20 start points every iteration
     For each start index:
         Extract state at that point on the reference trajectory
-        Pilot flies alone (NO expert, NO perturbation) from that state to goal
+        Pilot flies alone (NO expert, NO perturbation) from that state to trajectory end
         Measure: goal_distance, collision (yes/no)
         Success = goal_dist < 2.0m AND no collision
 ```
@@ -474,11 +479,11 @@ For each object:
 Run twice — once with the BC model ("before") and once with the DAgger model ("after"):
 ```
 For each object:
-    tXUi = same BC reference trajectory
+    tXUi = same BC reference trajectory (single canonical branch)
     Seed with benchmark_seed=42
-    Sample n_benchmark=50 start indices from the 2ND HALF of tXUi
+    Sample n_benchmark=50 start indices from the FULL trajectory
     For each start:
-        Pilot flies alone from that state to goal
+        Pilot flies alone from that state to trajectory end time (tf)
         Same success criteria as per-iter eval
 ```
 
@@ -496,10 +501,10 @@ The seed ensures before/after use **identical start conditions** for a fair comp
 | | BC Rollouts | DAgger Rollouts | Evaluation/Benchmark |
 |---|---|---|---|
 | **What's perturbed** | Position ±0.4m, velocity ±0.4m/s, quaternion ±0.2 | Position only ±0.5m | Nothing (fixed start indices) |
-| **Trajectory source** | 110 RRT branches (pre-computed) | 1 fresh RRT per object per iter | Same tXUi from BC (2nd half) |
+| **Trajectory source** | 110 RRT branches (pre-computed) | 5 branches sampled per iter from 110 | 1 canonical branch from .pkl |
 | **Who flies** | MPC expert only | β·expert + (1-β)·pilot | Pilot only |
-| **Duration** | 2.0s segments at sampled time points | Full trajectory (3-10s) | Full trajectory from sampled start |
-| **Runs per object** | ~8,800 (110 × 4 reps × 20 time pts) | 1 per iteration | 20 (eval) or 50 (benchmark) |
+| **Duration** | 2.0s segments at sampled time points | Full trajectory (3-10s) | From sampled start to trajectory end (tf) |
+| **Runs per object** | ~8,800 (110 × 4 reps × 20 time pts) | 5 per iteration (configurable) | 20 (eval) or 50 (benchmark) |
 | **Seed** | None (global random) | None (random each iter) | 42 (fixed for reproducibility) |
 
 ---
@@ -592,13 +597,19 @@ eval_seed: 42
   # Without this, random variation can mask real improvements.
 
 # ─── DAgger Data Collection ──────────────────────────
+n_rollouts_per_object: 5
+  # Number of different RRT branches to fly per object per DAgger iteration.
+  # Each rollout uses a different randomly sampled branch from the 110 available,
+  # giving diverse approach angles and obstacle avoidance strategies.
+  # 5 branches × 3 objects = 15 rollouts per iteration.
+  # Across 8 iterations = 40 branches sampled (~36% of 110 available).
+  # Too few (1) = limited diversity. Too many (110) = very slow iterations.
+
 start_pos_noise: 0.5
   # Random perturbation (±0.5m in each axis) added to trajectory start position.
   # POSITION ONLY — no velocity or quaternion noise (would make MPC solver diverge).
   # Creates diversity — without this, every iteration flies the same path
   # and DAgger can't discover new failure modes.
-  # NOTE: Currently 1 rollout per object per iteration (hardcoded in the DAgger loop).
-  # Total DAgger rollouts = n_iterations × n_objects (e.g., 8 × 3 = 24).
 
 # ─── Annotation Filtering ────────────────────────────
 # After MixedPolicy flies, we filter annotations to keep only useful ones:

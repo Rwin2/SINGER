@@ -1,0 +1,57 @@
+# DAgger V8 on BC 6s — Add orientation deviation filter
+# V7 result: 36.7% baseline → 52.3% best (iter 6), no catastrophic forgetting
+# V8 changes: add orientation_deviation_deg=15 to catch heading errors
+# Analysis shows: expert has ~10° orient deviation (tracking noise), jester has 69-82°
+# At 15°: expert tracking noise passes through, jester heading errors are captured
+cohort: "SSV_DAGGER_BC6S_V8"
+method: "rrt_6s"
+
+review: false
+
+Nep_his: 100
+Nep_com: 150
+
+bc_cohort: "ssv_BC_6S"
+expert_type: "mpc"
+
+# Same as V7 — anti-overfitting settings proven to work
+dagger_only: false
+dagger_oversample: 20
+
+n_iterations: 12
+Nep_dagger: 10
+n_eval_per_iter: 40
+n_benchmark: 50
+lim_sv: 10
+dagger_lr: 0.00002
+
+aggregate_dagger: true
+reset_to_best: true
+eval_seed: 42
+patience: 5
+
+beta_start: 0.80
+beta_decay: 0.92
+
+n_rollouts_per_object: 8
+
+start_pos_noise: 0.4
+
+# Position deviation filter (same as V7)
+deviation_filter_dist: 0.3
+close_approach_dist: 5.0
+max_annotation_goal_dist: 50.0
+max_deviation_dist: 8.0
+
+# NEW: Orientation deviation filter
+# Expert MPC tracking has ~10° orientation noise. At 15°, expert noise passes through
+# but jester heading errors (69-82° observed) are captured as useful DAgger annotations.
+# Also discard extreme orientation states (>90° = nearly flipped/tumbling).
+orientation_deviation_deg: 15.0
+max_orientation_dev_deg: 90.0
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"
