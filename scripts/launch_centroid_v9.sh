@@ -17,6 +17,7 @@
 set -e
 
 cd /data/erwinpi/SINGER
+export CUDA_VISIBLE_DEVICES=1
 export ACADOS_SOURCE_DIR=/data/erwinpi/FiGS-Standalone/acados
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/data/erwinpi/FiGS-Standalone/acados/lib
 
