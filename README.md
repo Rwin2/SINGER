@@ -206,11 +206,34 @@ An MPC expert controller (VehicleRateMPC, using ACADOS optimal control) flies RR
 For each target object, RRT* builds a random exploration tree through the obstacle field:
 1. **RRT* sampling**: 2500 random nodes are placed in the 2D environment bounds `[-3.7,3.7] × [-8,8]`, connected while avoiding obstacles. RRT* rewires connections to shorten paths.
 2. **Branch extraction**: From the tree, `nbranches=110` distinct paths are extracted per object — each is a different collision-free route from the start region to the target.
-3. **Parameterization**: Each 2D path is converted to a smooth 3D trajectory at the configured altitude (-1.0m), producing an 18×N `tXUi` array with time, state, and control columns.
+3. **Parameterization** (`process_branch()` in `trajectory_helper.py`): Each set of 2D RRT waypoints is converted to a smooth 3D trajectory:
+   - Altitude set to configured value (-1.0m for all objects)
+   - Waypoints interpolated at constant velocity (1.5 m/s) with cubic spline smoothing
+   - Velocities computed via `np.gradient` then normalized to constant speed
+   - Quaternions computed from velocity heading (`atan2(vy, vx)`), progressively slerped toward the target-facing orientation
+   - Angular rates derived from quaternion differences
+   - 2s hover padding appended at the end
+   - Result: an 18×N `tXUi` array (time + 10D state + 3D angular rates + 4D motors)
 
 **No explicit seed** — RRT* is inherently stochastic (random node placement), so each `generate-rollouts` call produces different branches.
 
 Result: **110 trajectory branches per object** × 3 objects = **330 reference trajectories**.
+Plus **11 validation branches per object** (33 total) from `generate-rollouts --validation-mode`.
+
+#### How x0 (starting state) is defined for each branch
+
+Each RRT branch starts from a **different position** determined by the RRT tree geometry. The starting state is:
+
+```
+x0 = tXUi[1:11, 0]  →  [x, y, z, vx, vy, vz, qx, qy, qz, qw]
+```
+
+- **Position (x,y,z)**: First waypoint of the RRT path — wherever the RRT root node was placed in the environment bounds. Each branch has a different starting location.
+- **Altitude (z)**: Fixed at -1.0m (from scene config `altitudes`), same for all branches.
+- **Velocity (vx,vy,vz)**: Derived from the trajectory heading at constant speed (1.5 m/s), pointing toward the second waypoint.
+- **Orientation (qx,qy,qz,qw)**: Quaternion computed from the initial velocity heading direction.
+
+**There is no random perturbation at benchmark start** — the drone starts at the exact x0 defined by the branch. This is deterministic per branch (same branch → same x0 every time).
 
 #### How BC perturbations work (during rollout generation)
 
@@ -587,7 +610,7 @@ See `scripts/reproduce_benchmark.py` for a complete example.
 | | BC Rollouts | DAgger Rollouts | Evaluation/Benchmark |
 |---|---|---|---|
 | **What's perturbed** | Position ±0.4m, velocity ±0.4m/s, quaternion ±0.2 | Position only ±0.5m | Nothing (deterministic from branch) |
-| **Trajectory source** | 110 RRT branches (pre-computed) | 5 branches sampled per iter from 121 | 50 branches sampled from 121 |
+| **Trajectory source** | 110 RRT branches (training set) | 5 branches sampled per iter from 121 (110 train + 11 val) | 50 branches sampled from 121 |
 | **Who flies** | MPC expert only | β·expert + (1-β)·pilot | Pilot only |
 | **Duration** | 2.0s segments at sampled time points | Full trajectory (3-10s) | Full branch (t0 to tf) |
 | **Runs per object** | ~8,800 (110 × 4 reps × 20 time pts) | 5 per iteration (configurable) | 40 (eval) or 50 (benchmark) |
