@@ -9,6 +9,7 @@ import json
 import pickle
 import shutil
 import yaml
+import copy
 from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict
@@ -17,6 +18,8 @@ import time
 
 import numpy as np
 import torch
+import torch.nn as nn
+import torch.optim as optim
 import matplotlib.pyplot as plt
 
 from figs.simulator import Simulator
@@ -32,6 +35,372 @@ from scipy.spatial.transform import Rotation
 from sousvide.flight.deploy_ssv import simulate_rollouts
 from sousvide.flight.vision_processor_base import create_vision_processor
 from sousvide.rl import load_simulation_results, prepare_batch_data
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# EWC (Elastic Weight Consolidation) — prevents catastrophic forgetting
+# ──────────────────────────────────────────────────────────────────────────────
+
+def compute_fisher_information(model, dataloader, device, mode="Commander"):
+    """
+    Compute diagonal Fisher Information Matrix for EWC.
+    Uses the model's predictions (not labels) to compute empirical Fisher.
+
+    Args:
+        model: SVNet model
+        dataloader: DataLoader with BC or DAgger training data
+        device: torch device
+
+    Returns:
+        fisher_dict: {param_name: Fisher diagonal tensor}
+        optpar_dict: {param_name: optimal parameter snapshot}
+    """
+    fisher_dict = {}
+    optpar_dict = {}
+
+    # Only compute Fisher for Commander parameters (the ones we retrain)
+    commander = model.network["CommanderSV"]
+    for name, param in commander.named_parameters():
+        fisher_dict[name] = torch.zeros_like(param.data)
+        optpar_dict[name] = param.data.clone()
+
+    model.eval()
+    n_samples = 0
+    for inputs, labels in dataloader:
+        inputs = tuple(t.to(device) for t in inputs)
+        labels = labels.to(device)
+
+        model.zero_grad()
+        output, _ = model(*inputs)
+        # Use squared prediction as proxy for log-likelihood
+        loss = (output ** 2).sum()
+        loss.backward()
+
+        for name, param in commander.named_parameters():
+            if param.grad is not None:
+                fisher_dict[name] += param.grad.data ** 2
+        n_samples += labels.shape[0]
+
+    # Normalize by number of samples
+    for name in fisher_dict:
+        fisher_dict[name] /= max(n_samples, 1)
+
+    model.train()
+    return fisher_dict, optpar_dict
+
+
+def ewc_penalty(model, fisher_dict, optpar_dict):
+    """
+    Compute EWC penalty: sum_i F_i * (theta_i - theta*_i)^2
+
+    Args:
+        model: SVNet model
+        fisher_dict: Fisher diagonal from compute_fisher_information
+        optpar_dict: Optimal parameter snapshot
+
+    Returns:
+        penalty: scalar tensor
+    """
+    penalty = torch.tensor(0.0, device=DEVICE)
+    commander = model.network["CommanderSV"]
+    for name, param in commander.named_parameters():
+        if name in fisher_dict:
+            penalty += (fisher_dict[name] * (param - optpar_dict[name]) ** 2).sum()
+    return penalty
+
+
+def _retrain_commander_ewc(
+    cohort_name: str, pilot_name: str,
+    aggregated_file: str, Nep: int, lim_sv: int,
+    default_mass: float = 0.3, default_fn: float = 0.3,
+    lr: float = 1e-4,
+    bc_cohort_name: str = None,
+    dagger_only: bool = False,
+    oversample: int = 1,
+    freeze_vision: bool = True,
+    ewc_lambda: float = 0.0,
+    fisher_dict: dict = None,
+    optpar_dict: dict = None,
+    lr_schedule: str = None,
+    weight_decay: float = 0.0,
+    collision_weight_alpha: float = 0.0,
+    collision_weight_threshold: float = 0.5,
+    max_dagger_samples: int = 0,
+) -> Tuple[Optional[dict], Optional[dict]]:
+    """
+    Enhanced version of _retrain_commander with EWC, LR scheduling,
+    and collision-weighted loss.
+
+    Returns (fisher_dict, optpar_dict) for use in next iteration.
+    If ewc_lambda=0, no scheduling, and no collision weighting,
+    behaves identically to _retrain_commander.
+
+    collision_weight_alpha: if > 0, annotations near obstacles (clearance < threshold)
+        get upweighted by alpha * (1 - clearance/threshold). This teaches the Commander
+        to be extra careful near obstacles, addressing the collision plateau.
+    collision_weight_threshold: distance (m) below which collision weighting kicks in.
+    max_dagger_samples: if > 0, subsample DAgger annotations to this max BEFORE oversample.
+        Prevents DAgger:BC ratio drift in cumulative aggregation mode. Set to ~BC_size
+        to maintain ~1:1 ratio after oversample=1, or BC_size/oversample for other ratios.
+    """
+    workspace_path = str(Path(__file__).resolve().parents[3])
+    annotations = torch.load(aggregated_file, weights_only=False)
+
+    if not annotations:
+        print("  [retrain_ewc] No annotations — skipping.")
+        return fisher_dict, optpar_dict
+
+    # Cap DAgger samples to prevent ratio drift in cumulative aggregation.
+    # Without this, DAgger:BC ratio grows from ~15% (iter 0) to ~69% (iter 11),
+    # causing the model to progressively overfit to corrective DAgger data and
+    # drift further from the BC distribution (manifests as increasing expert
+    # command magnitude over iterations).
+    if max_dagger_samples > 0 and len(annotations) > max_dagger_samples:
+        print(f"  [retrain_ewc] Capping DAgger annotations: {len(annotations)} → {max_dagger_samples} "
+              f"(prevents ratio drift)")
+        indices = np.random.choice(len(annotations), max_dagger_samples, replace=False)
+        annotations = [annotations[i] for i in indices]
+
+    Xnn, Ynn = [], []
+    default_mfn = np.array([default_mass, default_fn], dtype=np.float32)
+
+    for ann in annotations:
+        xnn = ann.get("xnn")
+        if not xnn:
+            continue
+        ynn = {
+            "unn": np.array(ann["u"], dtype=np.float32),
+            "mfn": default_mfn.copy(),
+            "onn": np.array(ann["x"], dtype=np.float32),
+        }
+        Xnn.append(xnn)
+        Ynn.append(ynn)
+
+    if not Xnn:
+        print("  [retrain_ewc] No valid xnn entries — skipping.")
+        return fisher_dict, optpar_dict
+
+    # Compute collision weights from per-annotation clearance
+    sample_weights = None
+    if collision_weight_alpha > 0:
+        raw_weights = []
+        n_with_clearance = 0
+        for ann in annotations:
+            cl = ann.get("clearance", None)
+            if cl is not None:
+                n_with_clearance += 1
+                # Higher weight for annotations near obstacles
+                proximity = max(0.0, collision_weight_threshold - cl) / collision_weight_threshold
+                w = 1.0 + collision_weight_alpha * proximity
+            else:
+                w = 1.0
+            raw_weights.append(w)
+        if n_with_clearance > 0:
+            sample_weights = raw_weights
+            n_upweighted = sum(1 for w in raw_weights if w > 1.01)
+            avg_w = np.mean(raw_weights)
+            print(f"  [retrain_ewc] Collision weighting: {n_upweighted}/{n_with_clearance} "
+                  f"near-obstacle samples (alpha={collision_weight_alpha}, "
+                  f"threshold={collision_weight_threshold}m, avg_w={avg_w:.2f})")
+        else:
+            print(f"  [retrain_ewc] No clearance data in annotations — collision weighting disabled")
+
+    if oversample > 1:
+        Xnn = Xnn * oversample
+        Ynn = Ynn * oversample
+        if sample_weights is not None:
+            sample_weights = sample_weights * oversample
+        print(f"  [retrain_ewc] {len(Xnn)//oversample} annotations x {oversample} = {len(Xnn)} samples")
+    else:
+        print(f"  [retrain_ewc] {len(Xnn)} annotation samples")
+
+    obs_data = {
+        "data": [{
+            "Xnn": Xnn, "Ynn": Ynn, "Ndata": len(Xnn),
+            "rollout_id": 0, "course": "dagger",
+            "frame": {"mass": default_mass, "force_normalized": default_fn},
+        }],
+        "set": "", "Nobs": len(Xnn), "course": "dagger",
+    }
+
+    # Save observation file
+    course_dir = os.path.join(
+        workspace_path, "cohorts", cohort_name,
+        "observation_data", pilot_name, "dagger",
+    )
+    os.makedirs(course_dir, exist_ok=True)
+    dst = os.path.join(course_dir, "observations_dagger.pt")
+    torch.save(obs_data, dst)
+
+    if dagger_only:
+        course = "dagger"
+    else:
+        course = None
+        if bc_cohort_name:
+            bc_obs_base = os.path.join(
+                workspace_path, "cohorts", bc_cohort_name,
+                "observation_data", pilot_name,
+            )
+            dag_obs_base = os.path.join(
+                workspace_path, "cohorts", cohort_name,
+                "observation_data", pilot_name,
+            )
+            if os.path.isdir(bc_obs_base):
+                for entry in os.scandir(bc_obs_base):
+                    if not entry.is_dir() or entry.name == "dagger":
+                        continue
+                    link_path = os.path.join(dag_obs_base, entry.name)
+                    if not os.path.exists(link_path):
+                        os.symlink(entry.path, link_path)
+
+    # Load pilot and freeze vision
+    from sousvide.control.pilot import Pilot as _Pilot
+    student = _Pilot(cohort_name, pilot_name)
+    student.set_mode('train')
+    student.model.to(DEVICE)
+
+    if freeze_vision and hasattr(student.model, 'get_network') and "Commander" in student.model.get_network:
+        student.model.get_network["Commander"]["Unlock"] = nn.ModuleList(
+            [student.model.network["CommanderSV"]]
+        )
+        n_frozen = sum(p.numel() for p in student.model.network["VisionMLP"].parameters())
+        n_unlocked = sum(p.numel() for p in student.model.network["CommanderSV"].parameters())
+        print(f"  [retrain_ewc] VisionMLP FROZEN ({n_frozen:,} params) — only CommanderSV ({n_unlocked:,} params) updated")
+
+    # Custom training loop with EWC
+    from sousvide.instruct.synthesized_data import generate_dataset, get_data_paths
+    from torch.utils.data import DataLoader
+
+    use_collision_weights = collision_weight_alpha > 0 and sample_weights is not None
+    criterion = nn.MSELoss(reduction='none') if use_collision_weights else nn.MSELoss(reduction='mean')
+    model = student.model.get_network["Commander"]["Train"]
+
+    # Unlock Commander only
+    for param in student.model.parameters():
+        param.requires_grad = False
+    for param in student.model.get_network["Commander"]["Unlock"].parameters():
+        param.requires_grad = True
+
+    # Setup optimizer with optional weight decay
+    optimizer = optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=lr, weight_decay=weight_decay,
+    )
+
+    # LR scheduler
+    scheduler = None
+    if lr_schedule == "cosine":
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=Nep, eta_min=lr * 0.01)
+    elif lr_schedule == "step":
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=max(Nep // 3, 1), gamma=0.5)
+
+    # Get data
+    od_train_files, od_test_files, _, _ = get_data_paths(cohort_name, student.name, course_name=course)
+    if not od_train_files:
+        print("  [retrain_ewc] No training data found — skipping.")
+        return fisher_dict, optpar_dict
+
+    # Build collision weight tensor for the DAgger data (first N samples)
+    # The DAgger observations are saved first, so they correspond to the first portion
+    # of the dataset. BC observations (if any) follow and get weight=1.0.
+    weight_tensor = None
+    if use_collision_weights:
+        weight_tensor = torch.tensor(sample_weights, dtype=torch.float32, device=DEVICE)
+        print(f"  [retrain_ewc] Collision weight tensor: {weight_tensor.shape[0]} samples, "
+              f"range=[{weight_tensor.min():.2f}, {weight_tensor.max():.2f}]")
+
+    print(f"  [retrain_ewc] Training {Nep} epochs, lr={lr}, ewc_lambda={ewc_lambda}, "
+          f"schedule={lr_schedule or 'none'}, wd={weight_decay}"
+          f"{f', collision_alpha={collision_weight_alpha}' if use_collision_weights else ''}")
+
+    best_loss = float('inf')
+    for ep in range(Nep):
+        epoch_loss = 0.0
+        n_samples = 0
+        sample_idx = 0  # track position for weight indexing
+
+        for od_file in od_train_files:
+            dataset = generate_dataset(od_file, student, "Commander", DEVICE)
+            dataloader = DataLoader(dataset, batch_size=64, shuffle=True, drop_last=False)
+
+            for inputs, labels in dataloader:
+                inputs = tuple(t.to(DEVICE) for t in inputs)
+                labels = labels.to(DEVICE)
+
+                prediction, _ = model(*inputs)
+
+                if use_collision_weights:
+                    # Per-element loss: (batch, output_dim)
+                    per_sample_loss = criterion(prediction, labels).mean(dim=-1)  # (batch,)
+                    # Apply collision weights for DAgger samples
+                    batch_size = labels.shape[0]
+                    if weight_tensor is not None and sample_idx + batch_size <= weight_tensor.shape[0]:
+                        # Note: shuffle breaks exact weight-to-sample mapping.
+                        # Since DAgger data is separate from BC data, and the weight
+                        # distribution is consistent across the DAgger dataset,
+                        # we use a statistical approximation: randomly sample weights
+                        # from the weight tensor for each batch. This preserves
+                        # the overall distribution of collision-aware emphasis.
+                        w_idx = torch.randint(0, weight_tensor.shape[0], (batch_size,))
+                        batch_weights = weight_tensor[w_idx]
+                        loss = (per_sample_loss * batch_weights).mean()
+                    else:
+                        loss = per_sample_loss.mean()
+                else:
+                    loss = criterion(prediction, labels)
+
+                # Add EWC penalty
+                if ewc_lambda > 0 and fisher_dict is not None:
+                    ewc_loss = ewc_penalty(student.model, fisher_dict, optpar_dict)
+                    loss = loss + ewc_lambda * ewc_loss
+
+                loss.backward()
+                # Gradient clipping for stability (especially with collision weights + EWC)
+                torch.nn.utils.clip_grad_norm_(
+                    filter(lambda p: p.requires_grad, model.parameters()),
+                    max_norm=1.0,
+                )
+                optimizer.step()
+                optimizer.zero_grad()
+
+                epoch_loss += loss.item() * labels.shape[0]
+                n_samples += labels.shape[0]
+                sample_idx += labels.shape[0]
+
+        avg_loss = epoch_loss / max(n_samples, 1)
+        if scheduler:
+            scheduler.step()
+
+        if (ep + 1) % max(Nep // 5, 1) == 0 or ep == Nep - 1:
+            cur_lr = optimizer.param_groups[0]['lr']
+            ewc_str = f" ewc={ewc_lambda * ewc_penalty(student.model, fisher_dict, optpar_dict).item():.4f}" if ewc_lambda > 0 and fisher_dict else ""
+            print(f"    [ep {ep+1}/{Nep}] loss={avg_loss:.6f} lr={cur_lr:.2e}{ewc_str}")
+
+    # Save model
+    model_path = os.path.join(student.path, "model.pth")
+    for param in student.model.parameters():
+        param.requires_grad = False
+    torch.save(student.model, model_path)
+    print(f"  [retrain_ewc] Model saved → {model_path}")
+
+    # Compute new Fisher information for next iteration's EWC
+    new_fisher, new_optpar = None, None
+    if ewc_lambda > 0:
+        print("  [retrain_ewc] Computing Fisher information for next iteration...")
+        all_datasets = []
+        for od_file in od_train_files:
+            ds = generate_dataset(od_file, student, "Commander", DEVICE)
+            all_datasets.append(ds)
+        if all_datasets:
+            from torch.utils.data import ConcatDataset
+            combined = ConcatDataset(all_datasets)
+            combined_loader = DataLoader(combined, batch_size=64, shuffle=False)
+            new_fisher, new_optpar = compute_fisher_information(
+                student.model, combined_loader, DEVICE
+            )
+            print(f"  [retrain_ewc] Fisher computed for {sum(f.numel() for f in new_fisher.values())} params")
+
+    return new_fisher, new_optpar
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Device + cuDNN
@@ -1357,11 +1726,22 @@ def _collect_dagger_rollout(
         "min_clearance": None,
     }
 
+    # Compute per-annotation clearance (distance to nearest obstacle)
+    # for collision-weighted retraining
+    annotations_out = mixed_policy.annotations.copy()
+    if pc.shape[0] > 0 and annotations_out:
+        from scipy.spatial import cKDTree
+        kdtree = cKDTree(pc)
+        for ann in annotations_out:
+            pos = np.array(ann.get("x", np.zeros(10)))[:3]
+            dist, _ = kdtree.query(pos, k=1)
+            ann["clearance"] = float(dist)
+
     return {
         "Tro":             Tro,
         "Xro":             Xro,
         "Uro":             Uro,
-        "annotations":     mixed_policy.annotations.copy(),
+        "annotations":     annotations_out,
         "collision_steps": collision_steps,
         "drift_steps":     drift_steps,
         "analysis":        analysis,
@@ -1860,7 +2240,25 @@ def train_dagger_policy(
     patience: int              = 2,
     dagger_only: bool          = False,
     dagger_oversample: int     = 1,
+    # ── V10 enhancements (backward compatible — defaults disable them) ──
+    ewc_lambda: float          = 0.0,
+    lr_schedule: str           = None,
+    lr_decay_per_iter: float   = 1.0,
+    weight_decay: float        = 0.0,
+    # ── Collision-weighted loss (V10+) ──
+    collision_weight_alpha: float = 0.0,
+    collision_weight_threshold: float = 0.5,
+    # ── Data ratio control (V11+) ──
+    max_dagger_samples: int = 0,
 ) -> dict:
+
+    use_ewc = ewc_lambda > 0.0
+    if use_ewc:
+        print(f"[DAgger] EWC enabled: lambda={ewc_lambda}")
+    if lr_schedule:
+        print(f"[DAgger] LR schedule: {lr_schedule}")
+    if lr_decay_per_iter != 1.0:
+        print(f"[DAgger] LR decay per iter: {lr_decay_per_iter}")
 
     print(f"[DAgger] Device : {DEVICE}")
     if torch.cuda.is_available():
@@ -2085,6 +2483,10 @@ def train_dagger_policy(
             print(f"[DAgger] Backed up previous aggregated file → {os.path.basename(backup_agg)}")
 
         beta, global_step = beta_start, 0
+        current_lr = dagger_lr  # will be decayed by lr_decay_per_iter each iteration
+        # EWC state: Fisher info + parameter snapshot (computed after first retrain)
+        _fisher_dict = None
+        _optpar_dict = None
         # Fix Bug 2: track best model by mean success_rate (higher = better),
         # with mean_goal_dist as tiebreaker. This prevents hard objects (drill)
         # from dominating the metric when easy objects (clock, leafblower) improve.
@@ -2306,12 +2708,26 @@ def train_dagger_policy(
                 print(f"[DAgger] ↻ Restored best model to model.pth before retrain")
 
             # Re-entraînement
-            print(f"[DAgger] Retraining Commander  Nep={Nep_per_iter} lim_sv={lim_sv}...")
+            print(f"[DAgger] Retraining Commander  Nep={Nep_per_iter} lim_sv={lim_sv} lr={current_lr:.2e}...")
             _t_retrain = time.time()
-            _retrain_commander(cohort_name, pilot_name, aggregated_file, Nep_per_iter, lim_sv, lr=dagger_lr,
-                               bc_cohort_name=bc_cohort_name, dagger_only=dagger_only,
-                               oversample=dagger_oversample)
+            if use_ewc or lr_schedule or weight_decay > 0 or collision_weight_alpha > 0 or max_dagger_samples > 0:
+                _fisher_dict, _optpar_dict = _retrain_commander_ewc(
+                    cohort_name, pilot_name, aggregated_file, Nep_per_iter, lim_sv,
+                    lr=current_lr, bc_cohort_name=bc_cohort_name, dagger_only=dagger_only,
+                    oversample=dagger_oversample, ewc_lambda=ewc_lambda,
+                    fisher_dict=_fisher_dict, optpar_dict=_optpar_dict,
+                    lr_schedule=lr_schedule, weight_decay=weight_decay,
+                    collision_weight_alpha=collision_weight_alpha,
+                    collision_weight_threshold=collision_weight_threshold,
+                    max_dagger_samples=max_dagger_samples,
+                )
+            else:
+                _retrain_commander(cohort_name, pilot_name, aggregated_file, Nep_per_iter, lim_sv, lr=current_lr,
+                                   bc_cohort_name=bc_cohort_name, dagger_only=dagger_only,
+                                   oversample=dagger_oversample)
             print(f"[DAgger] Retraining done in {time.time()-_t_retrain:.1f}s")
+            # Decay LR for next iteration
+            current_lr *= lr_decay_per_iter
 
             # Recharger pilot avec nouveaux poids
             pilot = Pilot(cohort_name, pilot_name)

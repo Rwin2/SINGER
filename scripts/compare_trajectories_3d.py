@@ -58,7 +58,7 @@ COLLISION_RADIUS = 0.15
 HORIZONTAL_FOV = np.radians(85)
 
 # Expert takeover waypoints (fractions of trajectory length)
-TAKEOVER_FRACTIONS = [0.25, 0.50, 0.75]
+TAKEOVER_FRACTIONS = []  # disabled for speed; set to [0.25, 0.50, 0.75] for full analysis
 
 SCENES_CFG_DIR = os.path.join(WORKSPACE, "configs", "scenes")
 OUT_DIR = os.path.join(WORKSPACE, "cohorts", DAGGER_COHORT, "visualizations")

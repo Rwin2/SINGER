@@ -63,7 +63,11 @@
                 9,
                 10
             ],
-            "objective": [],
+            "objective": [
+                0,
+                1,
+                2
+            ],
             "hidden_sizes": [
                 100,
                 100

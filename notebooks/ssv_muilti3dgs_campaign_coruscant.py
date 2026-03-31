@@ -334,6 +334,16 @@ def train_dagger(
         dagger_oversample=int(cfg.get("dagger_oversample", 1)),
         orientation_deviation_deg=cfg.get("orientation_deviation_deg", None),
         max_orientation_dev_deg=float(cfg.get("max_orientation_dev_deg", 180.0)),
+        # V10 enhancements (backward compatible)
+        ewc_lambda=float(cfg.get("ewc_lambda", 0.0)),
+        lr_schedule=cfg.get("lr_schedule", None),
+        lr_decay_per_iter=float(cfg.get("lr_decay_per_iter", 1.0)),
+        weight_decay=float(cfg.get("weight_decay", 0.0)),
+        # Collision-weighted loss
+        collision_weight_alpha=float(cfg.get("collision_weight_alpha", 0.0)),
+        collision_weight_threshold=float(cfg.get("collision_weight_threshold", 0.5)),
+        # Data ratio control
+        max_dagger_samples=int(cfg.get("max_dagger_samples", 0)),
     )
 
     # ── Résumé terminal ───────────────────────────────────────────────────────

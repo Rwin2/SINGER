@@ -455,56 +455,142 @@ Not all timesteps are useful for training. The filtering logic per timestep:
 
 ### How Evaluation and Benchmarking Work
 
-Both per-iteration evaluation and the final benchmark use the **same BC reference trajectories** (`tXUi`) — they do NOT generate new RRT paths.
+Both per-iteration evaluation and the final benchmark use **BC reference trajectories** from the `_BC_TRAJ_CACHE` (the same 121 branches per object that BC was trained on). They do NOT generate new RRT paths.
+
+#### Simulation Architecture (Benchmark & Training)
+
+```
+Simulator.simulate() loop (200 Hz sim, 20 Hz control):
+  ┌────────────────────────────────────────────────────────────┐
+  │ For each control step (20 Hz):                              │
+  │   1. Render: gsplat.render_rgb(camera, T_c2w, query)       │
+  │      → image_dict["semantic"]                               │
+  │      (turbo-colormapped uint8 similarity heatmap)           │
+  │                                                              │
+  │   2. Add sensor noise: xsn = xcr + N(mu_sn, std_sn)       │
+  │                                                              │
+  │   3. Pilot.control(tcr, xsn, ucm, obj, icr, zcr):         │
+  │      observe() → process_image(icr)  [albumentations]      │
+  │               → _compute_centroid()  [bearing/elev/size]    │
+  │               → store to self.Obj, self.Img                 │
+  │      orient()  → update DxU history (circular buffer)       │
+  │      decide()  → model.extract_inputs(tx, Obj, Img, DxU)   │
+  │      act()     → Commander(tx_com, obj_com, dxu_par, zimg)  │
+  │               → unn = [thrust, wx, wy, wz]                 │
+  │                                                              │
+  │   4. ACADOS solver: xcr = solver.simulate(x=xcr, u=uin)    │
+  │   5. Add model noise: xcr += N(mu_md, std_md)              │
+  └────────────────────────────────────────────────────────────┘
+```
+
+**Key details:**
+- `vision_processor=None` during benchmark → takes gsplat similarity branch
+- `obj=np.zeros((18,1))` → centroid features overwrite indices [0,1,2]
+- `query=obj_name` → enables similarity-field rendering in gsplat
+- Perception config: `visual_mode="semantic_depth"`, `perception_type="similarity"`
+- Image path: gsplat → turbo colormap uint8 → albumentations (resize 256→crop 224→ImageNet normalize) → pilot
+
+#### Centroid Feature Computation (`_compute_centroid`)
+
+**CRITICAL: Centroid version must match the model's training version!**
+
+The pilot config (`configs/pilots/InstinctJester.json`) has a `centroid_version` field:
+- `"v9"` (default if absent): Uses `np.percentile(heat, 75)` threshold — top 25% of pixels
+- `"v10"`: Uses `np.median(heat)` for centroid + fixed 0.3 threshold for apparent_size
+
+V9 models were trained with the v9 method. Using v10 centroid on a v9 model produces **completely wrong** control outputs (different bearing/elevation → different trajectories → ~0% success instead of 88%).
+
+```
+_compute_centroid() flow:
+  icr (ImageNet-normalized, 3×224×224)
+    → heat = mean over channels (224×224)
+    → heat /= 255.0  (note: values are ~[-0.008, 0.009] after ImageNet norm + /255)
+    → V9:  mask = heat > percentile(heat, 75)  → ~25% of pixels
+      V10: mask = heat > median(heat)           → ~50% of pixels
+    → centroid = weighted_average(pixel_coords, weights=heat[mask])
+    → bearing  = 2 * cx - 1   ([-1, 1], horizontal angle)
+    → elevation = 2 * cy - 1  ([-1, 1], vertical angle)
+    → apparent_size:
+        V9:  mask.sum() / total_pixels  (always ~0.25 — known bug)
+        V10: (heat > 0.3).sum() / total_pixels  (varies with distance)
+```
 
 #### Per-iteration evaluation (`_eval_full_trajectories`)
 
-After each DAgger iteration, the pilot is tested:
+After each DAgger iteration, the pilot is evaluated on full trajectories:
 ```
-For each object:
-    tXUi = load pre-computed BC reference trajectory (single canonical branch from .pkl)
-    Sample n_eval_per_iter=20 start indices from the FULL trajectory
-    Seed with eval_seed=42 → same 20 start points every iteration
-    For each start index:
-        Extract state at that point on the reference trajectory
-        Pilot flies alone (NO expert, NO perturbation) from that state to trajectory end
-        Measure: goal_distance, collision (yes/no)
-        Success = goal_dist < 2.0m AND no collision
+For each object (3 objects):
+    Load 121 BC reference trajectories from _BC_TRAJ_CACHE
+    Seed with eval_seed=42
+    Sample n_eval_per_obj branches (default 40)
+    For each sampled branch:
+        Reset pilot history (DxU, Znn, hy_flag, hy_idx)
+        Pilot flies alone from branch start (x0) to end (tf)
+        Evaluate with _evaluate_run()
 ```
-
-**Why seed=42?** It ensures every iteration is evaluated on the **identical 20 start positions**. Without this, random variation in start positions would make it impossible to tell if the model actually improved or just got easier starts. The pilot never sees these exact states during DAgger data collection (which uses random perturbations without this seed).
 
 #### Final benchmark (`_run_benchmark_pilot`)
 
 Run twice — once with the BC model ("before") and once with the DAgger model ("after"):
 ```
-For each object:
-    tXUi = same BC reference trajectory (single canonical branch)
+For each object (3 objects):
+    Load 121 BC reference trajectories from _BC_TRAJ_CACHE
     Seed with benchmark_seed=42
-    Sample n_benchmark=50 start indices from the FULL trajectory
-    For each start:
-        Pilot flies alone from that state to trajectory end time (tf)
-        Same success criteria as per-iter eval
+    Sample n_benchmark=50 branches (np.random.choice without replacement)
+    For each sampled branch:
+        Reset pilot history (DxU.zero_(), Znn.zero_(), hy_flag=False)
+        x0 = tXUi[1:11, 0]    (initial state from branch)
+        t0, tf = tXUi[0, 0], tXUi[0, -1]  (time span)
+        Pilot flies alone → result = simulator.simulate(pilot, t0, tf, x0, ...)
+        _evaluate_run(Xro, obj_target, point_cloud, env_bounds, tXUi)
 ```
 
-The seed ensures before/after use **identical start conditions** for a fair comparison.
+**Success criteria** (`_evaluate_run`):
+1. Drone enters within 2.3m (= r1 + 2*r2 = 2.0 + 0.3) of object centroid
+2. No collision BEFORE first entry:
+   - Point-cloud collision: any Gaussian center < 0.15m from drone
+   - Out-of-bounds: drone exits `minbound/maxbound` from scene config
+3. FOV check: logged but NOT part of success criteria
+
+The seed ensures before/after use **identical branch selection** for a fair comparison.
+
+#### Reproducing a benchmark post-training
+
+To reproduce the exact training-time benchmark:
+```python
+from sousvide.instruct.train_dagger import (
+    _run_benchmark_pilot, _get_scene, _preload_bc_trajectories, Pilot, DEVICE
+)
+# 1. Load scene (populates _SCENE_CACHE)
+_get_scene(scene_name, scenes_cfg_dir, frame_name, rollout_name)
+# 2. Load BC trajectories (populates _BC_TRAJ_CACHE + _PKL_CACHE)
+_preload_bc_trajectories(bc_cohort_name, flights, scenes_cfg_dir)
+# 3. Create pilot (loads model from cohort roster)
+pilot = Pilot(cohort_name, pilot_name)
+pilot.set_mode("deploy")
+pilot.model.to(DEVICE)
+# 4. Run benchmark (swaps model weights internally)
+metrics = _run_benchmark_pilot(pilot=pilot, model_path=model_path, ...)
+```
+
+**Important:** The pilot config's `centroid_version` must match the training version.
+See `scripts/reproduce_benchmark.py` for a complete example.
 
 #### Why this is NOT "cheating"
 
 - **DAgger rollout data** uses `start_pos_noise` (random ±0.5m perturbation, no seed) on **full trajectories** with mixed expert/pilot control
-- **Evaluation** uses fixed seeds on the **2nd half of tXUi** (held out from BC training) with **pilot-only** control
-- The two distributions are different — the pilot must genuinely generalize, not memorize
-- The fixed seed only ensures reproducibility across iterations, not overlap with training data
+- **Evaluation** uses fixed seeds with **pilot-only** control on the same branch pool
+- The pilot must genuinely generalize — the seed only ensures reproducibility across iterations
 
 ### DAgger vs BC Perturbation Summary
 
 | | BC Rollouts | DAgger Rollouts | Evaluation/Benchmark |
 |---|---|---|---|
-| **What's perturbed** | Position ±0.4m, velocity ±0.4m/s, quaternion ±0.2 | Position only ±0.5m | Nothing (fixed start indices) |
-| **Trajectory source** | 110 RRT branches (pre-computed) | 5 branches sampled per iter from 110 | 1 canonical branch from .pkl |
+| **What's perturbed** | Position ±0.4m, velocity ±0.4m/s, quaternion ±0.2 | Position only ±0.5m | Nothing (deterministic from branch) |
+| **Trajectory source** | 110 RRT branches (pre-computed) | 5 branches sampled per iter from 121 | 50 branches sampled from 121 |
 | **Who flies** | MPC expert only | β·expert + (1-β)·pilot | Pilot only |
-| **Duration** | 2.0s segments at sampled time points | Full trajectory (3-10s) | From sampled start to trajectory end (tf) |
-| **Runs per object** | ~8,800 (110 × 4 reps × 20 time pts) | 5 per iteration (configurable) | 20 (eval) or 50 (benchmark) |
+| **Duration** | 2.0s segments at sampled time points | Full trajectory (3-10s) | Full branch (t0 to tf) |
+| **Runs per object** | ~8,800 (110 × 4 reps × 20 time pts) | 5 per iteration (configurable) | 40 (eval) or 50 (benchmark) |
 | **Seed** | None (global random) | None (random each iter) | 42 (fixed for reproducibility) |
 
 ---
@@ -694,9 +780,15 @@ cohorts/{cohort}/simulation_data/{timestamp}/
 
 **What the simulate command does**:
 1. Loads the Gaussian Splat scene
-2. Plans RRT trajectories (same as in BC)
-3. Runs both the MPC expert AND the neural pilot on each trajectory
-4. Renders camera views and saves as MP4 videos
+2. **Generates NEW RRT trajectories** (stochastic — different branches each time)
+3. Saves the new `tXUi` reference trajectory to `configs/scenes/{scene}_{object}.pkl` (**overwrites** the original BC pkl!)
+4. Runs both the MPC expert (tracking the new RRT reference via ACADOS) AND the neural pilot on each trajectory
+5. Renders camera views and saves as MP4 videos
+
+**Reusing existing trajectories (skip RRT regeneration)**:
+Pass `review: true` in the experiment config (under the top-level key). This loads trajectories from existing `.pkl` files instead of regenerating them. Useful when you want to re-simulate with a different model on the same trajectory, or avoid overwriting the BC pkl files.
+
+> **Warning**: Without `review: true`, simulate overwrites `configs/scenes/{scene}_{object}.pkl` with the newly generated RRT. If you need the original BC trajectories, back them up first or use `review` mode.
 
 ### Cross-benchmark multiple models
 
@@ -804,3 +896,17 @@ This is **normal and expected**. The DAgger observation file contains novel stat
 ### Pipeline step fails
 
 Each step depends on the previous. Check `logs/step{N}_*.log` and verify the cohort directory has expected data.
+
+### Benchmark results don't match training (centroid version mismatch)
+
+If post-training benchmarks show dramatically lower success (e.g., 0-40% instead of 88%), check the **centroid version**. The V9 centroid used `np.percentile(heat, 75)` and was later changed to `np.median(heat)` for V10+. Using the wrong version produces different bearing/elevation features → the model gets incorrect inputs → completely different trajectories.
+
+**Fix**: Ensure the pilot config's `centroid_version` matches the training version:
+- V9 models: `"centroid_version": "v9"` (or omit — default is `"v9"`)
+- V10+ models: `"centroid_version": "v10"`
+
+**How to verify**: The old V9 bytecode is preserved in `pilot.cpython-313.pyc` (March 20, 2026). You can inspect its constants with `dis.get_instructions()` to confirm it uses `75` (percentile) vs the current `0.3` (fixed threshold).
+
+### Simulation videos show wrong behavior
+
+If the neural pilot in simulation videos behaves erratically (flying out of bounds, not approaching target), this is likely the centroid version mismatch above. Regenerate videos after fixing the centroid version.
