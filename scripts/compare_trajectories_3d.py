@@ -312,17 +312,17 @@ def create_comparison_figure(
         name=f"Success Zone (r={SUCCESS_RADIUS}m)",
     ))
 
-    # Reference trajectories (thin, gray)
+    # Reference RRT trajectories (visible yellow-orange)
     for i, tXUi in enumerate(reference_branches):
         ref_pos = tXUi[1:4, :].T
         fig.add_trace(go.Scatter3d(
             x=ref_pos[:, 0], y=ref_pos[:, 1], z=ref_pos[:, 2],
             mode="lines",
-            line=dict(color="gray", width=2, dash="dot"),
-            name="Reference" if i == 0 else None,
+            line=dict(color="orange", width=4, dash="dash"),
+            name="RRT Reference" if i == 0 else None,
             showlegend=(i == 0),
             legendgroup="reference",
-            opacity=0.4,
+            opacity=0.7,
         ))
 
     # Policy trajectories

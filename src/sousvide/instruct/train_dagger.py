@@ -867,8 +867,9 @@ def _save_benchmark_plotly(
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     try:
         import sys as _sys
+        # __file__ = src/sousvide/instruct/train_dagger.py → 4 levels up to repo root
         _scripts = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)))), "scripts")
+            os.path.dirname(os.path.abspath(__file__))))), "scripts")
         if _scripts not in _sys.path:
             _sys.path.insert(0, _scripts)
         from compare_trajectories_3d import create_comparison_figure, get_point_cloud
