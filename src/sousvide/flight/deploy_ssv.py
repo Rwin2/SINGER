@@ -310,7 +310,7 @@ def simulate_rollouts(
     
     base_policy_name = sample_set_config["policy"]
     base_frame_name = sample_set_config["frame"]
-    vision_processor_type = sample_set_config.get("vision_processor", "none")
+    vision_processor_type = sample_set_config.get("vision_processor_type", sample_set_config.get("vision_processor", "none"))
     Nrep = test_set_config["reps"]
 
     # Load perception config for vision processor (for ONNX paths if needed)
@@ -857,7 +857,7 @@ def simulate_roster(cohort_name:str,method_name:str,
     frame_name = sample_set_config["frame"]
 
     # Get vision processor type from config (default to 'none' if not specified)
-    vision_processor_type = sample_set_config.get("vision_processor", "none")
+    vision_processor_type = sample_set_config.get("vision_processor_type", sample_set_config.get("vision_processor", "none"))
 
     # Extract policy and frame
     policy_path = os.path.join(workspace_path,"configs","policy",policy_name+".json")

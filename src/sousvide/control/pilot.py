@@ -150,6 +150,10 @@ class Pilot():
             "std": profile["data_augmentation"]["std"]
         }
 
+        # Centroid computation version (v9 = 75th percentile, v10 = median + fixed size threshold)
+        # Default "v9" for backward compatibility with V9-trained models
+        self.centroid_version = profile.get("centroid_version", "v9")
+
         # ---------------------------------------------------------------------
 
     def set_mode(self,mode:Literal['train','deploy']):
@@ -212,10 +216,121 @@ class Pilot():
         self.tx_cr.copy_(torch.cat((tcr.unsqueeze(0),xcr)).flatten())
         self.znn_cr.copy_(zcr)
 
+        # Compute centroid features from raw image (before normalization)
+        # CLIPSeg/semantic images highlight the target — centroid gives bearing/elevation/size
+        # V9: 3 features (bearing, elevation, apparent_size)
+        # V10+: 5 features (+ confidence, compactness)
+        centroid = self._compute_centroid(icr)
+        obj_with_centroid = obj.reshape(self.Obj.shape).clone()
+        obj_with_centroid[0, 0] = centroid[0]  # bearing  [-1, 1]
+        obj_with_centroid[1, 0] = centroid[1]  # elevation [-1, 1]
+        obj_with_centroid[2, 0] = centroid[2]  # apparent_size [0, 1]
+        # Extra features (only used if objective config includes indices 3, 4)
+        if centroid.shape[0] > 3:
+            obj_with_centroid[3, 0] = centroid[3]  # confidence [0, 1]
+            obj_with_centroid[4, 0] = centroid[4]  # compactness [0, 1]
+
         # Update Network Input Variables
-        self.Obj.copy_(obj.reshape(self.Obj.shape))
+        self.Obj.copy_(obj_with_centroid)
         self.Img.copy_(icr)
             
+    def _compute_centroid(self, icr):
+        """Compute target features from CLIPSeg/semantic image.
+
+        The CLIPSeg heatmap highlights the target object with brighter pixels.
+        This extracts geometric and confidence features:
+          - bearing/elevation: where is the target in the image
+          - apparent_size: how large (proxy for distance)
+          - confidence: how strong/sharp the detection is
+          - compactness: how concentrated the highlight is (compact = clear target)
+
+        Returns:
+            torch.Tensor of shape (5,): [bearing, elevation, apparent_size, confidence, compactness]
+                bearing:       [-1, 1]  (-1=left edge, +1=right edge)
+                elevation:     [-1, 1]  (-1=top edge, +1=bottom edge)
+                apparent_size: [0, 1]   fraction of image pixels above threshold
+                confidence:    [0, 1]   peak heatmap intensity (higher = stronger detection)
+                compactness:   [0, 1]   spatial concentration of highlight (1=tight cluster, 0=diffuse)
+        """
+        if icr is None:
+            return torch.zeros(5, device=self.device)
+
+        # Convert to numpy
+        if isinstance(icr, torch.Tensor):
+            img = icr.detach().cpu().numpy()
+        else:
+            img = np.array(icr, dtype=np.float32)
+
+        # Compute brightness map
+        if img.ndim == 3:
+            if img.shape[0] in (1, 3):   # (C, H, W)
+                heat = img.mean(axis=0)
+            else:                          # (H, W, C)
+                heat = img.mean(axis=2)
+        elif img.ndim == 2:
+            heat = img.astype(np.float32)
+        else:
+            return torch.zeros(5, device=self.device)
+
+        # Normalize to [0, 1]
+        if heat.max() > 1.0:
+            heat = heat / 255.0
+
+        H, W = heat.shape
+
+        if getattr(self, 'centroid_version', 'v9') == 'v9':
+            # V9 method: 75th percentile threshold for centroid AND apparent_size
+            # This is the original code used during V9 BC+DAgger training.
+            threshold = np.percentile(heat, 75)
+            mask = heat > threshold
+            if mask.sum() < 5:
+                return torch.zeros(5, device=self.device)
+
+            ys_c, xs_c = np.where(mask)
+            weights_c = heat[mask]
+            cx = np.average(xs_c, weights=weights_c) / W
+            cy = np.average(ys_c, weights=weights_c) / H
+
+            bearing = 2.0 * cx - 1.0
+            elevation = 2.0 * cy - 1.0
+            apparent_size = float(mask.sum()) / (H * W)  # ~0.25 (known V9 bug)
+        else:
+            # V10+ method: median for centroid, fixed threshold for apparent_size
+            median_val = np.median(heat)
+            centroid_mask = heat > median_val
+            if centroid_mask.sum() < 5:
+                return torch.zeros(5, device=self.device)
+
+            ys_c, xs_c = np.where(centroid_mask)
+            weights_c = heat[centroid_mask]
+            cx = np.average(xs_c, weights=weights_c) / W
+            cy = np.average(ys_c, weights=weights_c) / H
+
+            bearing = 2.0 * cx - 1.0
+            elevation = 2.0 * cy - 1.0
+
+            size_threshold = 0.3
+            size_mask = heat > size_threshold
+            apparent_size = float(size_mask.sum()) / (H * W)
+
+        # Confidence: peak intensity in the heatmap (higher = more certain detection)
+        confidence = float(heat.max())              # [0, 1]
+
+        # Compactness: how spatially concentrated the highlight is
+        # Low compactness = diffuse detection (far away, occluded, or wrong target)
+        # High compactness = tight cluster (close, clear view of target)
+        if len(xs_c) > 1:
+            std_x = np.std(xs_c / W)  # normalized spread [0, ~0.5]
+            std_y = np.std(ys_c / H)
+            spatial_spread = np.sqrt(std_x**2 + std_y**2)
+            # Invert and normalize: small spread → high compactness
+            compactness = float(np.clip(1.0 - 2.0 * spatial_spread, 0.0, 1.0))
+        else:
+            compactness = 1.0  # single pixel = maximally compact
+
+        return torch.tensor([bearing, elevation, apparent_size, confidence, compactness],
+                            dtype=torch.float32, device=self.device)
+
     def orient(self):
         """
         Function that performs the orientation step of the OODA loop where we generate the history

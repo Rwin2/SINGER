@@ -1,0 +1,80 @@
+# DAgger V10 — Centroid features + EWC + LR schedule + collision weighting
+# Based on V9 but with anti-forgetting improvements:
+# 1. EWC (Elastic Weight Consolidation) prevents catastrophic forgetting
+# 2. Cosine LR schedule for smoother convergence
+# 3. LR decay per iteration (0.9x) to stabilize later iterations
+# 4. Collision-weighted loss to address near-obstacle behavior
+# 5. More epochs (15) to absorb the EWC+collision complexity
+cohort: "SSV_DAGGER_CENTROID_V10"
+method: "rrt_6s"
+
+review: false
+
+Nep_his: 100
+Nep_com: 150
+
+bc_cohort: "ssv_BC_CENTROID_V9"
+expert_type: "mpc"
+
+dagger_only: false
+dagger_oversample: 15
+
+n_iterations: 12
+Nep_dagger: 15
+n_eval_per_iter: 40
+n_benchmark: 50
+lim_sv: 10
+dagger_lr: 0.00005
+
+aggregate_dagger: true
+reset_to_best: true
+eval_seed: 42
+patience: 5
+
+beta_start: 0.85
+beta_decay: 0.93
+
+n_rollouts_per_object: 8
+
+start_pos_noise: 0.4
+
+# Position deviation filter
+deviation_filter_dist: 0.3
+close_approach_dist: 5.0
+max_annotation_goal_dist: 50.0
+max_deviation_dist: 8.0
+
+# Orientation filter
+orientation_deviation_deg: 15.0
+max_orientation_dev_deg: 90.0
+
+# --- V10 enhancements ---
+# EWC: prevents catastrophic forgetting by penalizing changes to
+# important weights. lambda=0.5 is moderate (0=off, 1=strong).
+ewc_lambda: 0.5
+
+# LR schedule: cosine annealing within each DAgger iteration
+lr_schedule: "cosine"
+
+# LR decay across iterations: multiply lr by 0.9 each iteration
+# Iter 0: 5e-5, Iter 5: 3e-5, Iter 11: 1.4e-5
+lr_decay_per_iter: 0.9
+
+# Weight decay: mild L2 regularization
+weight_decay: 0.0001
+
+# Collision-weighted loss: upweight annotations near obstacles
+# alpha=2.0 means annotations within 0.5m of obstacle get 3x weight
+collision_weight_alpha: 2.0
+collision_weight_threshold: 0.5
+
+# Data ratio control: cap DAgger samples to prevent BC:DAgger ratio drift
+# BC has ~158K samples. With oversample=15, DAgger raw cap of 10K → 150K oversampled.
+# This maintains ~1:1 ratio with BC data (158K:150K)
+max_dagger_samples: 10000
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"

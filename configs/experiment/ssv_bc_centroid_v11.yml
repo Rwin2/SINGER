@@ -1,0 +1,25 @@
+# BC training with FIXED centroid features + larger Commander (V11)
+# Changes from V9:
+# 1. Fixed apparent_size (fixed threshold=0.3, was percentile bug)
+# 2. 5 centroid features: bearing, elevation, apparent_size, confidence, compactness
+# 3. Commander [256,128] (was [100,100])
+# 4. Commander input: 149-dim = 8 state + 5 objective + 8 history + 128 vision
+# REQUIRES: InstinctJester.json updated to V11 config BEFORE running
+cohort: "ssv_BC_CENTROID_V11"
+method: "rrt_6s"
+
+review: false
+
+# Training epochs
+Nep_his: 100
+Nep_com: 200
+
+# DAgger parameters (not used for BC, but required by config)
+Nep_dagger: 50
+lim_sv: 10
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"
