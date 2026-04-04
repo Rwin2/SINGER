@@ -1,0 +1,15 @@
+V9 DAgger — Seen vs Unseen Benchmark
+Date: 2026-03-31T09:27:19.962925
+Total time: 10.9 hours
+Seed: 42
+
+Set                Model       Success  Collision  N/obj
+----------------------------------------------------
+SEEN               BC            77.3%      16.0%     50
+SEEN               DAGGER        86.0%       8.0%     50
+UNSEEN             BC            78.8%      15.2%     50
+UNSEEN             DAGGER        90.9%       9.1%     50
+
+Reference (original V9 training log):
+  BC:     80.7% success, 13.3% collision (50/obj)
+  DAgger: 88.0% success,  8.0% collision (50/obj)
