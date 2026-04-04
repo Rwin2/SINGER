@@ -1,15 +1,10 @@
 # SINGER: Onboard Vision-Language Navigation Policy for Drones
 
 <div align="center">
-  <table><tr>
-    <td align="center"><b>RGB (onboard camera)</b><br>
-      <video src="assets/leafblower_rgb.mp4" width="350" autoplay loop muted></video>
-    </td>
-    <td align="center"><b>CLIPSeg semantic similarity</b><br>
-      <video src="assets/leafblower_semantic.mp4" width="350" autoplay loop muted></video>
-    </td>
-  </tr></table>
-  <p><em>"Go to the green leafblower" — the drone navigates autonomously using only its onboard camera.</em><br>
+  <video src="assets/leafblower_rgb.mp4" width="400" autoplay loop muted playsinline></video>
+  <video src="assets/leafblower_semantic.mp4" width="400" autoplay loop muted playsinline></video>
+  <p><em>"Go to the green leafblower" — RGB (left) and CLIPSeg semantic similarity (right).</em><br>
+  <em>The drone navigates autonomously using only its onboard camera.</em><br>
   <a href="https://youtu.be/R6zd46fFNQ0">Full demo video on YouTube</a></p>
 </div>
 
