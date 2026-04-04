@@ -1,0 +1,5 @@
+Post-training benchmark
+Date: 2026-04-03T18:56:09.249239
+Time: 645s
+Seed: 42
+Success: 100.0%  Collision: 0.0%

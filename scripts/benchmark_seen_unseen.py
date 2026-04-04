@@ -37,6 +37,8 @@ bc_cohort_name = cfg["bc_cohort"]       # ssv_BC_CENTROID_V9
 roster         = cfg["roster"]
 flights        = [tuple(x) for x in cfg["flights"]]
 BENCHMARK_SEED = 42
+SAVE_PLOTS  = True     # Save trajectory plots (3D + time series) per run
+SAVE_VIDEOS = False    # Save MP4 videos per run (WARNING: ~50MB each, 600 runs = ~30GB)
 
 cohort_path    = os.path.join(WORKSPACE, "cohorts", cohort_name)
 method_path    = os.path.join(WORKSPACE, "configs", "method", method_name + ".json")
@@ -137,7 +139,8 @@ rrt_backup = os.path.join(dagger_dir, "_benchmark_rrt_backup")
 os.makedirs(sim_base, exist_ok=True)
 os.makedirs(rrt_backup, exist_ok=True)
 
-output_dir = os.path.join(cohort_path, "benchmark_seen_unseen")
+output_dir = os.path.join(cohort_path, "post_training_benchmarks",
+                          datetime.now().strftime("%Y%m%d_%H%M%S"))
 os.makedirs(output_dir, exist_ok=True)
 
 collision_detectors = {}
@@ -185,6 +188,8 @@ for bench_label, branch_set, model_path, max_traj in benchmarks:
             collision_detectors=collision_detectors, scene_names=scene_names,
             sim_base=sim_base, rrt_backup=rrt_backup,
             benchmark_seed=BENCHMARK_SEED, max_trajectories=max_traj,
+            save_plots=SAVE_PLOTS, save_videos=SAVE_VIDEOS,
+            output_dir=output_dir,
         )
         elapsed = time.time() - t0
 

@@ -846,6 +846,60 @@ def _load_all_branches(
     return branches_tXUi
 
 
+def _save_benchmark_plotly(
+    obj_runs: list,
+    obj_target: np.ndarray,
+    simulator,
+    obj_name: str,
+    save_path: str,
+    reference_branches: list = None,
+) -> None:
+    """Save interactive Plotly HTML reusing create_comparison_figure from compare_trajectories_3d.
+
+    Args:
+        obj_runs: list of (Xro, ev_dict, tXUi) tuples for this object.
+        obj_target: 3D target position.
+        simulator: FiGS simulator (for point cloud extraction).
+        obj_name: object name for title.
+        save_path: output .html path.
+        reference_branches: optional list of tXUi arrays (background, not used if per-run refs exist).
+    """
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    try:
+        import sys as _sys
+        _scripts = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))), "scripts")
+        if _scripts not in _sys.path:
+            _sys.path.insert(0, _scripts)
+        from compare_trajectories_3d import create_comparison_figure, get_point_cloud
+
+        pts, cols = get_point_cloud(simulator)
+
+        # Convert (Xro, ev, tXUi) tuples to the format expected by create_comparison_figure
+        formatted_runs = []
+        per_run_refs = []
+        for entry in obj_runs:
+            Xro, ev, tXUi = entry[0], entry[1], entry[2]
+            Tro = np.arange(Xro.shape[1], dtype=float) / 20.0
+            formatted_runs.append((Xro, Tro, ev, []))
+            per_run_refs.append(tXUi)
+
+        # Use per-run reference branches (the actual RRT branch each run followed)
+        all_refs = per_run_refs if per_run_refs else (reference_branches or [])
+
+        fig = create_comparison_figure(
+            pts, cols, obj_target, obj_name,
+            expert_runs=[],
+            bc_runs=[],
+            dagger_runs=formatted_runs,
+            reference_branches=all_refs,
+        )
+        fig.write_html(save_path)
+        print(f"  [plotly] -> {save_path}")
+    except Exception as e:
+        print(f"  [plotly] WARNING: could not save plot: {e}")
+
+
 def _save_traj_plot(Tro: np.ndarray, Xro: np.ndarray, Uro, save_path: str, title: str = "") -> None:
     """Save spatial + time trajectory plots to disk. Non-blocking, closes figures after saving."""
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -1077,6 +1131,9 @@ def _run_benchmark_pilot(
     rrt_backup: str,
     benchmark_seed: int,
     max_trajectories: int,
+    save_plots: bool = False,
+    save_videos: bool = False,
+    output_dir: str = None,
 ) -> dict:
     """
     Benchmark the pilot on max_trajectories start positions per object.
@@ -1128,6 +1185,7 @@ def _run_benchmark_pilot(
             print(f"  [{label}] '{obj_name}'  {max_trajectories} runs across "
                   f"{n_available} branches  seed={benchmark_seed}")
             obj_analyses = []
+            obj_runs_for_plot = []
             for run_i, br_idx in enumerate(branch_idxs):
                 # Reset pilot history between benchmark runs
                 pilot.hy_flag = False
@@ -1152,6 +1210,7 @@ def _run_benchmark_pilot(
                 )
                 Tro, Xro = result[0], result[1]
                 Uro = result[2] if len(result) > 2 else None
+                Iro = result[3] if len(result) > 3 else None
 
                 pc_bench = scene_data.get("epcds_arr", np.zeros((0,3)))
                 ev = _evaluate_run(Xro, obj_target, pc_bench,
@@ -1173,6 +1232,40 @@ def _run_benchmark_pilot(
                 dev_str = f"  pos_dev={pos_dev:.2f}m  ori_dev={ori_dev:.1f}°  fov={fov_p:.0%}" if not np.isnan(pos_dev) else ""
                 print(f"  [{label}] {status}  '{obj_name[:20]}'  run {run_i+1}/{max_trajectories}"
                       f"  goal_dist={goal_dist:.2f}m  min={min_gd:.2f}m  coll={collided}  {fov_str}{oob_str}{dev_str}  ({time.time()-_t_sim:.1f}s)")
+
+                # Collect run data for Plotly visualization
+                if save_plots and output_dir is not None:
+                    obj_runs_for_plot.append((Xro.copy(), ev, tXUi.copy()))
+
+                # Save video from rendered frames (same pattern as deploy_ssv.py)
+                if save_videos and output_dir is not None and Iro is not None:
+                    import imageio
+                    from torchvision.transforms import Resize
+                    vid_dir = os.path.join(output_dir, "videos")
+                    os.makedirs(vid_dir, exist_ok=True)
+                    for ch_name in Iro:
+                        if ch_name == "depth_raw":
+                            continue
+                        frames_np = Iro[ch_name]
+                        if frames_np.shape[0] == 0:
+                            continue
+                        # Resize to 720x1280 like deploy_ssv.py
+                        resize = Resize((720, 1280), antialias=True)
+                        frames_t = torch.from_numpy(frames_np)
+                        out_frames = []
+                        for fi in range(frames_t.shape[0]):
+                            img = frames_t[fi]
+                            if img.ndim == 3 and img.shape[-1] == 3:
+                                img = img.permute(2, 0, 1)  # HWC -> CHW
+                            img = resize(img)
+                            out_frames.append(img.permute(1, 2, 0).numpy().astype(np.uint8))
+                        # Full object name like deploy_ssv.py:
+                        # sim_video_{scene}_{object}_{label}_run{N}_{channel}.mp4
+                        vid_path = os.path.join(vid_dir,
+                                                f"sim_video_{scene_name}_{obj_name}_{label}_run{run_i:03d}_{ch_name}.mp4")
+                        imageio.mimwrite(vid_path, out_frames, fps=20)
+                        print(f"  [video] -> {vid_path}")
+
                 analysis = {
                     "collision":               collided,
                     "success":                 success,
@@ -1204,6 +1297,21 @@ def _run_benchmark_pilot(
             print(f"  [{label}] ── '{obj_name[:25]}'  success={sr:.0%}  mean_goal_dist={gd:.2f}m{dev_summary}")
             per_object[obj_name] = {"success_rate": sr, "collision_rate": cr, "goal_dist": gd,
                                     "mean_pos_dev": avg_pd, "mean_orient_dev_deg": avg_od, "fov_pct": avg_fp}
+
+            # Save interactive Plotly HTML per object
+            if save_plots and output_dir is not None and obj_runs_for_plot:
+                obj_short = obj_name.replace(" ", "_")[:30]
+                html_path = os.path.join(output_dir, "plots",
+                                         f"{label}_{obj_short}.html")
+                _save_benchmark_plotly(
+                    obj_runs=obj_runs_for_plot,
+                    obj_target=obj_target,
+                    simulator=simulator,
+                    obj_name=f"{label} — {obj_name} ({sr:.0%} success)",
+                    save_path=html_path,
+                    reference_branches=all_branches[:min(10, len(all_branches))],
+                )
+                del obj_runs_for_plot
 
         torch.cuda.empty_cache()
 
@@ -2377,7 +2485,7 @@ def train_dagger_policy(
 
         dagger_dir  = os.path.join(cohort_path, "dagger_data", pilot_name)
         run_ts      = time.strftime("%Y%m%d_%H%M%S")
-        bench_dir   = os.path.join(dagger_dir, f"benchmark_{run_ts}")
+        bench_dir   = os.path.join(cohort_path, "training_benchmarks", run_ts)
         rrt_backup  = os.path.join(dagger_dir, "_benchmark_rrt_backup")
         os.makedirs(bench_dir,  exist_ok=True)
         os.makedirs(rrt_backup, exist_ok=True)
