@@ -54,12 +54,22 @@
 
 ### Phase 1: Action Chunking BC (30 epochs)
 - **Started**: 2026-04-04 22:46 PST
-- **Status**: RUNNING on GPU 0 (8GB, 100% util)
-- **Estimated completion**: ~5 hours (each epoch processes 330 files × ~480 chunked samples)
-- **Model updates observed**: best_model.pth updated at 22:59, 23:09, 23:19
-- **Bottleneck**: Data loading (330 .pt files loaded + chunked per epoch)
-- **Epoch timing**: ~10 min/epoch → 30 epochs ≈ 5 hours
-- **Expected completion**: ~2026-04-05 03:46 AM PST
+- **Completed**: 2026-04-05 03:44 PST (~5 hours)
+- **Epoch timing**: ~10 min/epoch
+- **Bug found**: Training script saved `model.state_dict()` instead of full model object. Fixed post-training with `scripts/fix_model_format.py`.
+- **Best test loss**: 0.02406 at epoch 23
+- **Final train loss**: 0.00258, Final test loss: 0.03000
+
+### Phase 2a: Flow Matching BC (fm_only, 30 epochs, 4D actions)
+- **Started**: 2026-04-05 04:50 PST
+- **Completed**: 2026-04-05 09:19 PST (4h 30m)
+- **Best test loss**: 0.20731 at epoch 13
+- **Final train loss**: 0.09335
+- Note: FM loss not directly comparable to MSE loss
+
+### Phase 2b: Flow Matching + Chunking (fm_chunked, 30 epochs, 20D)
+- **Started**: 2026-04-05 09:22 PST
+- **Status**: RUNNING on GPU 0
 
 ### Optimization note for future
 Loading 330 files per epoch is inefficient. Consider:
@@ -69,17 +79,68 @@ Loading 330 files per epoch is inefficient. Consider:
 
 ## Results
 
-### Phase 1: Action Chunking BC
+### Phase 1: Action Chunking BC (benchmark: 20 traj/object, seed=42)
 | Metric | V9 BC Baseline (4D) | Chunked BC (20D, H=5 K=2) |
 |--------|--------------------|-----------------------------|
-| Train loss | 0.012 | TBD |
-| Test loss | TBD | TBD |
-| Success rate | 80.7% | TBD |
-| Collision rate | 13.3% | TBD |
-| Goal distance | 2.07m | TBD |
+| Train loss | 0.012 | 0.00258 |
+| Best test loss | — | 0.02406 (epoch 23) |
+| Success rate | 100.0% | 100.0% |
+| Collision rate | 0.0% | 0.0% |
+| Goal distance | 1.85m | 2.00m |
 
-### Phase 2: Flow Matching BC
-(pending Phase 1 results)
+Per-object breakdown:
+| Object | V9 Baseline GoalDist | Chunked BC GoalDist |
+|--------|---------------------|---------------------|
+| Clock | 1.91±0.14m | 1.84±0.19m |
+| Leafblower | 1.97±0.48m | 2.50±0.35m |
+| Boxes (cordless) | 1.67±0.39m | 1.67±0.38m |
 
-### Phase 3: Combined + DAgger
-(pending Phase 1+2 results)
+**Conclusion**: Action chunking matches baseline success rate. Slightly higher goal distance for leafblower (2.50 vs 1.97m) but comparable overall. The 20D output prediction doesn't degrade performance.
+
+### Phase 2a: Flow Matching BC (fm_only, 4D)
+- Best test loss: 0.20731 (epoch 13), final train loss: 0.09335
+- Note: FM loss = velocity prediction MSE, not comparable to BC action MSE
+- Benchmark pending (need full-range benchmark with 50 traj/object)
+
+### Phase 2b: Flow Matching + Chunking (fm_chunked, 20D)
+- **Started**: 2026-04-05 09:22 PST
+- **Status**: RUNNING (last checkpoint: epoch ~27-28 of 30)
+- ETA: ~2026-04-05 14:30
+
+### Phase 2c: Longer Horizon — Chunked MSE H=10 K=3 (40D output)
+- **Started**: 2026-04-05 13:00 PST
+- **Status**: RUNNING (epoch 0/30)
+- Pilot config: `InstinctJester_chunked_h10.json` (hidden=[256,256], output=40D)
+- Cohort: `ssv_BC_CHUNKED_H10K3`
+- Reasoning: H=5 may be too short for temporal coherence. Pi-0 uses H=50.
+
+### Phase 3: Fair Benchmark (50 traj, SECOND-HALF starts only)
+- Script: `scripts/eval_fair_benchmark.py` (created, not yet run)
+- Uses `full_range=False` for fair comparison against V9's 88% benchmark
+- Previous eval used `full_range=True` (inflated: 100% success for everything)
+- Will compare: baseline, v9_dagger, chunked_H5, fm_only, fm_chunked, chunked_H10
+
+### Phase 4: DAgger on best variant
+(pending Phase 3 results)
+
+### Phase 5 (planned): FM loss during DAgger retraining
+- Placeholder script: `scripts/train_fm_dagger.py`
+- Most pragmatic approach: start DAgger from FM BC model, use standard MSE retraining
+- Advanced: modify `_retrain_commander_ewc()` to support FM loss
+
+---
+
+## Code Review (2026-04-05 session)
+
+### Issues Found
+1. **`eval_all_experiments.py --full-range`**: Inflates success rates by including easy starts
+2. **`FlowMatchingCommanderWrapper.forward()`**: Runs HistoryEncoder+VisionMLP twice (perf, not correctness)
+3. **`FlowMatchingCommander.py:223`**: Hardcoded `input_size=147` — breaks if objective features change
+4. **Gaussian timestep weighting**: May not be optimal for 4D action space (DreamZero designed for images)
+
+### Files Created This Session
+- `scripts/eval_fair_benchmark.py` — Fair benchmark with second-half starts
+- `scripts/train_chunked_horizons.py` — Train multiple chunk horizons
+- `scripts/train_fm_dagger.py` — FM+DAgger placeholder
+- `configs/pilots/InstinctJester_chunked_h10.json` — H=10 K=3 pilot config
+- `FLOW_MATCHING_CHUNKING_ANALYSIS.md` — Comprehensive analysis document

@@ -198,13 +198,13 @@ def train_chunked_bc():
             # Save best model
             if avg_test < best_test_loss:
                 best_test_loss = avg_test
-                torch.save(student.model.state_dict(),
+                torch.save(student.model,
                            os.path.join(student.path, "model.pth"))
-                torch.save(student.model.state_dict(),
+                torch.save(student.model,
                            os.path.join(student.path, "best_model.pth"))
 
             # Save last model always
-            torch.save(student.model.state_dict(),
+            torch.save(student.model,
                        os.path.join(student.path, "last_model.pth"))
 
             pbar.set_postfix(train=f"{avg_train:.5f}", test=f"{avg_test:.5f}",

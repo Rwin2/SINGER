@@ -196,3 +196,76 @@ class FlowMatchingSchedule:
             a_t = a_t + velocity * dt
 
         return a_t
+
+
+class FlowMatchingCommanderWrapper(nn.Module):
+    """
+    Wraps SVNet with a flow matching Commander replacement.
+
+    Runs HistoryEncoder + VisionMLP (frozen) from the base SVNet,
+    then concatenates state + noisy_action + time_embed through a new MLP.
+
+    Compatible with SINGER Pilot interface (delegates get_data, get_network, etc.).
+    """
+
+    def __init__(self, svnet_model, output_size, num_flow_steps=10,
+                 time_embed_dim=32, hidden_sizes=[256, 128], dropout=0.2):
+        super().__init__()
+        self.svnet = svnet_model
+        self.output_size = output_size
+        self.num_flow_steps = num_flow_steps
+        self.time_embed_dim = time_embed_dim
+
+        # Time embedding
+        self.time_embed = SinusoidalTimeEmbedding(time_embed_dim)
+
+        # Commander input = 147 (state features) + output_size (noisy action) + time_embed_dim
+        input_size = 147 + output_size + time_embed_dim
+        self.fm_commander = bn.SimpleMLP(input_size, hidden_sizes, output_size,
+                                          active_end=False, dropout=dropout)
+
+        # Delegate SVNet attributes for Pilot compatibility
+        self.Nz = svnet_model.Nz
+        self.network = svnet_model.network
+        self.get_data = svnet_model.get_data
+        self.get_network = svnet_model.get_network
+        self.get_commander_inputs = svnet_model.get_commander_inputs
+
+    def forward_flow(self, tx_com, obj_com, dxu_par, img_vis, tx_vis,
+                     noisy_action, flow_time):
+        """Flow matching forward: predict velocity given noisy action + time."""
+        with torch.no_grad():
+            _, z_par = self.svnet.network["HistoryEncoder"](dxu_par)
+            y_vis, _ = self.svnet.network["VisionMLP"](img_vis, tx_vis)
+
+        t_emb = self.time_embed(flow_time)
+        xcm = torch.cat((tx_com, obj_com, z_par, y_vis, noisy_action, t_emb), -1)
+        velocity = self.fm_commander(xcm)
+        return velocity
+
+    def forward_sample(self, tx_com, obj_com, dxu_par, img_vis, tx_vis,
+                       num_steps=None):
+        """Euler ODE sampling for inference."""
+        if num_steps is None:
+            num_steps = self.num_flow_steps
+        with torch.no_grad():
+            _, z_par = self.svnet.network["HistoryEncoder"](dxu_par)
+            y_vis, _ = self.svnet.network["VisionMLP"](img_vis, tx_vis)
+
+        B = tx_com.shape[0]
+        device = tx_com.device
+        a_t = torch.randn(B, self.output_size, device=device)
+        dt = 1.0 / num_steps
+
+        for i in range(num_steps):
+            t = torch.full((B,), i * dt, device=device)
+            t_emb = self.time_embed(t)
+            xcm = torch.cat((tx_com, obj_com, z_par, y_vis, a_t, t_emb), -1)
+            velocity = self.fm_commander(xcm)
+            a_t = a_t + velocity * dt
+
+        return a_t
+
+    def forward(self, tx_com, obj_com, dxu_par, img_vis, tx_vis):
+        """SVNet-compatible forward: uses flow matching sampling for inference."""
+        return self.forward_sample(tx_com, obj_com, dxu_par, img_vis, tx_vis), None

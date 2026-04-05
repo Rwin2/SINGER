@@ -201,6 +201,66 @@ def extract_data_chunked(observation_data_path: str, chunk_horizon: int = 5, act
     return Xnn_ds, Ynn_ds
 
 
+def extract_data_dynamics(observation_data_path: str, chunk_horizon: int = 5,
+                           action_dim: int = 4, state_keys=("obj_com",)):
+    """
+    Extract chunked actions + future state targets for dynamics loss.
+
+    Returns same (Xnn_ds, Ynn_ds) as extract_data_chunked but also adds
+    future state values to each ynn dict under 'future_{key}' keys.
+
+    For DreamZero-style dynamics loss: predict future bearing/elevation
+    alongside future actions.
+
+    Args:
+        observation_data_path:  Path to .pt observation file.
+        chunk_horizon:          Number of future steps (H).
+        action_dim:             Action dimensionality.
+        state_keys:             Which xnn keys to extract as future states.
+
+    Returns:
+        Xnn_ds, Ynn_ds: same as extract_data_chunked, with added future state tensors.
+    """
+    observation_data = torch.load(observation_data_path)
+
+    Xnn_ds, Ynn_ds = [], []
+    for observations in observation_data["data"]:
+        Xnn = []
+        for xnn_raw in observations["Xnn"]:
+            for key, value in xnn_raw.items():
+                xnn_raw[key] = ensure_torch_tensor(value)
+            Xnn.append(xnn_raw)
+
+        Ynn = []
+        for ynn_raw in observations["Ynn"]:
+            for key, value in ynn_raw.items():
+                ynn_raw[key] = ensure_torch_tensor(value)
+            Ynn.append(ynn_raw)
+
+        N = len(Xnn)
+        for i in range(N - chunk_horizon + 1):
+            unn_chunk = torch.cat([Ynn[i + j]["unn"] for j in range(chunk_horizon)])
+            ynn_chunked = {
+                "unn": unn_chunk,
+                "mfn": Ynn[i]["mfn"],
+                "onn": Ynn[i]["onn"],
+            }
+            # Add future state values for dynamics loss
+            for key in state_keys:
+                future_vals = torch.stack([Xnn[i + j][key] for j in range(1, chunk_horizon + 1)
+                                           if (i + j) < N])
+                if future_vals.shape[0] < chunk_horizon:
+                    # Pad with last available value
+                    pad = future_vals[-1:].expand(chunk_horizon - future_vals.shape[0], -1)
+                    future_vals = torch.cat([future_vals, pad])
+                ynn_chunked[f"future_{key}"] = future_vals.reshape(-1)  # flatten
+
+            Xnn_ds.append(Xnn[i])
+            Ynn_ds.append(ynn_chunked)
+
+    return Xnn_ds, Ynn_ds
+
+
 def generate_dataset_chunked(observation_data_path: str, student, mode: str,
                               device, chunk_horizon: int = 5, action_dim: int = 4):
     """Generate a chunked Dataset from observation data. Wrapper around extract_data_chunked."""

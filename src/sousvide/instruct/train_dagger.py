@@ -1384,6 +1384,7 @@ def run_cross_cohort_benchmark(
     benchmark_seed: int = 123,
     max_trajectories: int = 50,
     output_path: Optional[str] = None,
+    full_range: bool = False,
 ) -> dict:
     """
     Evaluate multiple InstinctJester model variants on the **same** held-out
@@ -1435,9 +1436,9 @@ def run_cross_cohort_benchmark(
                 continue
             tXUi   = pkl_data["tXUi"]
             n_cols = tXUi.shape[1]
-            half   = max(1, n_cols // 2)
+            start_idx = 1 if full_range else max(1, n_cols // 2)
             shared_starts[key] = np.linspace(
-                half, n_cols - 1, max_trajectories, dtype=int
+                start_idx, n_cols - 1, max_trajectories, dtype=int
             )
 
     all_results: dict = {}
@@ -1488,6 +1489,9 @@ def run_cross_cohort_benchmark(
                     pilot.DxU.zero_()
                     if hasattr(pilot, 'Znn'):
                         pilot.Znn.zero_()
+                    if hasattr(pilot, 'chunk_buf'):
+                        pilot.chunk_buf = None
+                        pilot.chunk_step = 0
 
                     x0      = tXUi[1:11, s_idx].copy()
                     t_start = float(tXUi[0, s_idx])
