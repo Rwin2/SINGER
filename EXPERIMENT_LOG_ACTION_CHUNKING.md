@@ -147,11 +147,14 @@ Per-object breakdown:
 - Cohort: `ssv_BC_CHUNKED_H10K3`
 - Reasoning: H=5 may be too short for temporal coherence. Pi-0 uses H=50.
 
-### Phase 3: Fair Benchmark (50 traj, SECOND-HALF starts only)
-- Script: `scripts/eval_fair_benchmark.py` (created, not yet run)
-- Uses `full_range=False` for fair comparison against V9's 88% benchmark
-- Previous eval used `full_range=True` (inflated: 100% success for everything)
-- Will compare: baseline, v9_dagger, chunked_H5, fm_only, fm_chunked, chunked_H10
+### Phase 3: Full Trajectory Benchmark (50 traj, full range)
+- **Script**: `scripts/eval_fair_benchmark.py` (uses `full_range=True`)
+- **Started**: 2026-04-05 15:58 PST
+- **Status**: RUNNING (V9_BC_baseline, clock run 7/50 at 16:09)
+- **ETA**: ~15 hours (750 sims × 75s each) — overnight run
+- **Models**: baseline, v9_dagger, chunked_H5, fm_only, fm_chunked
+- H=10 will be added after its training completes
+- Log: `full_benchmark.log`
 
 ### Phase 4: DAgger on best variant
 (pending Phase 3 results)

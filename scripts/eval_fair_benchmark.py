@@ -95,7 +95,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     print(f"Benchmarking {len(models)} models: {[m['label'] for m in models]}")
-    print(f"  Using second-half starts only (full_range=False)")
+    print(f"  Using full trajectory range (full_range=True)")
     print(f"  {args.max_traj} trajectories per object")
 
     output_path = os.path.join(WORKSPACE, "cohorts", "fair_benchmark_results.json")
@@ -107,12 +107,12 @@ if __name__ == "__main__":
         benchmark_seed=42,
         max_trajectories=args.max_traj,
         output_path=output_path,
-        full_range=False,  # KEY: second-half only for fair comparison
+        full_range=True,  # Full trajectory range — most relevant benchmark
     )
 
     # Print summary table
     print("\n" + "=" * 70)
-    print("FAIR BENCHMARK RESULTS (second-half starts, held out from BC)")
+    print("FULL TRAJECTORY BENCHMARK RESULTS")
     print("=" * 70)
     print(f"{'Model':<30} {'Success%':>10} {'Collision%':>12} {'GoalDist':>10}")
     print("-" * 70)
