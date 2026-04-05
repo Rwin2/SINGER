@@ -5,6 +5,39 @@
 **Base model**: V9 DAgger (88.0% success, 8.0% collision)
 **Base BC**: ssv_BC_CENTROID_V9 (80.7% success)
 
+## Branch Map
+| Branch | Purpose | Status |
+|--------|---------|--------|
+| `main` | Stable release | V9 DAgger (88%) |
+| `feature/centroid-v9` | Centroid feature dev | Merged into main |
+| `feature/action-chunking-flow-matching` | **This branch**: FM + chunking experiments | Active |
+| `feature/position-prediction` | (planned) Waypoint prediction + MPC tracking | Not started |
+| `feature/dynamics-regularization` | (planned) Physics-informed action prediction | Not started |
+
+## Position vs Action Prediction Analysis (2026-04-05)
+
+### Current: Action prediction (4D thrust+rates)
+- Directly outputs flight controller commands
+- No physics reasoning — network must implicitly learn dynamics
+- Works with DAgger (expert corrects actions directly)
+
+### Option A: Waypoint prediction + MPC tracking
+- Network predicts `(x,y,z)` waypoints, existing MPC tracks them
+- Physics-consistent, bounded, but slower inference (MPC latency)
+- Branch: `feature/position-prediction` (to be created)
+
+### Option B: Physics-informed regularization (RECOMMENDED FIRST)
+- Keep action prediction, add dynamics loss during training
+- Forward-simulate predicted actions, compare with actual next-state
+- `extract_data_dynamics()` already implemented in synthesized_data.py!
+- Branch: `feature/dynamics-regularization` (to be created)
+
+### Why not H=50 like Pi-0?
+- SINGER Commander MLP has ~25K params vs Pi-0's 3B params
+- Trajectories are 120 steps (6s) — H=50 = 2.5s = almost half the trajectory
+- 4D action space has lower multimodality than 7-DoF robot arms
+- H=10-20 likely optimal for SINGER's scale
+
 ---
 
 ## Plan
