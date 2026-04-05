@@ -154,6 +154,17 @@ class Pilot():
         # Default "v9" for backward compatibility with V9-trained models
         self.centroid_version = profile.get("centroid_version", "v9")
 
+        # Action chunking support (optional, enabled via pilot config)
+        self.chunk_cfg = profile.get("action_chunk", None)
+        if self.chunk_cfg is not None:
+            self.chunk_horizon = self.chunk_cfg["horizon"]
+            self.chunk_execute = self.chunk_cfg["execute_steps"]
+            self.chunk_action_dim = self.chunk_cfg["action_dim"]
+            self.chunk_buf = None   # stores (H, action_dim) numpy array
+            self.chunk_step = 0     # current step within buffer
+        else:
+            self.chunk_horizon = None
+
         # ---------------------------------------------------------------------
 
     def set_mode(self,mode:Literal['train','deploy']):
@@ -402,6 +413,13 @@ class Pilot():
             znn:    Output from the image processing network module.
             adv:    Oracle output
         """
+        # Action chunking: if buffer has remaining actions, return next one
+        if self.chunk_horizon is not None:
+            if self.chunk_buf is not None and self.chunk_step < self.chunk_execute:
+                unn = self.chunk_buf[self.chunk_step]
+                self.chunk_step += 1
+                return unn, torch.zeros(0), None
+
         with torch.no_grad():
             inputs = self.model.get_commander_inputs(xnn)
             unn,znn = self.model(*inputs)
@@ -409,7 +427,13 @@ class Pilot():
         # Convert inputs to numpy array
         unn = unn.cpu().numpy().squeeze()
         # znn = znn.cpu().numpy().squeeze()
-        
+
+        # Action chunking: store full chunk, return first action
+        if self.chunk_horizon is not None:
+            self.chunk_buf = unn.reshape(self.chunk_horizon, self.chunk_action_dim)
+            self.chunk_step = 1  # already returning step 0
+            unn = self.chunk_buf[0]
+
         # Advisor Output (empty for now)
         adv = None
 

@@ -1,0 +1,30 @@
+# Action Chunking BC Test (small)
+# Uses existing V9 observation data with chunked windowing
+# Commander output: 20 (5 steps × 4 actions)
+# Pilot config: InstinctJester_chunked
+cohort: "ssv_BC_CHUNKED_TEST"
+method: "rrt_6s"
+
+review: false
+
+# Small test: fewer epochs
+Nep_his: 0        # Reuse V9 HistoryEncoder (no retraining)
+Nep_com: 30       # Quick test
+
+lim_sv: 10
+
+# Action chunking parameters
+action_chunk:
+  horizon: 5           # Predict 5 future actions
+  execute_steps: 2     # Execute 2 before re-querying
+  action_dim: 4        # 4D actions (thrust, wx, wy, wz)
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester_chunked"
+
+# Use V9 BC data (reuse, no regeneration)
+source_cohort: "ssv_BC_CENTROID_V9"
+source_pilot: "InstinctJester"

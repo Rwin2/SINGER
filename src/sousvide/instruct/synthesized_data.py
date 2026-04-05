@@ -150,6 +150,65 @@ def extract_data(observation_data_path:str):
     
     return Xnn_ds,Ynn_ds
 
+def extract_data_chunked(observation_data_path: str, chunk_horizon: int = 5, action_dim: int = 4):
+    """
+    Extract observation data with action chunking: window sequential actions
+    within each rollout into chunks of size (chunk_horizon * action_dim).
+
+    Reuses extract_data's tensor conversion but preserves rollout boundaries
+    for correct windowing.
+
+    Args:
+        observation_data_path:  Path to .pt observation file.
+        chunk_horizon:          Number of future actions per chunk (H).
+        action_dim:             Action dimensionality (default 4 for SINGER).
+
+    Returns:
+        Xnn_ds:  List of input dicts (one per valid timestep).
+        Ynn_ds:  List of output dicts with chunked unn of shape (H * action_dim,).
+    """
+    observation_data = torch.load(observation_data_path)
+
+    Xnn_ds, Ynn_ds = [], []
+    for observations in observation_data["data"]:
+        # Convert to tensors (same as extract_data)
+        Xnn = []
+        for xnn_raw in observations["Xnn"]:
+            for key, value in xnn_raw.items():
+                xnn_raw[key] = ensure_torch_tensor(value)
+            Xnn.append(xnn_raw)
+
+        Ynn = []
+        for ynn_raw in observations["Ynn"]:
+            for key, value in ynn_raw.items():
+                ynn_raw[key] = ensure_torch_tensor(value)
+            Ynn.append(ynn_raw)
+
+        N = len(Xnn)
+        # Window within this rollout: for timestep i, chunk = [unn_i, ..., unn_{i+H-1}]
+        for i in range(N - chunk_horizon + 1):
+            # Build chunked action label
+            unn_chunk = torch.cat([Ynn[i + j]["unn"] for j in range(chunk_horizon)])
+            # Copy ynn dict with chunked unn
+            ynn_chunked = {
+                "unn": unn_chunk,   # shape: (H * action_dim,)
+                "mfn": Ynn[i]["mfn"],
+                "onn": Ynn[i]["onn"],
+            }
+            Xnn_ds.append(Xnn[i])
+            Ynn_ds.append(ynn_chunked)
+
+    return Xnn_ds, Ynn_ds
+
+
+def generate_dataset_chunked(observation_data_path: str, student, mode: str,
+                              device, chunk_horizon: int = 5, action_dim: int = 4):
+    """Generate a chunked Dataset from observation data. Wrapper around extract_data_chunked."""
+    Xnn_ds, Ynn_ds = extract_data_chunked(observation_data_path, chunk_horizon, action_dim)
+    extractor = student.model.get_data[mode]
+    return ObservationData(Xnn_ds, Ynn_ds, extractor)
+
+
 def get_data_paths(cohort_name: str,
                    student_name: str,
                    course_name: Union[str, None] = None
