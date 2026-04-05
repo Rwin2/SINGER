@@ -66,13 +66,27 @@ ALL_MODELS = {
         "model_path": os.path.join(WORKSPACE, "cohorts", "ssv_BC_FM_FM_CHUNKED",
                                     "roster", "InstinctJester_chunked", "model.pth"),
     },
+    "chunked_h10": {
+        "label": "Chunked_BC_H10K3",
+        "cohort": "ssv_BC_CHUNKED_H10K3",
+        "pilot_name": "InstinctJester_chunked_h10",
+        "model_path": os.path.join(WORKSPACE, "cohorts", "ssv_BC_CHUNKED_H10K3",
+                                    "roster", "InstinctJester_chunked_h10", "model.pth"),
+    },
+    "chunked_h20": {
+        "label": "Chunked_BC_H20K5",
+        "cohort": "ssv_BC_CHUNKED_H20K5",
+        "pilot_name": "InstinctJester_chunked_h20",
+        "model_path": os.path.join(WORKSPACE, "cohorts", "ssv_BC_CHUNKED_H20K5",
+                                    "roster", "InstinctJester_chunked_h20", "model.pth"),
+    },
 }
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Fair benchmark with second-half starts (held out from BC)")
-    parser.add_argument("--models", default="baseline,v9_dagger,chunked,fm_only,fm_chunked",
+    parser.add_argument("--models", default="baseline,v9_dagger,chunked,chunked_h10,chunked_h20,fm_only,fm_chunked",
                         help="Comma-separated model keys to benchmark")
     parser.add_argument("--max-traj", type=int, default=50,
                         help="Trajectories per object (20=quick, 50=full)")

@@ -102,7 +102,9 @@
 
 ### Phase 2b: Flow Matching + Chunking (fm_chunked, 30 epochs, 20D)
 - **Started**: 2026-04-05 09:22 PST
-- **Status**: RUNNING on GPU 0
+- **Completed**: 2026-04-05 14:29 PST
+- **Best test loss**: 0.13409 (FM loss)
+- Note: FM chunked test loss still improving at epoch 30 — could benefit from more epochs
 
 ### Optimization note for future
 Loading 330 files per epoch is inefficient. Consider:
@@ -135,29 +137,43 @@ Per-object breakdown:
 - Note: FM loss = velocity prediction MSE, not comparable to BC action MSE
 - Benchmark pending (need full-range benchmark with 50 traj/object)
 
-### Phase 2b: Flow Matching + Chunking (fm_chunked, 20D)
-- **Started**: 2026-04-05 09:22 PST
-- **Status**: RUNNING (last checkpoint: epoch ~27-28 of 30)
-- ETA: ~2026-04-05 14:30
+### Phase 2b: Flow Matching + Chunking (fm_chunked, 20D) — Results
+- **Completed**: 2026-04-05 14:29 PST
+- **Best test loss**: 0.13409 (FM loss, not comparable to MSE)
+- Benchmark pending (included in Phase 3)
 
 ### Phase 2c: Longer Horizon — Chunked MSE H=10 K=3 (40D output)
 - **Started**: 2026-04-05 13:00 PST
-- **Status**: RUNNING (epoch 0/30)
+- **Status**: RUNNING (epoch 19/30 at 16:12)
+- **Best test loss**: 0.01626 at epoch 12 (31% better than H=5's 0.02406!)
+- **Overfitting observed**: train=0.00219 vs test=0.02184 at epoch 19
 - Pilot config: `InstinctJester_chunked_h10.json` (hidden=[256,256], output=40D)
 - Cohort: `ssv_BC_CHUNKED_H10K3`
-- Reasoning: H=5 may be too short for temporal coherence. Pi-0 uses H=50.
+- ETA completion: ~2026-04-05 18:00 PST
+
+### Phase 2d: Longer Horizon — Chunked MSE H=20 K=5 (80D output)
+- **Status**: QUEUED (auto-starts when H=10 finishes)
+- Launcher: `scripts/launch_h20_after_h10.sh`
+- Pilot config: `InstinctJester_chunked_h20.json` (hidden=[512,256], output=80D)
+- Cohort: `ssv_BC_CHUNKED_H20K5`
+- Reasoning: Test if longer horizons help further. Capped at H=20 given 25K-param Commander.
 
 ### Phase 3: Full Trajectory Benchmark (50 traj, full range)
 - **Script**: `scripts/eval_fair_benchmark.py` (uses `full_range=True`)
 - **Started**: 2026-04-05 15:58 PST
-- **Status**: RUNNING (V9_BC_baseline, clock run 7/50 at 16:09)
-- **ETA**: ~15 hours (750 sims × 75s each) — overnight run
+- **Status**: RUNNING (V9_BC_baseline, clock run 10/50 at 16:12)
+- **ETA**: ~15 hours (750 sims × 75s each) → ~2026-04-06 07:00 PST
 - **Models**: baseline, v9_dagger, chunked_H5, fm_only, fm_chunked
-- H=10 will be added after its training completes
 - Log: `full_benchmark.log`
 
+### Phase 3b: Horizon Benchmark (H=10, H=20)
+- **Status**: QUEUED (auto-starts after Phase 3 via `scripts/benchmark_new_horizons.sh`)
+- Will benchmark chunked_h10 and chunked_h20 (if trained) with 50 traj, full_range=True
+- Also waits for H=20 training to complete if still running
+- Log: `horizon_benchmark.log`
+
 ### Phase 4: DAgger on best variant
-(pending Phase 3 results)
+(pending Phase 3 + 3b results)
 
 ### Phase 5 (planned): FM loss during DAgger retraining
 - Placeholder script: `scripts/train_fm_dagger.py`
@@ -175,8 +191,11 @@ Per-object breakdown:
 4. **Gaussian timestep weighting**: May not be optimal for 4D action space (DreamZero designed for images)
 
 ### Files Created This Session
-- `scripts/eval_fair_benchmark.py` — Fair benchmark with second-half starts
+- `scripts/eval_fair_benchmark.py` — Fair benchmark with full_range=True, 50 traj/object
 - `scripts/train_chunked_horizons.py` — Train multiple chunk horizons
 - `scripts/train_fm_dagger.py` — FM+DAgger placeholder
+- `scripts/launch_h20_after_h10.sh` — Auto-launch H=20 training after H=10
+- `scripts/benchmark_new_horizons.sh` — Auto-benchmark H=10/H=20 after main benchmark
 - `configs/pilots/InstinctJester_chunked_h10.json` — H=10 K=3 pilot config
+- `configs/pilots/InstinctJester_chunked_h20.json` — H=20 K=5 pilot config
 - `FLOW_MATCHING_CHUNKING_ANALYSIS.md` — Comprehensive analysis document
