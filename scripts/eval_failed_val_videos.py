@@ -94,7 +94,7 @@ def _project_gt(obj_target, xcr):
 # ── Confidence gate + Kalman filter ──
 
 CONF_GATE = 0.90       # minimum V12 confidence to trust centroid
-CSEG_CONF_GATE = 0.90  # CLIPSeg confidence gate (visible = conf > 0.9)
+CSEG_CONF_GATE = 0.60  # CLIPSeg sigmoid confidence gate (start conservative, tune up)
 MAX_PIXELS = 15000     # max blob size — larger = diffuse, unreliable
 IMG_W, IMG_H = 640, 360
 
@@ -103,8 +103,8 @@ class CentroidKalmanFilter:
     """Goal bearing tracker — CLIPSeg sensor + drone dynamics.
 
     Two modes:
-      VISIBLE  (CLIPSeg conf > 0.9): KF state = CLIPSeg measurement exactly.
-      OCCLUDED (CLIPSeg conf < 0.9): KF state propagated by drone dynamics.
+      VISIBLE  (CLIPSeg conf > gate): KF updates with measurement (small R).
+      OCCLUDED (CLIPSeg conf < gate): KF coasts on drone dynamics only.
 
     State: s = [bearing, elevation] in normalized image coords [-1, 1].
     The goal is fixed in world — s changes only because the drone moves.
@@ -113,16 +113,19 @@ class CentroidKalmanFilter:
     frames (quaternion + position from xcr), we transform the estimated
     goal ray from camera_t to camera_{t+1}.
 
-    Confidence: σ = sqrt(trace(P)). When visible, σ ≈ 0 (we trust CSEG
-    fully). When occluded, σ grows by process_noise per step. After N
-    steps coasting: σ ≈ process_noise * sqrt(N).
+    Measurement noise R > 0: CLIPSeg is noisy (can confuse lamp for clock).
+    A small R means we mostly trust the sensor but don't snap blindly —
+    if the measurement jumps 200px in one frame, the KF smooths it.
+    This is a proper Kalman update: K = P(P+R)^{-1}, not a hard overwrite.
     """
 
-    def __init__(self, process_noise=0.005):
+    def __init__(self, process_noise=0.005, meas_noise=0.03):
         """
         Args:
             process_noise: std-dev per step (~1.6px at 640px).
-                           Accounts for IMU drift + parallax.
+            meas_noise: std-dev of CLIPSeg centroid (~10px at 640px).
+                        Small enough to track well, large enough to not
+                        snap blindly to a single-frame false positive.
         """
         self.x = None          # [bearing, elevation]
         self.P = None          # 2×2 covariance
@@ -131,6 +134,7 @@ class CentroidKalmanFilter:
         self.steps_coasting = 0
 
         self.Q = np.eye(2) * process_noise**2
+        self.R = np.eye(2) * meas_noise**2
 
     def step(self, xcr, cseg_bearing=None, cseg_elevation=None):
         """Run one filter step.
@@ -139,16 +143,13 @@ class CentroidKalmanFilter:
             xcr: drone state vector (13-d: x,y,z,vx,vy,vz,qx,qy,qz,qw,...)
             cseg_bearing: CLIPSeg centroid bearing if visible (None if not)
             cseg_elevation: CLIPSeg centroid elevation if visible (None if not)
-
-        When CLIPSeg is visible: KF = CSEG exactly (full trust).
-        When not visible: predict using drone dynamics, uncertainty grows.
         """
         has_measurement = cseg_bearing is not None
 
         if has_measurement and not self.initialized:
             # First sighting — initialize
             self.x = np.array([cseg_bearing, cseg_elevation])
-            self.P = np.zeros((2, 2))  # perfect confidence at init
+            self.P = self.R.copy()  # initial uncertainty = measurement noise
             self.initialized = True
             self.prev_xcr = xcr.copy()
             self.steps_coasting = 0
@@ -172,9 +173,12 @@ class CentroidKalmanFilter:
 
         # ── Update ──
         if has_measurement:
-            # VISIBLE: snap to CLIPSeg (full trust, R = 0)
-            self.x = np.array([cseg_bearing, cseg_elevation])
-            self.P = np.zeros((2, 2))  # reset uncertainty
+            # Proper Kalman update: K = P(P+R)^{-1}
+            z = np.array([cseg_bearing, cseg_elevation])
+            S = self.P + self.R            # innovation covariance
+            K = self.P @ np.linalg.inv(S)  # Kalman gain
+            self.x = self.x + K @ (z - self.x)  # state update
+            self.P = (np.eye(2) - K) @ self.P   # covariance update
             self.steps_coasting = 0
         else:
             # OCCLUDED: coast on dynamics
@@ -430,63 +434,96 @@ def _centroid_v12(sim_raw):
                 n_pixels=blob_area)
 
 
-def _centroid_from_clipseg(rgb_frame, query, clipseg_model):
-    """Run CLIPSeg on an RGB frame and compute centroid from raw logits.
+def _centroid_from_clipseg(rgb_frame, query, clipseg_model,
+                           sigmoid_threshold=0.5, min_blob_pixels=30):
+    """Run CLIPSeg on an RGB frame → proper sigmoid-based detection + centroid.
 
-    Uses the same approach as V12 (absolute threshold + largest connected
-    component) but on CLIPSeg logits instead of gsplat similarity.
+    Unlike the old version which used min-max rescaled output (confidence
+    always ~1.0, useless for gating), this works on **raw logits → sigmoid**:
+
+      sigmoid(logit) > 0.5  means "CLIPSeg thinks this pixel is the target"
+
+    Detection pipeline:
+      1. Run CLIPSeg → raw logits (H×W float, can be negative)
+      2. sigmoid(logits) → per-pixel probability [0, 1]
+      3. confidence = max(sigmoid) — how sure is CLIPSeg about its best pixel?
+      4. Threshold at `sigmoid_threshold` (default 0.5) → binary mask
+      5. Largest connected component → blob
+      6. Weighted centroid within blob (weights = sigmoid probabilities)
+
+    The confidence is now **calibrated**: a frame with no target might have
+    max(sigmoid) ≈ 0.2, while a clear view gives 0.8+. This lets us gate
+    properly: "I'd rather not detect than detect wrong."
 
     Args:
         rgb_frame: (H, W, 3) uint8 RGB
         query: text prompt (e.g. "green clock")
         clipseg_model: CLIPSegHFModel instance
+        sigmoid_threshold: pixels with sigmoid > this are "detected" (default 0.5)
+        min_blob_pixels: minimum blob size to count as detection (default 30)
 
-    Returns dict with cx_px, cy_px, bearing, elevation, confidence, visible, n_pixels
+    Returns dict with cx_px, cy_px, bearing, elevation, confidence, n_pixels
+            or dict with confidence only (no detection) if target not found.
     """
     from PIL import Image as PILImage
     img = PILImage.fromarray(rgb_frame)
-    _, scaled = clipseg_model.clipseg_hf_inference(
-        image=img, prompt=query, resize_output_to_input=True,
+    H_in, W_in = rgb_frame.shape[:2]
+
+    # Run CLIPSeg → raw logits (bypass _rescale_global)
+    torch_inputs = clipseg_model.processor(
+        images=img, text=query, return_tensors="pt"
     )
-    # scaled: (H, W) float in [0,1] after running min-max rescale
-    heat = np.array(scaled, dtype=np.float32)
-    if heat.ndim != 2:
-        return None
-    H, W = heat.shape
-    peak = float(heat.max())
+    torch_inputs = {k: v.to(clipseg_model.device) for k, v in torch_inputs.items()}
+    with torch.no_grad():
+        logits = clipseg_model.model(**torch_inputs).logits  # (1, H_out, W_out)
+    logits_np = logits.cpu().squeeze().numpy().astype(np.float32)
 
-    # Same method as V12: absolute threshold + largest connected component
-    threshold = 0.7 * peak
-    mask = heat > threshold
+    # Resize logits to input resolution (CLIPSeg outputs at ~352×352)
+    if logits_np.shape != (H_in, W_in):
+        logits_np = cv2.resize(logits_np, (W_in, H_in),
+                               interpolation=cv2.INTER_LINEAR)
+
+    # Sigmoid → calibrated probability
+    prob = 1.0 / (1.0 + np.exp(-logits_np))  # (H, W) in [0, 1]
+    confidence = float(prob.max())
+
+    no_detect = dict(cx_px=W_in // 2, cy_px=H_in // 2,
+                     bearing=0.0, elevation=0.0,
+                     confidence=confidence, n_pixels=0)
+
+    # Threshold on sigmoid probability
+    mask = prob > sigmoid_threshold
     n_above = int(mask.sum())
+    if n_above < min_blob_pixels:
+        return no_detect
 
-    if n_above < 10:
-        return dict(cx_px=W // 2, cy_px=H // 2, bearing=0.0, elevation=0.0,
-                    confidence=peak, visible=False, n_pixels=0)
-
+    # Largest connected component
     mask_u8 = mask.astype(np.uint8)
-    n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(mask_u8, connectivity=8)
+    n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
+        mask_u8, connectivity=8)
     if n_labels <= 1:
-        return dict(cx_px=W // 2, cy_px=H // 2, bearing=0.0, elevation=0.0,
-                    confidence=peak, visible=False, n_pixels=0)
+        return no_detect
 
     areas = stats[1:, cv2.CC_STAT_AREA]
     best_label = int(np.argmax(areas)) + 1
     blob_mask = labels == best_label
     blob_area = int(areas[best_label - 1])
 
+    if blob_area < min_blob_pixels:
+        return no_detect
+
+    # Weighted centroid (weights = sigmoid probability within blob)
     ys, xs = np.where(blob_mask)
-    w = heat[blob_mask]
+    w = prob[blob_mask]
     cx = float(np.average(xs, weights=w))
     cy = float(np.average(ys, weights=w))
 
-    bearing = 2.0 * (cx / W) - 1.0
-    elevation = 2.0 * (cy / H) - 1.0
+    bearing = 2.0 * (cx / W_in) - 1.0
+    elevation = 2.0 * (cy / H_in) - 1.0
 
     return dict(cx_px=int(round(cx)), cy_px=int(round(cy)),
                 bearing=bearing, elevation=elevation,
-                confidence=peak, visible=True,
-                n_pixels=blob_area)
+                confidence=confidence, n_pixels=blob_area)
 
 
 def _draw_marker(frame, x, y, color, label, sz=14, th=2):
@@ -770,6 +807,7 @@ def main():
                     # ── CLIPSeg: the only real-world sensor ──
                     cseg = _centroid_from_clipseg(frame.copy(), obj_name, clipseg)
                     cseg_visible = (cseg is not None
+                                    and cseg["n_pixels"] > 0
                                     and cseg["confidence"] >= CSEG_CONF_GATE)
 
                     # ── Kalman filter step ──
