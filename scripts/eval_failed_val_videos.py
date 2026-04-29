@@ -94,7 +94,7 @@ def _project_gt(obj_target, xcr):
 # ── Confidence gate + Kalman filter ──
 
 CONF_GATE = 0.90       # minimum V12 confidence to trust centroid
-CSEG_CONF_GATE = 0.75  # CLIPSeg sigmoid confidence gate (conservative: rather miss than false detect)
+CSEG_CONF_GATE = 0.60  # CLIPSeg sigmoid confidence gate
 MAX_PIXELS = 15000     # max blob size — larger = diffuse, unreliable
 IMG_W, IMG_H = 640, 360
 
@@ -132,50 +132,27 @@ class CentroidKalmanFilter:
         self.prev_xcr = None   # drone state at previous step
         self.initialized = False
         self.steps_coasting = 0
-        self.est_depth = None  # estimated camera-frame depth to goal
 
         self.Q = np.eye(2) * process_noise**2
         self.R = np.eye(2) * meas_noise**2
 
-    def _estimate_depth(self, bearing, elevation, xcr):
-        """Estimate depth to goal in camera frame from bearing/elevation + drone pose.
-
-        We don't know the 3D goal position, but we can estimate the depth
-        (distance along camera Z-axis) using the ray direction and drone
-        position. This is used to improve dead-reckoning by accounting
-        for translation parallax.
-
-        Reconstructs the 3D ray, intersects with ground plane or uses
-        a simple heuristic based on the distance the drone has traveled.
-        """
-        u = (bearing + 1.0) * IMG_W / 2.0
-        v = (elevation + 1.0) * IMG_H / 2.0
-        ray_cam = np.array([
-            (u - CX) / FX,
-            -(v - CY) / FY,
-            -1.0,
-        ])
-        # depth along optical axis = distance / cos(angle)
-        # but we don't know distance... use goal_dist from xcr if available
-        # For now: if we have a previous depth estimate, update it using
-        # the drone's translation (depth changes as drone moves along ray)
-        return self.est_depth  # will be set from outside when measurement available
-
-    def step(self, xcr, cseg_bearing=None, cseg_elevation=None, goal_dist=None):
+    def step(self, xcr, cseg_bearing=None, cseg_elevation=None):
         """Run one filter step.
+
+        NO GROUND-TRUTH KNOWLEDGE USED HERE. The prediction step uses only:
+          - Previous drone state (xcr from IMU — available on real drone)
+          - Current drone state (xcr from IMU)
+          - Last estimated bearing/elevation
+        This is rotation-only dead-reckoning. We cannot correct for
+        translation parallax without knowing the distance to the object,
+        and we refuse to use obj_target (that would be cheating).
 
         Args:
             xcr: drone state vector (10-d: x,y,z,vx,vy,vz,qx,qy,qz,qw)
             cseg_bearing: CLIPSeg centroid bearing if visible (None if not)
             cseg_elevation: CLIPSeg centroid elevation if visible (None if not)
-            goal_dist: 3D distance to goal (from xcr position to obj_target).
-                       Used to estimate camera-frame depth for parallax correction.
         """
         has_measurement = cseg_bearing is not None
-
-        # Update depth estimate from goal distance
-        if goal_dist is not None and goal_dist > 0.1:
-            self.est_depth = goal_dist  # rough approximation: depth ≈ distance
 
         if has_measurement and not self.initialized:
             # First sighting — initialize
@@ -194,8 +171,7 @@ class CentroidKalmanFilter:
         # ── Predict: propagate state using drone dynamics ──
         if self.prev_xcr is not None:
             dr = _deadreckon_bearing(self.x[0], self.x[1],
-                                     self.prev_xcr, xcr,
-                                     est_depth=self.est_depth)
+                                     self.prev_xcr, xcr)
             if dr is not None:
                 self.x = np.array([dr[0], dr[1]])
             else:
@@ -244,23 +220,24 @@ class CentroidKalmanFilter:
         return float(np.sqrt(np.trace(self.P))) < max_sigma
 
 
-def _deadreckon_bearing(last_bearing, last_elevation, last_xcr, current_xcr,
-                         est_depth=None):
+def _deadreckon_bearing(last_bearing, last_elevation, last_xcr, current_xcr):
     """Predict goal bearing in current frame from last observation + drone motion.
 
-    Two modes depending on whether depth is available:
+    Rotation-only transform: we project the goal ray direction from the
+    last camera frame to the current camera frame using the drone's known
+    pose change (from IMU).
 
-    1. WITH depth (est_depth given): Full 3D projection.
-       Reconstruct 3D point in world from (bearing, elevation, depth),
-       then project to current camera frame. Handles translation + rotation.
+    IMPORTANT — NO DEPTH / NO GT KNOWLEDGE:
+    We deliberately do NOT use goal distance or object 3D position here.
+    That would require ground-truth knowledge (obj_target) which is not
+    available on a real drone. The drone is searching for the object —
+    it doesn't know where it is.
 
-    2. WITHOUT depth (est_depth=None): Rotation-only (legacy).
-       Transforms the ray direction between frames. Only correct when the
-       drone is far from the object or only rotating.
-
-    The depth-aware mode is critical because when the drone translates
-    sideways at close range, the object shifts significantly in the image
-    (parallax). The rotation-only model misses this entirely.
+    Known limitation: this only accounts for rotation, not translation
+    parallax. When the drone translates near the object, the bearing
+    shifts due to parallax and we miss that. This is a fundamental limit
+    of bearing-only tracking without range information. The error grows
+    with (translation / distance_to_object).
 
     Returns (bearing, elevation, u_px, v_px) or None if goal is behind camera.
     """
@@ -274,39 +251,25 @@ def _deadreckon_bearing(last_bearing, last_elevation, last_xcr, current_xcr,
         -(v_last - CY) / FY,      # flip Y: pixel Y-down → OpenGL Y-up
         -1.0,
     ])
+    ray_cam /= np.linalg.norm(ray_cam)
 
+    # Camera-to-world at last step
     T_c2w_last = _xv_to_T(last_xcr) @ T_C2B
+    ray_world = T_c2w_last[:3, :3] @ ray_cam
+
+    # World-to-camera at current step
     T_c2w_now = _xv_to_T(current_xcr) @ T_C2B
-
-    if est_depth is not None and est_depth > 0.1:
-        # ── Full 3D projection (depth-aware) ──
-        # Scale ray to actual depth: point_cam = ray * (depth / |ray_z|)
-        scale = est_depth / abs(ray_cam[2])
-        pt_cam = ray_cam * scale  # 3D point in last camera frame
-
-        # Camera → world at last step
-        pt_world_h = T_c2w_last @ np.array([*pt_cam, 1.0])
-        pt_world = pt_world_h[:3]
-
-        # World → camera at current step
-        T_w2c_now = np.linalg.inv(T_c2w_now)
-        pt_now_h = T_w2c_now @ np.array([*pt_world, 1.0])
-        pt_now = pt_now_h[:3]
-    else:
-        # ── Rotation-only (no depth info) ──
-        ray_cam_n = ray_cam / np.linalg.norm(ray_cam)
-        ray_world = T_c2w_last[:3, :3] @ ray_cam_n
-        R_w2c_now = T_c2w_now[:3, :3].T
-        pt_now = R_w2c_now @ ray_world
+    R_w2c_now = T_c2w_now[:3, :3].T
+    ray_now = R_w2c_now @ ray_world
 
     # Check if goal is behind current camera (OpenGL: forward = -Z)
-    if pt_now[2] >= -1e-6:
+    if ray_now[2] >= -1e-6:
         return None
 
     # Project to pixel
-    depth_now = -pt_now[2]
-    u_new = FX * pt_now[0] / depth_now + CX
-    v_new = FY * (-pt_now[1]) / depth_now + CY
+    depth_now = -ray_now[2]
+    u_new = FX * ray_now[0] / depth_now + CX
+    v_new = FY * (-ray_now[1]) / depth_now + CY
 
     bearing_new = 2.0 * (u_new / IMG_W) - 1.0
     elevation_new = 2.0 * (v_new / IMG_H) - 1.0
@@ -853,10 +816,11 @@ def main():
             kf = CentroidKalmanFilter()
 
             # Dynamic GT validation: propagate GT bearing with our dynamics
-            # model. If dynamics are correct, DGT should track real GT exactly.
+            # (rotation-only, NO GT knowledge after init).
+            # If DGT tracks GT → dynamics model is good.
+            # If DGT drifts → shows translation parallax error.
             dgt_bearing = None   # initialized from first GT observation
             dgt_elevation = None
-            dgt_depth = None     # camera-frame depth at init
             dgt_prev_xcr = None
 
             if has_rgb:
@@ -868,6 +832,8 @@ def main():
                         frame = (frame * 255).astype(np.uint8)
                         rgb_ann[step] = frame
 
+                    # goal_dist for HUD only (NOT used in KF or dynamics —
+                    # obj_target is GT knowledge, not available on real drone)
                     goal_dist = float(np.linalg.norm(
                         xcr[:3] - np.squeeze(obj_target)))
 
@@ -877,42 +843,39 @@ def main():
                                     and cseg["n_pixels"] > 0
                                     and cseg["confidence"] >= CSEG_CONF_GATE)
 
-                    # ── Kalman filter step ──
+                    # ── Kalman filter step (NO GT knowledge) ──
                     if cseg_visible:
-                        kf.step(xcr, cseg["bearing"], cseg["elevation"],
-                                goal_dist=goal_dist)
+                        kf.step(xcr, cseg["bearing"], cseg["elevation"])
                     else:
-                        kf.step(xcr, goal_dist=goal_dist)
+                        kf.step(xcr)  # predict only, rotation-only dynamics
 
                     kf_est = kf.get_estimate()  # (bearing, elev, u, v, sigma)
                     kf_ok = kf.is_confident()
 
-                    # ── GT projection (always) ──
+                    # ── GT projection (for evaluation/display only) ──
                     gt_px = _project_gt(obj_target, xcr)
                     gt_in = (gt_px is not None
                              and 0 <= gt_px[0] < frame.shape[1]
                              and 0 <= gt_px[1] < frame.shape[0])
 
-                    # ── Dynamic GT: propagate with our dynamics model ──
+                    # ── Dynamic GT: validate dynamics model ──
+                    # Initialize from real GT at first visible frame, then
+                    # propagate using ONLY our dynamics (rotation-only).
+                    # If DGT tracks GT → dynamics are good.
+                    # If DGT drifts → translation parallax is the gap.
                     dgt_px = None
                     if dgt_bearing is None and gt_px is not None and gt_in:
-                        # Initialize DGT from first real GT observation
                         dgt_bearing = 2.0 * (gt_px[0] / IMG_W) - 1.0
                         dgt_elevation = 2.0 * (gt_px[1] / IMG_H) - 1.0
-                        dgt_depth = goal_dist
                         dgt_prev_xcr = xcr.copy()
                         dgt_px = gt_px  # first frame: DGT = GT
                     elif dgt_bearing is not None and dgt_prev_xcr is not None:
-                        # Propagate DGT using dynamics (same function as KF)
                         dr = _deadreckon_bearing(
                             dgt_bearing, dgt_elevation,
-                            dgt_prev_xcr, xcr,
-                            est_depth=dgt_depth)
+                            dgt_prev_xcr, xcr)
                         if dr is not None:
                             dgt_bearing, dgt_elevation = dr[0], dr[1]
                             dgt_px = (dr[2], dr[3])
-                            # Update depth estimate (drone moved, depth changes)
-                            dgt_depth = goal_dist
                         dgt_prev_xcr = xcr.copy()
 
                     # ── Draw: GT (green, always) ──
@@ -1009,7 +972,6 @@ def main():
                         "gt_u": gt_px[0] if gt_px else None,
                         "gt_v": gt_px[1] if gt_px else None,
                         "gt_in_frame": gt_in,
-                        "goal_dist_m": goal_dist,
                     })
 
             # ── Save videos into per-case subfolder ──
