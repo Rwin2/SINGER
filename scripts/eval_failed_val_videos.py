@@ -99,182 +99,223 @@ MAX_PIXELS = 15000     # max blob size — larger = diffuse, unreliable
 IMG_W, IMG_H = 640, 360
 
 
+def _relative_cam_transform(prev_xcr, cur_xcr):
+    """Compute relative camera transform: prev_cam → current_cam.
+
+    Uses only:
+      - Quaternion (IMU attitude) at both steps
+      - Position change between steps (IMU velocity integration)
+    Both available on a real drone. No GT object knowledge.
+
+    Returns 4×4 matrix T_rel such that P_cur_cam = T_rel @ P_prev_cam.
+    """
+    T_c2w_prev = _xv_to_T(prev_xcr) @ T_C2B
+    T_c2w_cur = _xv_to_T(cur_xcr) @ T_C2B
+    T_rel = np.linalg.inv(T_c2w_cur) @ T_c2w_prev
+    return T_rel
+
+
+def _predict_state(state, prev_xcr, cur_xcr):
+    """Predict new [bearing, elevation, inv_depth] after camera motion.
+
+    The object is fixed in world. The camera moves. We:
+      1. Unproject state to 3D point in prev camera frame (using inv_depth)
+      2. Apply relative camera transform (from IMU)
+      3. Reproject to bearing/elevation/inv_depth in current camera frame
+
+    This naturally handles both rotation AND translation parallax.
+    When inv_depth ≈ 0 (object very far), translation has no effect
+    and this reduces to rotation-only — which is correct.
+
+    Args:
+        state: [bearing, elevation, inv_depth] — inv_depth = 1/depth in cam frame
+        prev_xcr: drone state at previous step (from IMU)
+        cur_xcr: drone state at current step (from IMU)
+
+    Returns: new [bearing, elevation, inv_depth] or None if behind camera.
+    """
+    b, e, rho = state
+
+    # bearing/elevation → pixel
+    u = (b + 1.0) * IMG_W / 2.0
+    v = (e + 1.0) * IMG_H / 2.0
+
+    # Pixel → ray in camera frame (OpenGL: forward=-Z, right=+X, up=+Y)
+    ray_cam = np.array([
+        (u - CX) / FX,
+        -(v - CY) / FY,
+        -1.0,
+    ])
+
+    # Reconstruct 3D point: P = ray * depth / |ray_z|
+    # depth = 1/rho,  |ray_z| = 1.0 (by construction, ray_z = -1)
+    depth = 1.0 / max(rho, 1e-4)
+    pt_prev = ray_cam * depth  # 3D point in prev camera frame
+
+    # Transform to current camera frame
+    T_rel = _relative_cam_transform(prev_xcr, cur_xcr)
+    pt_cur_h = T_rel @ np.array([*pt_prev, 1.0])
+    pt_cur = pt_cur_h[:3]
+
+    # Check if behind camera (OpenGL: forward = -Z)
+    if pt_cur[2] >= -1e-6:
+        return None
+
+    # Reproject
+    depth_new = -pt_cur[2]
+    u_new = FX * pt_cur[0] / depth_new + CX
+    v_new = FY * (-pt_cur[1]) / depth_new + CY
+
+    b_new = 2.0 * (u_new / IMG_W) - 1.0
+    e_new = 2.0 * (v_new / IMG_H) - 1.0
+    rho_new = 1.0 / depth_new
+
+    return np.array([b_new, e_new, rho_new])
+
+
+def _numerical_jacobian(state, prev_xcr, cur_xcr, eps=1e-5):
+    """Jacobian of _predict_state w.r.t. state, via finite differences.
+
+    Returns 3×3 matrix F = ∂f/∂x.
+    """
+    n = len(state)
+    f0 = _predict_state(state, prev_xcr, cur_xcr)
+    if f0 is None:
+        return np.eye(n)  # fallback: identity
+    F = np.zeros((n, n))
+    for i in range(n):
+        dx = np.zeros(n)
+        dx[i] = eps
+        fp = _predict_state(state + dx, prev_xcr, cur_xcr)
+        fm = _predict_state(state - dx, prev_xcr, cur_xcr)
+        if fp is not None and fm is not None:
+            F[:, i] = (fp - fm) / (2 * eps)
+        elif fp is not None:
+            F[:, i] = (fp - f0) / eps
+        else:
+            F[i, i] = 1.0  # fallback
+    return F
+
+
 class CentroidKalmanFilter:
-    """Goal bearing tracker — CLIPSeg sensor + drone dynamics.
+    """Bearing-only tracker with inverse-depth estimation.
 
-    Two modes:
-      VISIBLE  (CLIPSeg conf > gate): KF updates with measurement (small R).
-      OCCLUDED (CLIPSeg conf < gate): KF coasts on drone dynamics only.
+    State: x = [bearing, elevation, ρ]
+      - bearing, elevation: normalized image coords ∈ [-1, 1]
+      - ρ = 1/depth: inverse depth in camera frame (meters^-1)
 
-    State: s = [bearing, elevation] in normalized image coords [-1, 1].
-    The goal is fixed in world — s changes only because the drone moves.
+    The object is FIXED in the world. Its apparent position changes
+    because the drone moves. We use:
+      - CLIPSeg detections → bearing/elevation measurement (when visible)
+      - Drone IMU → relative camera motion between frames (always available)
 
-    Dynamics: exact camera model. Given the drone's pose change between
-    frames (quaternion + position from xcr), we transform the estimated
-    goal ray from camera_t to camera_{t+1}.
+    Inverse-depth parameterization: ρ = 1/depth.
+      - Depth unknown at init → large σ_ρ (covers 1m to ∞)
+      - As the drone translates and observes from different positions,
+        the bearing innovation constrains ρ (triangulation)
+      - Once ρ is well-estimated, parallax correction kicks in
 
-    Measurement noise R > 0: CLIPSeg is noisy (can confuse lamp for clock).
-    A small R means we mostly trust the sensor but don't snap blindly —
-    if the measurement jumps 200px in one frame, the KF smooths it.
-    This is a proper Kalman update: K = P(P+R)^{-1}, not a hard overwrite.
+    NO GROUND-TRUTH KNOWLEDGE: no obj_target, no goal_dist.
+    Only uses CLIPSeg (RGB camera) + IMU (quaternion + velocity).
+    Sim-to-real transferable.
     """
 
-    def __init__(self, process_noise=0.005, meas_noise=0.03):
+    def __init__(self, process_noise_be=0.005, process_noise_rho=0.001,
+                 meas_noise=0.03, init_rho=0.3, init_sigma_rho=0.3):
         """
         Args:
-            process_noise: std-dev per step (~1.6px at 640px).
-            meas_noise: std-dev of CLIPSeg centroid (~10px at 640px).
-                        Small enough to track well, large enough to not
-                        snap blindly to a single-frame false positive.
+            process_noise_be: bearing/elevation process noise per step (~1.6px)
+            process_noise_rho: inverse depth process noise (object is static,
+                               so ρ changes only due to drone translation —
+                               already captured by dynamics model, small Q)
+            meas_noise: CLIPSeg centroid measurement noise (~10px at 640px)
+            init_rho: initial inverse depth guess. 0.3 ≈ 3.3m.
+            init_sigma_rho: initial inverse depth uncertainty.
+                            0.3 covers roughly 1.5m to ∞.
         """
-        self.x = None          # [bearing, elevation]
-        self.P = None          # 2×2 covariance
-        self.prev_xcr = None   # drone state at previous step
+        self.x = None          # [bearing, elevation, inv_depth]
+        self.P = None          # 3×3 covariance
+        self.prev_xcr = None
         self.initialized = False
         self.steps_coasting = 0
 
-        self.Q = np.eye(2) * process_noise**2
+        self.Q = np.diag([process_noise_be**2, process_noise_be**2,
+                          process_noise_rho**2])
         self.R = np.eye(2) * meas_noise**2
+        self.H = np.array([[1, 0, 0], [0, 1, 0]])  # observe bearing, elevation
+        self.init_rho = init_rho
+        self.init_sigma_rho = init_sigma_rho
 
     def step(self, xcr, cseg_bearing=None, cseg_elevation=None):
-        """Run one filter step.
+        """Run one EKF step.
 
-        NO GROUND-TRUTH KNOWLEDGE USED HERE. The prediction step uses only:
-          - Previous drone state (xcr from IMU — available on real drone)
-          - Current drone state (xcr from IMU)
-          - Last estimated bearing/elevation
-        This is rotation-only dead-reckoning. We cannot correct for
-        translation parallax without knowing the distance to the object,
-        and we refuse to use obj_target (that would be cheating).
+        Uses ONLY:
+          - xcr: drone IMU state (quaternion + velocity/position for
+            relative motion between frames — available on real drone)
+          - CLIPSeg centroid bearing/elevation when detected
 
-        Args:
-            xcr: drone state vector (10-d: x,y,z,vx,vy,vz,qx,qy,qz,qw)
-            cseg_bearing: CLIPSeg centroid bearing if visible (None if not)
-            cseg_elevation: CLIPSeg centroid elevation if visible (None if not)
+        The depth (1/ρ) is ESTIMATED by the filter through triangulation:
+        observing the object from different positions constrains depth
+        via the bearing innovation.
         """
         has_measurement = cseg_bearing is not None
 
         if has_measurement and not self.initialized:
-            # First sighting — initialize
-            self.x = np.array([cseg_bearing, cseg_elevation])
-            self.P = self.R.copy()  # initial uncertainty = measurement noise
+            self.x = np.array([cseg_bearing, cseg_elevation, self.init_rho])
+            self.P = np.diag([self.R[0, 0], self.R[1, 1],
+                              self.init_sigma_rho**2])
             self.initialized = True
             self.prev_xcr = xcr.copy()
             self.steps_coasting = 0
             return
 
         if not self.initialized:
-            # Never seen the goal yet — nothing to do
             self.prev_xcr = xcr.copy()
             return
 
-        # ── Predict: propagate state using drone dynamics ──
+        # ── Predict ──
         if self.prev_xcr is not None:
-            dr = _deadreckon_bearing(self.x[0], self.x[1],
-                                     self.prev_xcr, xcr)
-            if dr is not None:
-                self.x = np.array([dr[0], dr[1]])
+            x_pred = _predict_state(self.x, self.prev_xcr, xcr)
+            if x_pred is not None:
+                F = _numerical_jacobian(self.x, self.prev_xcr, xcr)
+                self.x = x_pred
+                self.P = F @ self.P @ F.T + self.Q
             else:
-                # Goal behind camera — inflate uncertainty
+                # Object behind camera — inflate uncertainty, keep state
                 self.P += 10.0 * self.Q
-        self.P += self.Q
         self.prev_xcr = xcr.copy()
+
+        # Ensure ρ stays positive (physical constraint)
+        self.x[2] = max(self.x[2], 1e-4)
 
         # ── Update ──
         if has_measurement:
-            # Proper Kalman update: K = P(P+R)^{-1}
             z = np.array([cseg_bearing, cseg_elevation])
-            S = self.P + self.R            # innovation covariance
-            K = self.P @ np.linalg.inv(S)  # Kalman gain
-            self.x = self.x + K @ (z - self.x)  # state update
-            self.P = (np.eye(2) - K) @ self.P   # covariance update
+            y = z - self.H @ self.x                        # innovation
+            S = self.H @ self.P @ self.H.T + self.R        # innovation cov
+            K = self.P @ self.H.T @ np.linalg.inv(S)       # Kalman gain
+            self.x = self.x + K @ y
+            self.P = (np.eye(3) - K @ self.H) @ self.P
+            self.x[2] = max(self.x[2], 1e-4)               # keep ρ > 0
             self.steps_coasting = 0
         else:
-            # OCCLUDED: coast on dynamics
             self.steps_coasting += 1
 
     def get_estimate(self):
-        """Return (bearing, elevation, u_px, v_px, sigma) or None.
-        sigma = sqrt(trace(P)) — std-dev of position estimate in bearing units.
-        """
+        """Return (bearing, elevation, u_px, v_px, sigma, est_depth) or None."""
         if not self.initialized:
             return None
         u = (self.x[0] + 1.0) * IMG_W / 2.0
         v = (self.x[1] + 1.0) * IMG_H / 2.0
-        sigma = float(np.sqrt(np.trace(self.P)))
-        return self.x[0], self.x[1], int(round(u)), int(round(v)), sigma
+        sigma = float(np.sqrt(self.P[0, 0] + self.P[1, 1]))  # bearing+elev uncertainty
+        est_depth = 1.0 / max(self.x[2], 1e-4)
+        return self.x[0], self.x[1], int(round(u)), int(round(v)), sigma, est_depth
 
     def is_confident(self, max_sigma=0.15):
-        """Is the estimate reliable enough to display?
-
-        max_sigma in bearing units:
-          0.05 → ~16px std — tight, ~10 steps coasting
-          0.15 → ~48px std — ~30 steps coasting (reasonable nav tolerance)
-          0.30 → ~96px std — ~60 steps, getting useless
-
-        With process_noise=0.005, sigma grows as 0.005*sqrt(N):
-          after 10 steps: σ=0.016, after 30: σ=0.027, after 100: σ=0.05
-        """
         if not self.initialized:
             return False
-        return float(np.sqrt(np.trace(self.P))) < max_sigma
-
-
-def _deadreckon_bearing(last_bearing, last_elevation, last_xcr, current_xcr):
-    """Predict goal bearing in current frame from last observation + drone motion.
-
-    Rotation-only transform: we project the goal ray direction from the
-    last camera frame to the current camera frame using the drone's known
-    pose change (from IMU).
-
-    IMPORTANT — NO DEPTH / NO GT KNOWLEDGE:
-    We deliberately do NOT use goal distance or object 3D position here.
-    That would require ground-truth knowledge (obj_target) which is not
-    available on a real drone. The drone is searching for the object —
-    it doesn't know where it is.
-
-    Known limitation: this only accounts for rotation, not translation
-    parallax. When the drone translates near the object, the bearing
-    shifts due to parallax and we miss that. This is a fundamental limit
-    of bearing-only tracking without range information. The error grows
-    with (translation / distance_to_object).
-
-    Returns (bearing, elevation, u_px, v_px) or None if goal is behind camera.
-    """
-    # bearing/elevation → pixel
-    u_last = (last_bearing + 1.0) * IMG_W / 2.0
-    v_last = (last_elevation + 1.0) * IMG_H / 2.0
-
-    # Pixel → ray in camera frame (OpenGL: forward=-Z, right=+X, up=+Y)
-    ray_cam = np.array([
-        (u_last - CX) / FX,
-        -(v_last - CY) / FY,      # flip Y: pixel Y-down → OpenGL Y-up
-        -1.0,
-    ])
-    ray_cam /= np.linalg.norm(ray_cam)
-
-    # Camera-to-world at last step
-    T_c2w_last = _xv_to_T(last_xcr) @ T_C2B
-    ray_world = T_c2w_last[:3, :3] @ ray_cam
-
-    # World-to-camera at current step
-    T_c2w_now = _xv_to_T(current_xcr) @ T_C2B
-    R_w2c_now = T_c2w_now[:3, :3].T
-    ray_now = R_w2c_now @ ray_world
-
-    # Check if goal is behind current camera (OpenGL: forward = -Z)
-    if ray_now[2] >= -1e-6:
-        return None
-
-    # Project to pixel
-    depth_now = -ray_now[2]
-    u_new = FX * ray_now[0] / depth_now + CX
-    v_new = FY * (-ray_now[1]) / depth_now + CY
-
-    bearing_new = 2.0 * (u_new / IMG_W) - 1.0
-    elevation_new = 2.0 * (v_new / IMG_H) - 1.0
-
-    return bearing_new, elevation_new, int(round(u_new)), int(round(v_new))
+        sigma = float(np.sqrt(self.P[0, 0] + self.P[1, 1]))
+        return sigma < max_sigma
 
 
 def _centroid_from_semantic(sem_frame):
@@ -815,12 +856,12 @@ def main():
             # Kalman filter: CLIPSeg sensor + drone dynamics
             kf = CentroidKalmanFilter()
 
-            # Dynamic GT validation: propagate GT bearing with our dynamics
-            # (rotation-only, NO GT knowledge after init).
-            # If DGT tracks GT → dynamics model is good.
-            # If DGT drifts → shows translation parallax error.
-            dgt_bearing = None   # initialized from first GT observation
-            dgt_elevation = None
+            # Dynamic GT validation: propagate GT bearing with our dynamics.
+            # Uses same _predict_state as KF (with inv_depth).
+            # Init from real GT at first visible frame + true depth, then
+            # propagate with NO further GT knowledge.
+            # If DGT tracks GT → dynamics + inv_depth model is correct.
+            dgt_state = None     # [bearing, elevation, inv_depth]
             dgt_prev_xcr = None
 
             if has_rgb:
@@ -847,10 +888,11 @@ def main():
                     if cseg_visible:
                         kf.step(xcr, cseg["bearing"], cseg["elevation"])
                     else:
-                        kf.step(xcr)  # predict only, rotation-only dynamics
+                        kf.step(xcr)  # predict only
 
-                    kf_est = kf.get_estimate()  # (bearing, elev, u, v, sigma)
+                    kf_est = kf.get_estimate()
                     kf_ok = kf.is_confident()
+                    kf_depth = kf_est[5] if kf_est is not None else None
 
                     # ── GT projection (for evaluation/display only) ──
                     gt_px = _project_gt(obj_target, xcr)
@@ -859,23 +901,30 @@ def main():
                              and 0 <= gt_px[1] < frame.shape[0])
 
                     # ── Dynamic GT: validate dynamics model ──
-                    # Initialize from real GT at first visible frame, then
-                    # propagate using ONLY our dynamics (rotation-only).
-                    # If DGT tracks GT → dynamics are good.
-                    # If DGT drifts → translation parallax is the gap.
+                    # Init from GT bearing + true depth (GT used ONLY at init).
+                    # Then propagate with _predict_state (same as KF).
+                    # DGT error = pure dynamics error (no sensor correction).
                     dgt_px = None
-                    if dgt_bearing is None and gt_px is not None and gt_in:
-                        dgt_bearing = 2.0 * (gt_px[0] / IMG_W) - 1.0
-                        dgt_elevation = 2.0 * (gt_px[1] / IMG_H) - 1.0
+                    if dgt_state is None and gt_px is not None and gt_in:
+                        # Compute true depth at init (GT-only, for validation)
+                        T_c2w = _xv_to_T(xcr) @ T_C2B
+                        T_w2c = np.linalg.inv(T_c2w)
+                        pt = T_w2c @ np.array([*np.squeeze(obj_target), 1.0])
+                        true_depth = -pt[2]
+                        dgt_state = np.array([
+                            2.0 * (gt_px[0] / IMG_W) - 1.0,
+                            2.0 * (gt_px[1] / IMG_H) - 1.0,
+                            1.0 / max(true_depth, 0.1),
+                        ])
                         dgt_prev_xcr = xcr.copy()
-                        dgt_px = gt_px  # first frame: DGT = GT
-                    elif dgt_bearing is not None and dgt_prev_xcr is not None:
-                        dr = _deadreckon_bearing(
-                            dgt_bearing, dgt_elevation,
-                            dgt_prev_xcr, xcr)
-                        if dr is not None:
-                            dgt_bearing, dgt_elevation = dr[0], dr[1]
-                            dgt_px = (dr[2], dr[3])
+                        dgt_px = gt_px
+                    elif dgt_state is not None and dgt_prev_xcr is not None:
+                        s_new = _predict_state(dgt_state, dgt_prev_xcr, xcr)
+                        if s_new is not None:
+                            dgt_state = s_new
+                            u_dgt = (dgt_state[0] + 1.0) * IMG_W / 2.0
+                            v_dgt = (dgt_state[1] + 1.0) * IMG_H / 2.0
+                            dgt_px = (int(round(u_dgt)), int(round(v_dgt)))
                         dgt_prev_xcr = xcr.copy()
 
                     # ── Draw: GT (green, always) ──
@@ -902,7 +951,7 @@ def main():
                     fused_u, fused_v = None, None
                     kf_sigma = None
                     if kf_est is not None and kf_ok:
-                        _, _, fused_u, fused_v, kf_sigma = kf_est
+                        _, _, fused_u, fused_v, kf_sigma, _ = kf_est
                         if cseg_visible:
                             _draw_marker(frame, fused_u, fused_v,
                                          (0, 255, 255), "KF", sz=16, th=2)
@@ -911,7 +960,7 @@ def main():
                                          (0, 180, 180),
                                          f"KF~{kf.steps_coasting}", sz=12, th=1)
                     elif kf_est is not None and not kf_ok:
-                        _, _, _, _, kf_sigma = kf_est
+                        _, _, _, _, kf_sigma, _ = kf_est
                         cv2.putText(frame, f"KF lost (s={kf_sigma:.3f})",
                                     (frame.shape[1] - 180, 18),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.35,
@@ -938,7 +987,8 @@ def main():
                     txt2 = ""
                     if kf_est is not None:
                         mode = "meas" if cseg_visible and kf.initialized else f"pred(Δ{kf.steps_coasting})"
-                        txt2 = f"KF:{mode}  σ={kf_sigma:.4f}"
+                        depth_str = f"  d̂={kf_depth:.1f}m" if kf_depth is not None else ""
+                        txt2 = f"KF:{mode}  σ={kf_sigma:.4f}{depth_str}"
                     if dgt_gt_dist is not None:
                         txt2 += f"  DGT_err={dgt_gt_dist:.0f}px"
                     parts = []
