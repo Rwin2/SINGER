@@ -1010,7 +1010,10 @@ def main():
                         "step": step,
                         "cseg_cx": cseg["cx_px"] if cseg else None,
                         "cseg_cy": cseg["cy_px"] if cseg else None,
+                        "cseg_bearing": cseg["bearing"] if cseg else None,
+                        "cseg_elevation": cseg["elevation"] if cseg else None,
                         "cseg_confidence": cseg["confidence"] if cseg else None,
+                        "cseg_n_pixels": cseg["n_pixels"] if cseg else 0,
                         "cseg_visible": cseg_visible,
                         "kf_u": fused_u, "kf_v": fused_v,
                         "kf_sigma": kf_sigma,
@@ -1081,6 +1084,14 @@ def main():
             with open(log_path, "w") as f:
                 json.dump(payload, f, indent=2)
             print(f"    {os.path.basename(log_path)}")
+
+            # Save Xro + obj_target for offline KF experiments
+            # (drone state at each step — needed for dynamics model)
+            npz_path = os.path.join(case_dir, f"{prefix}_trajectory_data.npz")
+            np.savez_compressed(npz_path,
+                                Xro=Xro,
+                                obj_target=np.squeeze(obj_target))
+            print(f"    {os.path.basename(npz_path)}  (Xro for offline KF)")
 
             # ── Plotly 3D trajectory ──
             try:
