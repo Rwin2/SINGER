@@ -94,138 +94,117 @@ def _project_gt(obj_target, xcr):
 # ── Confidence gate + Kalman filter ──
 
 CONF_GATE = 0.90       # minimum V12 confidence to trust centroid
-CSEG_CONF_GATE = 0.70  # CLIPSeg confidence gate (noisier than V12)
+CSEG_CONF_GATE = 0.90  # CLIPSeg confidence gate (visible = conf > 0.9)
 MAX_PIXELS = 15000     # max blob size — larger = diffuse, unreliable
 IMG_W, IMG_H = 640, 360
 
 
 class CentroidKalmanFilter:
-    """Kalman Filter for goal bearing/elevation — CLIPSeg only (sim-to-real).
+    """Goal bearing tracker — CLIPSeg sensor + drone dynamics.
 
-    Formulation:
-        State:   s_t = [bearing, elevation]  in normalized image coords [-1, 1]
-                 The goal is FIXED in world frame. s_t changes only because
-                 the drone moves.
+    Two modes:
+      VISIBLE  (CLIPSeg conf > 0.9): KF state = CLIPSeg measurement exactly.
+      OCCLUDED (CLIPSeg conf < 0.9): KF state propagated by drone dynamics.
 
-        Dynamics: s_{t+1|t} = f(s_t, xcr_t, xcr_{t+1})
-                  Transform the goal ray from camera frame at t to camera
-                  frame at t+1 using the drone's known rotation + translation.
-                  Uses exact pinhole camera model (fx, fy, cx, cy) and
-                  body-to-camera transform T_C2B.
+    State: s = [bearing, elevation] in normalized image coords [-1, 1].
+    The goal is fixed in world — s changes only because the drone moves.
 
-        Measurement: z_t = CLIPSeg centroid [bearing, elevation]
-                     Available ONLY when CLIPSeg confidence > threshold.
-                     When no measurement: skip update, coast on dynamics.
+    Dynamics: exact camera model. Given the drone's pose change between
+    frames (quaternion + position from xcr), we transform the estimated
+    goal ray from camera_t to camera_{t+1}.
 
-        Process noise Q: small — drone state is accurate, main source is
-                         IMU drift and finite-distance parallax approximation.
-        Measurement noise R: CLIPSeg centroid accuracy (~25px std-dev).
-
-    The filter naturally handles visibility gaps:
-        - Visible: predict + update → low uncertainty, accurate estimate
-        - Not visible: predict only → uncertainty grows linearly
-        - Reacquired: large P means Kalman gain → 1, measurement dominates
+    Confidence: σ = sqrt(trace(P)). When visible, σ ≈ 0 (we trust CSEG
+    fully). When occluded, σ grows by process_noise per step. After N
+    steps coasting: σ ≈ process_noise * sqrt(N).
     """
 
-    def __init__(self, process_noise=0.005, meas_noise=0.08):
+    def __init__(self, process_noise=0.005):
         """
         Args:
-            process_noise: std-dev per step in bearing units.
-                           0.005 ≈ 1.6px at 640px. Accounts for:
-                           - IMU quaternion noise
-                           - Parallax from translation (goal at finite distance)
-            meas_noise: std-dev of CLIPSeg centroid measurement.
-                        0.08 ≈ 25px at 640px.
+            process_noise: std-dev per step (~1.6px at 640px).
+                           Accounts for IMU drift + parallax.
         """
-        self.x = None          # state: np.array([bearing, elevation])
+        self.x = None          # [bearing, elevation]
         self.P = None          # 2×2 covariance
         self.prev_xcr = None   # drone state at previous step
         self.initialized = False
-        self.steps_without_measurement = 0
+        self.steps_coasting = 0
 
         self.Q = np.eye(2) * process_noise**2
-        self.R = np.eye(2) * meas_noise**2
 
-    def predict(self, xcr):
-        """Prediction step using drone dynamics.
+    def step(self, xcr, cseg_bearing=None, cseg_elevation=None):
+        """Run one filter step.
 
-        s_{t+1|t} = project(R_w2c_{t+1} @ R_c2w_t @ unproject(s_t))
+        Args:
+            xcr: drone state vector (13-d: x,y,z,vx,vy,vz,qx,qy,qz,qw,...)
+            cseg_bearing: CLIPSeg centroid bearing if visible (None if not)
+            cseg_elevation: CLIPSeg centroid elevation if visible (None if not)
 
-        The goal is fixed in world → apparent motion = inverse of drone motion.
-        Uses _deadreckon_bearing() which implements the full camera model:
-          1. s_t → pixel → ray in camera frame t (OpenGL convention)
-          2. ray × R_c2w_t → ray in world frame
-          3. ray × R_w2c_{t+1} → ray in camera frame t+1
-          4. Project back → s_{t+1|t}
+        When CLIPSeg is visible: KF = CSEG exactly (full trust).
+        When not visible: predict using drone dynamics, uncertainty grows.
         """
-        if not self.initialized:
+        has_measurement = cseg_bearing is not None
+
+        if has_measurement and not self.initialized:
+            # First sighting — initialize
+            self.x = np.array([cseg_bearing, cseg_elevation])
+            self.P = np.zeros((2, 2))  # perfect confidence at init
+            self.initialized = True
+            self.prev_xcr = xcr.copy()
+            self.steps_coasting = 0
             return
 
+        if not self.initialized:
+            # Never seen the goal yet — nothing to do
+            self.prev_xcr = xcr.copy()
+            return
+
+        # ── Predict: propagate state using drone dynamics ──
         if self.prev_xcr is not None:
             dr = _deadreckon_bearing(self.x[0], self.x[1], self.prev_xcr, xcr)
             if dr is not None:
                 self.x = np.array([dr[0], dr[1]])
             else:
-                # Goal behind camera — can't project. Keep state, inflate P.
+                # Goal behind camera — inflate uncertainty
                 self.P += 10.0 * self.Q
-
-        # P_{t+1|t} = F P F^T + Q  (F ≈ I since rotation is applied directly)
         self.P += self.Q
         self.prev_xcr = xcr.copy()
 
-    def update(self, bearing, elevation):
-        """Measurement update with CLIPSeg centroid.
-
-        Only called when CLIPSeg is confident (conf > threshold).
-        When not confident → no update → filter coasts on prediction.
-
-        Standard KF with H = I (measurement is directly the state):
-            K = P (P + R)^{-1}
-            x = x + K (z - x)
-            P = (I - K) P
-        """
-        z = np.array([bearing, elevation])
-
-        if not self.initialized:
-            self.x = z.copy()
-            self.P = self.R.copy()  # initial uncertainty = measurement noise
-            self.initialized = True
-            self.steps_without_measurement = 0
-            return
-
-        S = self.P + self.R
-        K = self.P @ np.linalg.inv(S)
-
-        innovation = z - self.x
-        self.x = self.x + K @ innovation
-        self.P = (np.eye(2) - K) @ self.P
-        self.steps_without_measurement = 0
-
-    def step_no_measurement(self):
-        """Called when no confident measurement is available this frame.
-        Just tracks how long we've been coasting."""
-        self.steps_without_measurement += 1
+        # ── Update ──
+        if has_measurement:
+            # VISIBLE: snap to CLIPSeg (full trust, R = 0)
+            self.x = np.array([cseg_bearing, cseg_elevation])
+            self.P = np.zeros((2, 2))  # reset uncertainty
+            self.steps_coasting = 0
+        else:
+            # OCCLUDED: coast on dynamics
+            self.steps_coasting += 1
 
     def get_estimate(self):
-        """Return (bearing, elevation, u_px, v_px, uncertainty) or None."""
+        """Return (bearing, elevation, u_px, v_px, sigma) or None.
+        sigma = sqrt(trace(P)) — std-dev of position estimate in bearing units.
+        """
         if not self.initialized:
             return None
         u = (self.x[0] + 1.0) * IMG_W / 2.0
         v = (self.x[1] + 1.0) * IMG_H / 2.0
-        uncertainty = float(np.trace(self.P))
-        return self.x[0], self.x[1], int(round(u)), int(round(v)), uncertainty
+        sigma = float(np.sqrt(np.trace(self.P)))
+        return self.x[0], self.x[1], int(round(u)), int(round(v)), sigma
 
-    def is_confident(self, threshold=0.02):
-        """Is the estimate reliable enough to use?
+    def is_confident(self, max_sigma=0.15):
+        """Is the estimate reliable enough to display?
 
-        threshold on trace(P):
-          0.005 → ~11px std — very tight, only when recent measurement
-          0.02  → ~22px std — reasonable for navigation
-          0.05  → ~36px std — loose, long coasting
+        max_sigma in bearing units:
+          0.05 → ~16px std — tight, ~10 steps coasting
+          0.15 → ~48px std — ~30 steps coasting (reasonable nav tolerance)
+          0.30 → ~96px std — ~60 steps, getting useless
+
+        With process_noise=0.005, sigma grows as 0.005*sqrt(N):
+          after 10 steps: σ=0.016, after 30: σ=0.027, after 100: σ=0.05
         """
         if not self.initialized:
             return False
-        return float(np.trace(self.P)) < threshold
+        return float(np.sqrt(np.trace(self.P))) < max_sigma
 
 
 def _deadreckon_bearing(last_bearing, last_elevation, last_xcr, current_xcr):
@@ -776,10 +755,8 @@ def main():
             has_raw = "similarity_raw" in Iro
             centroid_log = []
 
-            # Kalman filter for fused centroid
+            # Kalman filter: CLIPSeg sensor + drone dynamics
             kf = CentroidKalmanFilter()
-            # Legacy dead-reckoning state (kept for comparison)
-            last_good = None   # (bearing, elevation, xcr, step)
 
             if has_rgb:
                 rgb_ann = Iro["rgb"].copy()  # (N, H, W, 3)
@@ -790,183 +767,108 @@ def main():
                         frame = (frame * 255).astype(np.uint8)
                         rgb_ann[step] = frame
 
-                    # ── Compute centroids (all for logging, CLIPSeg for KF) ──
-
-                    # V9: baseline (colormapped semantic) — logged only
-                    cinfo = None
-                    if has_sem:
-                        cinfo = _centroid_from_semantic(Iro["semantic"][step])
-
-                    # V12: gsplat raw similarity — logged for comparison only
-                    # NOTE: V12 is NOT sim-to-real transferable, will be removed
-                    v12 = None
-                    if has_raw:
-                        v12 = _centroid_v12(Iro["similarity_raw"][step])
-                    v12_trusted = (v12 is not None
-                                   and v12.get("visible")
-                                   and v12["confidence"] >= CONF_GATE
-                                   and v12.get("n_pixels", 99999) < MAX_PIXELS)
-
-                    # CLIPSeg: THE sensor for real-world deployment
+                    # ── CLIPSeg: the only real-world sensor ──
                     cseg = _centroid_from_clipseg(frame.copy(), obj_name, clipseg)
-                    cseg_confident = (cseg is not None
-                                      and cseg["confidence"] >= CSEG_CONF_GATE)
+                    cseg_visible = (cseg is not None
+                                    and cseg["confidence"] >= CSEG_CONF_GATE)
 
-                    # ── Kalman filter: predict + update (CLIPSeg only) ──
-
-                    # 1. Predict: propagate bearing/elevation using drone dynamics
-                    #    s_{t+1|t} = f(s_t, xcr_t, xcr_{t+1})
-                    kf.predict(xcr)
-
-                    # 2. Update ONLY with CLIPSeg when confident
-                    kf_updated = False
-                    if cseg_confident:
-                        kf.update(cseg["bearing"], cseg["elevation"])
-                        kf_updated = True
+                    # ── Kalman filter step ──
+                    if cseg_visible:
+                        kf.step(xcr, cseg["bearing"], cseg["elevation"])
                     else:
-                        kf.step_no_measurement()
-                    # When not confident → no update → P grows → filter coasts
+                        kf.step(xcr)  # predict only, coast on dynamics
 
-                    # 3. Get filtered estimate
-                    kf_est = kf.get_estimate()
-                    kf_confident = kf.is_confident(threshold=0.02)
+                    kf_est = kf.get_estimate()  # (bearing, elev, u, v, sigma)
+                    kf_ok = kf.is_confident()
 
-                    fused_u, fused_v = None, None
-                    fused_src = "none"
-                    kf_uncertainty = None
-
-                    if kf_est is not None:
-                        _, _, kf_u, kf_v, kf_uncertainty = kf_est
-                        if kf_confident:
-                            fused_u, fused_v = kf_u, kf_v
-                            if kf_updated:
-                                fused_src = "kf(cseg)"
-                            else:
-                                fused_src = f"kf(pred,Δ{kf.steps_without_measurement})"
-
-                    # ── Draw markers ──
-
-                    # V9 — dim baseline (always untrusted, for reference)
-                    if cinfo:
-                        _draw_marker(frame, cinfo["cx_px"], cinfo["cy_px"],
-                                     (120, 60, 60), "v9?", sz=10, th=1)
-
-                    # V12 — dim reference (sim-only, not used in KF)
-                    if v12_trusted:
-                        _draw_marker(frame, v12["cx_px"], v12["cy_px"],
-                                     (80, 110, 180), "v12", sz=10, th=1)
-                    elif v12 is not None:
-                        conf_txt = f"v12? c={v12['confidence']:.2f}"
-                        cv2.putText(frame, conf_txt, (frame.shape[1] - 160, 18),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, (80, 100, 180), 1, cv2.LINE_AA)
-
-                    # CLIPSeg raw measurement — show when confident (= visible)
-                    if cseg_confident:
-                        _draw_marker(frame, cseg["cx_px"], cseg["cy_px"],
-                                     (255, 0, 255), "CSEG", sz=14, th=2)
-                    elif cseg is not None:
-                        conf_txt = f"cseg? c={cseg['confidence']:.2f}"
-                        cv2.putText(frame, conf_txt, (frame.shape[1] - 160, 34),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, (150, 0, 150), 1, cv2.LINE_AA)
-
-                    # KF estimate — THE output. YELLOW = measured, TEAL = predicted
-                    if fused_u is not None and fused_v is not None:
-                        if kf_updated:
-                            # Received CLIPSeg measurement this frame
-                            _draw_marker(frame, fused_u, fused_v,
-                                         (0, 255, 255), "KF", sz=16, th=2)
-                        else:
-                            # Coasting on dynamics (no measurement)
-                            _draw_marker(frame, fused_u, fused_v,
-                                         (0, 180, 180), f"KF~{kf.steps_without_measurement}", sz=12, th=1)
-                    elif kf_est is not None and not kf_confident:
-                        unc_txt = f"kf? unc={kf_uncertainty:.4f}"
-                        cv2.putText(frame, unc_txt, (frame.shape[1] - 160, 50),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 130, 130), 1, cv2.LINE_AA)
-
-                    # GT projection — always show (ground truth)
+                    # ── GT projection (always) ──
                     gt_px = _project_gt(obj_target, xcr)
                     gt_in = (gt_px is not None
                              and 0 <= gt_px[0] < frame.shape[1]
                              and 0 <= gt_px[1] < frame.shape[0])
+
+                    # ── Draw: GT (green, always) ──
                     if gt_px is not None:
                         _draw_marker(frame, gt_px[0], gt_px[1],
                                      (50, 255, 50), "GT", sz=14, th=2)
 
-                    # Compute pixel distances to GT
-                    v9_gt_dist = None
-                    v12_gt_dist = None
-                    fused_gt_dist = None
+                    # ── Draw: CSEG (magenta, only when visible) ──
+                    if cseg_visible:
+                        _draw_marker(frame, cseg["cx_px"], cseg["cy_px"],
+                                     (255, 0, 255), "CSEG", sz=14, th=2)
+
+                    # ── Draw: KF (yellow, from first sighting onward) ──
+                    fused_u, fused_v = None, None
+                    kf_sigma = None
+                    if kf_est is not None and kf_ok:
+                        _, _, fused_u, fused_v, kf_sigma = kf_est
+                        if cseg_visible:
+                            # Visible: KF = CSEG, draw solid yellow
+                            _draw_marker(frame, fused_u, fused_v,
+                                         (0, 255, 255), "KF", sz=16, th=2)
+                        else:
+                            # Coasting: draw dimmer with step count
+                            _draw_marker(frame, fused_u, fused_v,
+                                         (0, 180, 180),
+                                         f"KF~{kf.steps_coasting}", sz=12, th=1)
+                    elif kf_est is not None and not kf_ok:
+                        _, _, _, _, kf_sigma = kf_est
+                        # Too uncertain — show text only
+                        cv2.putText(frame, f"KF lost (s={kf_sigma:.3f})",
+                                    (frame.shape[1] - 180, 18),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.35,
+                                    (0, 130, 130), 1, cv2.LINE_AA)
+
+                    # ── Pixel errors vs GT ──
                     cseg_gt_dist = None
+                    kf_gt_dist = None
                     if gt_in and gt_px is not None:
-                        if cinfo:
-                            v9_gt_dist = float(np.hypot(
-                                cinfo["cx_px"] - gt_px[0],
-                                cinfo["cy_px"] - gt_px[1]))
-                        if v12 and v12.get("visible"):
-                            v12_gt_dist = float(np.hypot(
-                                v12["cx_px"] - gt_px[0],
-                                v12["cy_px"] - gt_px[1]))
-                        if fused_u is not None:
-                            fused_gt_dist = float(np.hypot(
-                                fused_u - gt_px[0],
-                                fused_v - gt_px[1]))
-                        if cseg and cseg.get("visible"):
+                        if cseg_visible:
                             cseg_gt_dist = float(np.hypot(
                                 cseg["cx_px"] - gt_px[0],
                                 cseg["cy_px"] - gt_px[1]))
+                        if fused_u is not None:
+                            kf_gt_dist = float(np.hypot(
+                                fused_u - gt_px[0], fused_v - gt_px[1]))
 
-                    # HUD text
+                    # ── HUD ──
                     gd_now = float(np.linalg.norm(xcr[:3] - np.squeeze(obj_target)))
-                    v12_tag = "TRUSTED" if v12_trusted else "untrusted"
-                    kf_tag = fused_src if kf_confident else "uncertain"
-                    unc_str = f" P={kf_uncertainty:.4f}" if kf_uncertainty is not None else ""
-                    txt1 = f"step {step}/{n_frames}  goal={gd_now:.1f}m  KF:{kf_tag}{unc_str}"
-                    cseg_tag = f"conf={cseg['confidence']:.2f}" if cseg else "N/A"
-                    txt2 = f"CSEG:{cseg_tag}  {'VISIBLE' if cseg_confident else 'not visible'}"
-                    if v12:
-                        txt2 += f"  (v12 c={v12['confidence']:.2f})"
-                    txt3 = ""
-                    if gt_in:
-                        parts = []
-                        if v9_gt_dist is not None: parts.append(f"v9={v9_gt_dist:.0f}")
-                        if v12_gt_dist is not None: parts.append(f"v12={v12_gt_dist:.0f}")
-                        if fused_gt_dist is not None: parts.append(f"fus={fused_gt_dist:.0f}")
-                        if cseg_gt_dist is not None: parts.append(f"cseg={cseg_gt_dist:.0f}")
-                        if parts:
-                            txt3 = "err(px): " + "  ".join(parts)
+                    txt1 = f"step {step}/{n_frames}  goal={gd_now:.1f}m"
+                    if cseg:
+                        txt1 += f"  cseg_conf={cseg['confidence']:.2f}"
+                    txt1 += f"  {'VISIBLE' if cseg_visible else 'occluded'}"
+
+                    txt2 = ""
+                    if kf_est is not None:
+                        mode = "meas" if cseg_visible and kf.initialized else f"pred(Δ{kf.steps_coasting})"
+                        txt2 = f"KF:{mode}  σ={kf_sigma:.4f}"
+                    parts = []
+                    if cseg_gt_dist is not None: parts.append(f"cseg={cseg_gt_dist:.0f}px")
+                    if kf_gt_dist is not None: parts.append(f"kf={kf_gt_dist:.0f}px")
+                    txt3 = "err: " + "  ".join(parts) if parts else ""
+
                     for y_pos, txt in [(18, txt1), (34, txt2), (50, txt3)]:
                         if txt:
                             cv2.putText(frame, txt, (8, y_pos),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0,0,0), 2, cv2.LINE_AA)
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.38,
+                                        (0, 0, 0), 2, cv2.LINE_AA)
                             cv2.putText(frame, txt, (8, y_pos),
-                                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255,255,255), 1, cv2.LINE_AA)
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.38,
+                                        (255, 255, 255), 1, cv2.LINE_AA)
 
+                    # ── Log ──
                     centroid_log.append({
                         "step": step,
-                        **(cinfo if cinfo else {}),
-                        "v12_cx": v12["cx_px"] if v12 else None,
-                        "v12_cy": v12["cy_px"] if v12 else None,
-                        "v12_visible": v12["visible"] if v12 else None,
-                        "v12_confidence": v12["confidence"] if v12 else None,
-                        "v12_n_pixels": v12.get("n_pixels") if v12 else None,
-                        "v12_trusted": bool(v12_trusted),
-                        "fused_u": fused_u, "fused_v": fused_v,
-                        "fused_src": fused_src,
-                        "kf_updated": kf_updated,
-                        "kf_confident": kf_confident,
-                        "kf_steps_coasting": kf.steps_without_measurement if kf.initialized else None,
-                        "kf_uncertainty": kf_uncertainty,
                         "cseg_cx": cseg["cx_px"] if cseg else None,
                         "cseg_cy": cseg["cy_px"] if cseg else None,
-                        "cseg_visible": cseg["visible"] if cseg else None,
                         "cseg_confidence": cseg["confidence"] if cseg else None,
-                        "cseg_n_pixels": cseg.get("n_pixels") if cseg else None,
-                        "cseg_confident": cseg_confident,
-                        "v9_gt_dist_px": v9_gt_dist,
-                        "v12_gt_dist_px": v12_gt_dist,
-                        "fused_gt_dist_px": fused_gt_dist,
+                        "cseg_visible": cseg_visible,
+                        "kf_u": fused_u, "kf_v": fused_v,
+                        "kf_sigma": kf_sigma,
+                        "kf_confident": kf_ok,
+                        "kf_coasting": kf.steps_coasting if kf.initialized else None,
                         "cseg_gt_dist_px": cseg_gt_dist,
+                        "kf_gt_dist_px": kf_gt_dist,
                         "gt_u": gt_px[0] if gt_px else None,
                         "gt_v": gt_px[1] if gt_px else None,
                         "gt_in_frame": gt_in,
@@ -1042,46 +944,38 @@ def main():
             except Exception as e:
                 print(f"    ⚠️  Plotly failed: {e}")
 
-            # ── Compute V9 vs V12 vs Fused comparison stats ──
-            v9_dists = [c["v9_gt_dist_px"] for c in centroid_log
-                        if c.get("v9_gt_dist_px") is not None]
-            v12_dists = [c["v12_gt_dist_px"] for c in centroid_log
-                         if c.get("v12_gt_dist_px") is not None]
-            fused_dists = [c["fused_gt_dist_px"] for c in centroid_log
-                           if c.get("fused_gt_dist_px") is not None]
+            # ── Compute CSEG vs KF comparison stats ──
             cseg_dists = [c["cseg_gt_dist_px"] for c in centroid_log
                           if c.get("cseg_gt_dist_px") is not None]
-            kf_meas_ct = sum(1 for c in centroid_log if c.get("kf_updated"))
-            kf_pred_ct = sum(1 for c in centroid_log if not c.get("kf_updated")
-                             and c.get("kf_confident"))
-            kf_unc_ct = sum(1 for c in centroid_log if not c.get("kf_confident", False))
-            v9_mean = float(np.mean(v9_dists)) if v9_dists else None
-            v12_mean = float(np.mean(v12_dists)) if v12_dists else None
-            fused_mean = float(np.mean(fused_dists)) if fused_dists else None
+            kf_dists = [c["kf_gt_dist_px"] for c in centroid_log
+                        if c.get("kf_gt_dist_px") is not None]
+            kf_meas_ct = sum(1 for c in centroid_log if c.get("cseg_visible"))
+            kf_pred_ct = sum(1 for c in centroid_log
+                             if not c.get("cseg_visible") and c.get("kf_confident"))
+            kf_unc_ct = sum(1 for c in centroid_log
+                            if not c.get("kf_confident", False)
+                            and c.get("kf_coasting") is not None)
             cseg_mean = float(np.mean(cseg_dists)) if cseg_dists else None
+            kf_mean = float(np.mean(kf_dists)) if kf_dists else None
+            gt_in_ct = sum(1 for c in centroid_log if c.get("gt_in_frame"))
 
             parts = ["  Accuracy (GT visible): "]
-            if v9_mean is not None: parts.append(f"V9={v9_mean:.0f}px")
-            if v12_mean is not None: parts.append(f"V12={v12_mean:.0f}px")
-            if fused_mean is not None: parts.append(f"Fused={fused_mean:.0f}px")
-            if cseg_mean is not None: parts.append(f"CLIPSeg={cseg_mean:.0f}px")
+            if cseg_mean is not None: parts.append(f"CSEG={cseg_mean:.0f}px")
+            if kf_mean is not None: parts.append(f"KF={kf_mean:.0f}px")
             print("  ".join(parts))
             print(f"  KF:  measured={kf_meas_ct}  predicted={kf_pred_ct}  "
                   f"uncertain={kf_unc_ct}  "
-                  f"(GT in frame: {sum(1 for c in centroid_log if c.get('gt_in_frame'))}/{len(centroid_log)})")
+                  f"(GT in frame: {gt_in_ct}/{len(centroid_log)})")
 
             summary.append({
                 "object": obj_name, "val_idx": val_i, "tag": tag,
                 "success": bool(ev["success"]), "collision": bool(ev["collision"]),
                 "goal_dist": float(ev["goal_dist"]),
-                "gt_visible_pct": (sum(1 for c in centroid_log if c.get("gt_in_frame"))
-                                   / max(len(centroid_log), 1)),
-                "v9_mean_err_px": v9_mean,
-                "v12_mean_err_px": v12_mean,
-                "fused_mean_err_px": fused_mean,
+                "gt_visible_pct": gt_in_ct / max(len(centroid_log), 1),
+                "cseg_mean_err_px": cseg_mean,
+                "kf_mean_err_px": kf_mean,
                 "kf_meas_pct": kf_meas_ct / max(len(centroid_log), 1),
                 "kf_pred_pct": kf_pred_ct / max(len(centroid_log), 1),
-                "cseg_mean_err_px": cseg_mean,
             })
 
     # ── Summary ──
@@ -1091,19 +985,17 @@ def main():
     print(f"\n{'='*60}")
     print(f"DONE — {len(summary)} cases")
     print(f"Output: {out_root}")
-    print(f"{'─'*105}")
-    print(f"  {'Object':25s} val  tag      success  gt_vis  V9 err  V12 err  KF err  CSEG err  kf:meas  kf:pred")
-    print(f"{'─'*105}")
+    print(f"{'─'*90}")
+    print(f"  {'Object':25s} val  tag      success  gt_vis  CSEG err  KF err  kf:meas  kf:pred")
+    print(f"{'─'*90}")
     for s in summary:
-        v9e = f"{s['v9_mean_err_px']:.0f}px" if s.get('v9_mean_err_px') else "  -  "
-        v12e = f"{s['v12_mean_err_px']:.0f}px" if s.get('v12_mean_err_px') else "  -  "
-        fe = f"{s['fused_mean_err_px']:.0f}px" if s.get('fused_mean_err_px') else "  -  "
         ce = f"{s['cseg_mean_err_px']:.0f}px" if s.get('cseg_mean_err_px') else "  -  "
+        ke = f"{s['kf_mean_err_px']:.0f}px" if s.get('kf_mean_err_px') else "  -  "
         print(f"  {s['object'][:25]:25s} {s['val_idx']:3d}  {s['tag']:7s}  "
               f"{str(s['success']):5s}    {s['gt_visible_pct']:4.0%}  "
-              f"{v9e:>6s}   {v12e:>6s}   {fe:>6s}    {ce:>6s}   "
+              f"{ce:>7s}   {ke:>6s}   "
               f"{s.get('kf_meas_pct', 0):5.0%}   {s.get('kf_pred_pct', 0):5.0%}")
-    print(f"{'='*105}")
+    print(f"{'='*90}")
 
 
 if __name__ == "__main__":
