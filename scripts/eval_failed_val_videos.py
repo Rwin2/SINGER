@@ -94,7 +94,7 @@ def _project_gt(obj_target, xcr):
 # ── Confidence gate + Kalman filter ──
 
 CONF_GATE = 0.90       # minimum V12 confidence to trust centroid
-CSEG_CONF_GATE = 0.60  # CLIPSeg sigmoid confidence gate (start conservative, tune up)
+CSEG_CONF_GATE = 0.75  # CLIPSeg sigmoid confidence gate (conservative: rather miss than false detect)
 MAX_PIXELS = 15000     # max blob size — larger = diffuse, unreliable
 IMG_W, IMG_H = 640, 360
 
