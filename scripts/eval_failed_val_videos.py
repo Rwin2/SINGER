@@ -658,45 +658,47 @@ def main():
                         frame = (frame * 255).astype(np.uint8)
                         rgb_ann[step] = frame
 
-                    # CLIPSeg centroid V9 (current) from colormapped semantic
+                    # ── Compute ALL centroids (always, for logging) ──
+
+                    # V9: current production — colormapped semantic
                     cinfo = None
                     if has_sem:
                         cinfo = _centroid_from_semantic(Iro["semantic"][step])
-                    if cinfo:
-                        _draw_marker(frame, cinfo["cx_px"], cinfo["cy_px"],
-                                     (255, 50, 50), "V9", sz=14, th=2)
 
-                    # V12: centroid from RAW similarity (before colormap)
+                    # V12: raw similarity (before colormap)
                     v12 = None
                     if has_raw:
                         v12 = _centroid_v12(Iro["similarity_raw"][step])
-                    if v12 and v12.get("visible"):
-                        _draw_marker(frame, v12["cx_px"], v12["cy_px"],
-                                     (50, 150, 255), "V12", sz=14, th=2)
 
-                    # CLIPSeg centroid (MAGENTA) — sim-to-real transferable
+                    # CLIPSeg: sim-to-real transferable
                     cseg = _centroid_from_clipseg(frame.copy(), obj_name, clipseg)
-                    if cseg and cseg.get("visible"):
-                        _draw_marker(frame, cseg["cx_px"], cseg["cy_px"],
-                                     (255, 0, 255), "CSEG", sz=14, th=2)
 
-                    # ── Gated V12 + Dead-Reckoning ("FUSED") ──
-                    # Confidence gate: trust V12 only when high conf + compact blob
+                    # ── Trust decisions ──
+
+                    # V9: no confidence gate — NEVER trusted (baseline only)
+                    v9_trusted = False  # always untrusted — no meaningful confidence
+
+                    # V12: trusted when high confidence + compact blob
                     v12_trusted = (v12 is not None
                                    and v12.get("visible")
                                    and v12["confidence"] >= CONF_GATE
                                    and v12.get("n_pixels", 99999) < MAX_PIXELS)
 
+                    # CLIPSeg: same gate as V12 (conf threshold on CLIPSeg peak)
+                    cseg_trusted = (cseg is not None
+                                    and cseg.get("visible")
+                                    and cseg["confidence"] >= 0.70
+                                    and cseg.get("n_pixels", 99999) < MAX_PIXELS)
+
+                    # Fused: V12 when trusted, else dead-reckoning
                     fused_u, fused_v = None, None
-                    fused_src = "none"  # "v12" or "dr" (dead-reckoning)
+                    fused_src = "none"
 
                     if v12_trusted:
-                        # Direct measurement — high confidence
                         fused_u, fused_v = v12["cx_px"], v12["cy_px"]
                         fused_src = "v12"
                         last_good = (v12["bearing"], v12["elevation"], xcr.copy(), step)
                     elif last_good is not None:
-                        # Dead-reckon from last confident observation
                         dr = _deadreckon_bearing(
                             last_good[0], last_good[1], last_good[2], xcr
                         )
@@ -704,13 +706,44 @@ def main():
                             _, _, fused_u, fused_v = dr
                             fused_src = f"dr(Δ{step - last_good[3]})"
 
-                    # Draw FUSED marker (YELLOW)
-                    if fused_u is not None and fused_v is not None:
-                        color = (0, 255, 255) if fused_src == "v12" else (0, 200, 200)
-                        label = "FUS" if fused_src == "v12" else "DR"
-                        _draw_marker(frame, fused_u, fused_v, color, label, sz=16, th=2)
+                    # ── Draw markers: ONLY when trusted ──
+                    # Untrusted → small label in corner instead of marker on frame
 
-                    # GT projection
+                    # V9 — always untrusted, draw dimmed for comparison
+                    if cinfo:
+                        _draw_marker(frame, cinfo["cx_px"], cinfo["cy_px"],
+                                     (120, 60, 60), "v9?", sz=10, th=1)
+
+                    # V12 — only draw when trusted
+                    if v12_trusted:
+                        _draw_marker(frame, v12["cx_px"], v12["cy_px"],
+                                     (50, 150, 255), "V12", sz=14, th=2)
+                    elif v12 is not None:
+                        # Show small untrusted label at top
+                        conf_txt = f"v12? c={v12['confidence']:.2f}"
+                        cv2.putText(frame, conf_txt, (frame.shape[1] - 160, 18),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, (80, 100, 180), 1, cv2.LINE_AA)
+
+                    # CLIPSeg — only draw when trusted
+                    if cseg_trusted:
+                        _draw_marker(frame, cseg["cx_px"], cseg["cy_px"],
+                                     (255, 0, 255), "CSEG", sz=14, th=2)
+                    elif cseg is not None:
+                        conf_txt = f"cseg? c={cseg['confidence']:.2f}"
+                        cv2.putText(frame, conf_txt, (frame.shape[1] - 160, 34),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, (150, 0, 150), 1, cv2.LINE_AA)
+
+                    # Fused — draw when V12 trusted (solid yellow), DR as dimmer
+                    if fused_u is not None and fused_v is not None:
+                        if fused_src == "v12":
+                            _draw_marker(frame, fused_u, fused_v,
+                                         (0, 255, 255), "FUS", sz=16, th=2)
+                        else:
+                            # Dead-reckoning: dimmer, smaller — it's a prediction
+                            _draw_marker(frame, fused_u, fused_v,
+                                         (0, 160, 160), "DR", sz=12, th=1)
+
+                    # GT projection — always show (ground truth)
                     gt_px = _project_gt(obj_target, xcr)
                     gt_in = (gt_px is not None
                              and 0 <= gt_px[0] < frame.shape[1]
@@ -742,21 +775,27 @@ def main():
                                 cseg["cx_px"] - gt_px[0],
                                 cseg["cy_px"] - gt_px[1]))
 
-                    # HUD text (3 lines)
+                    # HUD text
                     gd_now = float(np.linalg.norm(xcr[:3] - np.squeeze(obj_target)))
-                    txt1 = f"step {step}/{n_frames}  goal={gd_now:.1f}m"
+                    v12_tag = "TRUSTED" if v12_trusted else "untrusted"
+                    cseg_tag = "TRUSTED" if cseg_trusted else "untrusted"
+                    txt1 = f"step {step}/{n_frames}  goal={gd_now:.1f}m  fused={fused_src}"
+                    txt2 = f"V12:{v12_tag}"
                     if v12:
-                        txt1 += f"  conf={v12['confidence']:.3f}  npx={v12.get('n_pixels',0)}"
-                    txt2 = f"fused={fused_src}"
-                    if v9_gt_dist is not None:
-                        txt2 += f"  v9={v9_gt_dist:.0f}px"
-                    if v12_gt_dist is not None:
-                        txt2 += f"  v12={v12_gt_dist:.0f}px"
-                    if fused_gt_dist is not None:
-                        txt2 += f"  fus={fused_gt_dist:.0f}px"
-                    if cseg_gt_dist is not None:
-                        txt2 += f"  cseg={cseg_gt_dist:.0f}px"
-                    for y_pos, txt in [(18, txt1), (34, txt2)]:
+                        txt2 += f" c={v12['confidence']:.2f} px={v12.get('n_pixels',0)}"
+                    txt2 += f"  CSEG:{cseg_tag}"
+                    if cseg:
+                        txt2 += f" c={cseg['confidence']:.2f}"
+                    txt3 = ""
+                    if gt_in:
+                        parts = []
+                        if v9_gt_dist is not None: parts.append(f"v9={v9_gt_dist:.0f}")
+                        if v12_gt_dist is not None: parts.append(f"v12={v12_gt_dist:.0f}")
+                        if fused_gt_dist is not None: parts.append(f"fus={fused_gt_dist:.0f}")
+                        if cseg_gt_dist is not None: parts.append(f"cseg={cseg_gt_dist:.0f}")
+                        if parts:
+                            txt3 = "err(px): " + "  ".join(parts)
+                    for y_pos, txt in [(18, txt1), (34, txt2), (50, txt3)]:
                         if txt:
                             cv2.putText(frame, txt, (8, y_pos),
                                         cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0,0,0), 2, cv2.LINE_AA)
@@ -771,6 +810,7 @@ def main():
                         "v12_visible": v12["visible"] if v12 else None,
                         "v12_confidence": v12["confidence"] if v12 else None,
                         "v12_n_pixels": v12.get("n_pixels") if v12 else None,
+                        "v12_trusted": v12_trusted,
                         "fused_u": fused_u, "fused_v": fused_v,
                         "fused_src": fused_src,
                         "cseg_cx": cseg["cx_px"] if cseg else None,
@@ -778,6 +818,7 @@ def main():
                         "cseg_visible": cseg["visible"] if cseg else None,
                         "cseg_confidence": cseg["confidence"] if cseg else None,
                         "cseg_n_pixels": cseg.get("n_pixels") if cseg else None,
+                        "cseg_trusted": cseg_trusted,
                         "v9_gt_dist_px": v9_gt_dist,
                         "v12_gt_dist_px": v12_gt_dist,
                         "fused_gt_dist_px": fused_gt_dist,
