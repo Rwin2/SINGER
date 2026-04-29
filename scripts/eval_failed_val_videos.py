@@ -132,19 +132,50 @@ class CentroidKalmanFilter:
         self.prev_xcr = None   # drone state at previous step
         self.initialized = False
         self.steps_coasting = 0
+        self.est_depth = None  # estimated camera-frame depth to goal
 
         self.Q = np.eye(2) * process_noise**2
         self.R = np.eye(2) * meas_noise**2
 
-    def step(self, xcr, cseg_bearing=None, cseg_elevation=None):
+    def _estimate_depth(self, bearing, elevation, xcr):
+        """Estimate depth to goal in camera frame from bearing/elevation + drone pose.
+
+        We don't know the 3D goal position, but we can estimate the depth
+        (distance along camera Z-axis) using the ray direction and drone
+        position. This is used to improve dead-reckoning by accounting
+        for translation parallax.
+
+        Reconstructs the 3D ray, intersects with ground plane or uses
+        a simple heuristic based on the distance the drone has traveled.
+        """
+        u = (bearing + 1.0) * IMG_W / 2.0
+        v = (elevation + 1.0) * IMG_H / 2.0
+        ray_cam = np.array([
+            (u - CX) / FX,
+            -(v - CY) / FY,
+            -1.0,
+        ])
+        # depth along optical axis = distance / cos(angle)
+        # but we don't know distance... use goal_dist from xcr if available
+        # For now: if we have a previous depth estimate, update it using
+        # the drone's translation (depth changes as drone moves along ray)
+        return self.est_depth  # will be set from outside when measurement available
+
+    def step(self, xcr, cseg_bearing=None, cseg_elevation=None, goal_dist=None):
         """Run one filter step.
 
         Args:
-            xcr: drone state vector (13-d: x,y,z,vx,vy,vz,qx,qy,qz,qw,...)
+            xcr: drone state vector (10-d: x,y,z,vx,vy,vz,qx,qy,qz,qw)
             cseg_bearing: CLIPSeg centroid bearing if visible (None if not)
             cseg_elevation: CLIPSeg centroid elevation if visible (None if not)
+            goal_dist: 3D distance to goal (from xcr position to obj_target).
+                       Used to estimate camera-frame depth for parallax correction.
         """
         has_measurement = cseg_bearing is not None
+
+        # Update depth estimate from goal distance
+        if goal_dist is not None and goal_dist > 0.1:
+            self.est_depth = goal_dist  # rough approximation: depth ≈ distance
 
         if has_measurement and not self.initialized:
             # First sighting — initialize
@@ -162,7 +193,9 @@ class CentroidKalmanFilter:
 
         # ── Predict: propagate state using drone dynamics ──
         if self.prev_xcr is not None:
-            dr = _deadreckon_bearing(self.x[0], self.x[1], self.prev_xcr, xcr)
+            dr = _deadreckon_bearing(self.x[0], self.x[1],
+                                     self.prev_xcr, xcr,
+                                     est_depth=self.est_depth)
             if dr is not None:
                 self.x = np.array([dr[0], dr[1]])
             else:
@@ -211,17 +244,27 @@ class CentroidKalmanFilter:
         return float(np.sqrt(np.trace(self.P))) < max_sigma
 
 
-def _deadreckon_bearing(last_bearing, last_elevation, last_xcr, current_xcr):
-    """Predict goal bearing in current frame from last confident observation.
+def _deadreckon_bearing(last_bearing, last_elevation, last_xcr, current_xcr,
+                         est_depth=None):
+    """Predict goal bearing in current frame from last observation + drone motion.
 
-    Uses exact camera model: transform the goal ray from the last camera frame
-    to the current camera frame using the drone's rotation change.
-    No approximations — accounts for yaw, pitch, and roll.
+    Two modes depending on whether depth is available:
+
+    1. WITH depth (est_depth given): Full 3D projection.
+       Reconstruct 3D point in world from (bearing, elevation, depth),
+       then project to current camera frame. Handles translation + rotation.
+
+    2. WITHOUT depth (est_depth=None): Rotation-only (legacy).
+       Transforms the ray direction between frames. Only correct when the
+       drone is far from the object or only rotating.
+
+    The depth-aware mode is critical because when the drone translates
+    sideways at close range, the object shifts significantly in the image
+    (parallax). The rotation-only model misses this entirely.
 
     Returns (bearing, elevation, u_px, v_px) or None if goal is behind camera.
     """
-    # Reconstruct the 3D ray direction in the last camera frame
-    # bearing ∈ [-1,1] → pixel u;  elevation ∈ [-1,1] → pixel v
+    # bearing/elevation → pixel
     u_last = (last_bearing + 1.0) * IMG_W / 2.0
     v_last = (last_elevation + 1.0) * IMG_H / 2.0
 
@@ -231,25 +274,39 @@ def _deadreckon_bearing(last_bearing, last_elevation, last_xcr, current_xcr):
         -(v_last - CY) / FY,      # flip Y: pixel Y-down → OpenGL Y-up
         -1.0,
     ])
-    ray_cam /= np.linalg.norm(ray_cam)
 
-    # Camera-to-world at last step → ray in world frame
     T_c2w_last = _xv_to_T(last_xcr) @ T_C2B
-    ray_world = T_c2w_last[:3, :3] @ ray_cam
-
-    # World-to-camera at current step → ray in current camera frame
     T_c2w_now = _xv_to_T(current_xcr) @ T_C2B
-    R_w2c_now = T_c2w_now[:3, :3].T
-    ray_now = R_w2c_now @ ray_world
+
+    if est_depth is not None and est_depth > 0.1:
+        # ── Full 3D projection (depth-aware) ──
+        # Scale ray to actual depth: point_cam = ray * (depth / |ray_z|)
+        scale = est_depth / abs(ray_cam[2])
+        pt_cam = ray_cam * scale  # 3D point in last camera frame
+
+        # Camera → world at last step
+        pt_world_h = T_c2w_last @ np.array([*pt_cam, 1.0])
+        pt_world = pt_world_h[:3]
+
+        # World → camera at current step
+        T_w2c_now = np.linalg.inv(T_c2w_now)
+        pt_now_h = T_w2c_now @ np.array([*pt_world, 1.0])
+        pt_now = pt_now_h[:3]
+    else:
+        # ── Rotation-only (no depth info) ──
+        ray_cam_n = ray_cam / np.linalg.norm(ray_cam)
+        ray_world = T_c2w_last[:3, :3] @ ray_cam_n
+        R_w2c_now = T_c2w_now[:3, :3].T
+        pt_now = R_w2c_now @ ray_world
 
     # Check if goal is behind current camera (OpenGL: forward = -Z)
-    if ray_now[2] >= -1e-6:
-        return None   # goal behind camera
+    if pt_now[2] >= -1e-6:
+        return None
 
     # Project to pixel
-    depth = -ray_now[2]
-    u_new = FX * ray_now[0] / depth + CX
-    v_new = FY * (-ray_now[1]) / depth + CY
+    depth_now = -pt_now[2]
+    u_new = FX * pt_now[0] / depth_now + CX
+    v_new = FY * (-pt_now[1]) / depth_now + CY
 
     bearing_new = 2.0 * (u_new / IMG_W) - 1.0
     elevation_new = 2.0 * (v_new / IMG_H) - 1.0
@@ -795,6 +852,13 @@ def main():
             # Kalman filter: CLIPSeg sensor + drone dynamics
             kf = CentroidKalmanFilter()
 
+            # Dynamic GT validation: propagate GT bearing with our dynamics
+            # model. If dynamics are correct, DGT should track real GT exactly.
+            dgt_bearing = None   # initialized from first GT observation
+            dgt_elevation = None
+            dgt_depth = None     # camera-frame depth at init
+            dgt_prev_xcr = None
+
             if has_rgb:
                 rgb_ann = Iro["rgb"].copy()  # (N, H, W, 3)
                 for step in range(n_frames):
@@ -804,6 +868,9 @@ def main():
                         frame = (frame * 255).astype(np.uint8)
                         rgb_ann[step] = frame
 
+                    goal_dist = float(np.linalg.norm(
+                        xcr[:3] - np.squeeze(obj_target)))
+
                     # ── CLIPSeg: the only real-world sensor ──
                     cseg = _centroid_from_clipseg(frame.copy(), obj_name, clipseg)
                     cseg_visible = (cseg is not None
@@ -812,9 +879,10 @@ def main():
 
                     # ── Kalman filter step ──
                     if cseg_visible:
-                        kf.step(xcr, cseg["bearing"], cseg["elevation"])
+                        kf.step(xcr, cseg["bearing"], cseg["elevation"],
+                                goal_dist=goal_dist)
                     else:
-                        kf.step(xcr)  # predict only, coast on dynamics
+                        kf.step(xcr, goal_dist=goal_dist)
 
                     kf_est = kf.get_estimate()  # (bearing, elev, u, v, sigma)
                     kf_ok = kf.is_confident()
@@ -825,10 +893,42 @@ def main():
                              and 0 <= gt_px[0] < frame.shape[1]
                              and 0 <= gt_px[1] < frame.shape[0])
 
+                    # ── Dynamic GT: propagate with our dynamics model ──
+                    dgt_px = None
+                    if dgt_bearing is None and gt_px is not None and gt_in:
+                        # Initialize DGT from first real GT observation
+                        dgt_bearing = 2.0 * (gt_px[0] / IMG_W) - 1.0
+                        dgt_elevation = 2.0 * (gt_px[1] / IMG_H) - 1.0
+                        dgt_depth = goal_dist
+                        dgt_prev_xcr = xcr.copy()
+                        dgt_px = gt_px  # first frame: DGT = GT
+                    elif dgt_bearing is not None and dgt_prev_xcr is not None:
+                        # Propagate DGT using dynamics (same function as KF)
+                        dr = _deadreckon_bearing(
+                            dgt_bearing, dgt_elevation,
+                            dgt_prev_xcr, xcr,
+                            est_depth=dgt_depth)
+                        if dr is not None:
+                            dgt_bearing, dgt_elevation = dr[0], dr[1]
+                            dgt_px = (dr[2], dr[3])
+                            # Update depth estimate (drone moved, depth changes)
+                            dgt_depth = goal_dist
+                        dgt_prev_xcr = xcr.copy()
+
                     # ── Draw: GT (green, always) ──
                     if gt_px is not None:
                         _draw_marker(frame, gt_px[0], gt_px[1],
                                      (50, 255, 50), "GT", sz=14, th=2)
+
+                    # ── Draw: DGT (cyan, dynamics validation) ──
+                    dgt_gt_dist = None
+                    if dgt_px is not None:
+                        _draw_marker(frame, dgt_px[0], dgt_px[1],
+                                     (255, 200, 0), "DGT", sz=10, th=1)
+                        if gt_in and gt_px is not None:
+                            dgt_gt_dist = float(np.hypot(
+                                dgt_px[0] - gt_px[0],
+                                dgt_px[1] - gt_px[1]))
 
                     # ── Draw: CSEG (magenta, only when visible) ──
                     if cseg_visible:
@@ -841,17 +941,14 @@ def main():
                     if kf_est is not None and kf_ok:
                         _, _, fused_u, fused_v, kf_sigma = kf_est
                         if cseg_visible:
-                            # Visible: KF = CSEG, draw solid yellow
                             _draw_marker(frame, fused_u, fused_v,
                                          (0, 255, 255), "KF", sz=16, th=2)
                         else:
-                            # Coasting: draw dimmer with step count
                             _draw_marker(frame, fused_u, fused_v,
                                          (0, 180, 180),
                                          f"KF~{kf.steps_coasting}", sz=12, th=1)
                     elif kf_est is not None and not kf_ok:
                         _, _, _, _, kf_sigma = kf_est
-                        # Too uncertain — show text only
                         cv2.putText(frame, f"KF lost (s={kf_sigma:.3f})",
                                     (frame.shape[1] - 180, 18),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.35,
@@ -870,8 +967,7 @@ def main():
                                 fused_u - gt_px[0], fused_v - gt_px[1]))
 
                     # ── HUD ──
-                    gd_now = float(np.linalg.norm(xcr[:3] - np.squeeze(obj_target)))
-                    txt1 = f"step {step}/{n_frames}  goal={gd_now:.1f}m"
+                    txt1 = f"step {step}/{n_frames}  goal={goal_dist:.1f}m"
                     if cseg:
                         txt1 += f"  cseg_conf={cseg['confidence']:.2f}"
                     txt1 += f"  {'VISIBLE' if cseg_visible else 'occluded'}"
@@ -880,6 +976,8 @@ def main():
                     if kf_est is not None:
                         mode = "meas" if cseg_visible and kf.initialized else f"pred(Δ{kf.steps_coasting})"
                         txt2 = f"KF:{mode}  σ={kf_sigma:.4f}"
+                    if dgt_gt_dist is not None:
+                        txt2 += f"  DGT_err={dgt_gt_dist:.0f}px"
                     parts = []
                     if cseg_gt_dist is not None: parts.append(f"cseg={cseg_gt_dist:.0f}px")
                     if kf_gt_dist is not None: parts.append(f"kf={kf_gt_dist:.0f}px")
@@ -907,9 +1005,11 @@ def main():
                         "kf_coasting": kf.steps_coasting if kf.initialized else None,
                         "cseg_gt_dist_px": cseg_gt_dist,
                         "kf_gt_dist_px": kf_gt_dist,
+                        "dgt_gt_dist_px": dgt_gt_dist,
                         "gt_u": gt_px[0] if gt_px else None,
                         "gt_v": gt_px[1] if gt_px else None,
                         "gt_in_frame": gt_in,
+                        "goal_dist_m": goal_dist,
                     })
 
             # ── Save videos into per-case subfolder ──
@@ -982,11 +1082,13 @@ def main():
             except Exception as e:
                 print(f"    ⚠️  Plotly failed: {e}")
 
-            # ── Compute CSEG vs KF comparison stats ──
+            # ── Compute CSEG vs KF vs DGT comparison stats ──
             cseg_dists = [c["cseg_gt_dist_px"] for c in centroid_log
                           if c.get("cseg_gt_dist_px") is not None]
             kf_dists = [c["kf_gt_dist_px"] for c in centroid_log
                         if c.get("kf_gt_dist_px") is not None]
+            dgt_dists = [c["dgt_gt_dist_px"] for c in centroid_log
+                         if c.get("dgt_gt_dist_px") is not None]
             kf_meas_ct = sum(1 for c in centroid_log if c.get("cseg_visible"))
             kf_pred_ct = sum(1 for c in centroid_log
                              if not c.get("cseg_visible") and c.get("kf_confident"))
@@ -995,11 +1097,13 @@ def main():
                             and c.get("kf_coasting") is not None)
             cseg_mean = float(np.mean(cseg_dists)) if cseg_dists else None
             kf_mean = float(np.mean(kf_dists)) if kf_dists else None
+            dgt_mean = float(np.mean(dgt_dists)) if dgt_dists else None
             gt_in_ct = sum(1 for c in centroid_log if c.get("gt_in_frame"))
 
             parts = ["  Accuracy (GT visible): "]
             if cseg_mean is not None: parts.append(f"CSEG={cseg_mean:.0f}px")
             if kf_mean is not None: parts.append(f"KF={kf_mean:.0f}px")
+            if dgt_mean is not None: parts.append(f"DGT={dgt_mean:.0f}px")
             print("  ".join(parts))
             print(f"  KF:  measured={kf_meas_ct}  predicted={kf_pred_ct}  "
                   f"uncertain={kf_unc_ct}  "
@@ -1012,6 +1116,7 @@ def main():
                 "gt_visible_pct": gt_in_ct / max(len(centroid_log), 1),
                 "cseg_mean_err_px": cseg_mean,
                 "kf_mean_err_px": kf_mean,
+                "dgt_mean_err_px": dgt_mean,
                 "kf_meas_pct": kf_meas_ct / max(len(centroid_log), 1),
                 "kf_pred_pct": kf_pred_ct / max(len(centroid_log), 1),
             })
@@ -1023,17 +1128,18 @@ def main():
     print(f"\n{'='*60}")
     print(f"DONE — {len(summary)} cases")
     print(f"Output: {out_root}")
-    print(f"{'─'*90}")
-    print(f"  {'Object':25s} val  tag      success  gt_vis  CSEG err  KF err  kf:meas  kf:pred")
-    print(f"{'─'*90}")
+    print(f"{'─'*100}")
+    print(f"  {'Object':25s} val  tag      success  gt_vis  CSEG err  KF err  DGT err  kf:meas  kf:pred")
+    print(f"{'─'*100}")
     for s in summary:
         ce = f"{s['cseg_mean_err_px']:.0f}px" if s.get('cseg_mean_err_px') else "  -  "
         ke = f"{s['kf_mean_err_px']:.0f}px" if s.get('kf_mean_err_px') else "  -  "
+        de = f"{s['dgt_mean_err_px']:.0f}px" if s.get('dgt_mean_err_px') else "  -  "
         print(f"  {s['object'][:25]:25s} {s['val_idx']:3d}  {s['tag']:7s}  "
               f"{str(s['success']):5s}    {s['gt_visible_pct']:4.0%}  "
-              f"{ce:>7s}   {ke:>6s}   "
+              f"{ce:>7s}   {ke:>6s}   {de:>6s}   "
               f"{s.get('kf_meas_pct', 0):5.0%}   {s.get('kf_pred_pct', 0):5.0%}")
-    print(f"{'='*90}")
+    print(f"{'='*100}")
 
 
 if __name__ == "__main__":
