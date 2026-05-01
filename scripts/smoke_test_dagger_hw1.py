@@ -2,8 +2,12 @@
 """
 HW1-style DAgger on 15 TRAINING branches (5/object: 3 success + 2 worst fail).
 
-Phase 1: Verify seed=42 branch mapping (6 sims: 1 fail + 1 success per object)
-Phase 2: DAgger rounds on the 15 selected branches
+Pure HW1 formalism:
+  - Learner rollout (beta=0), expert relabels at learner-visited states
+  - Aggregate all annotations raw (no filtering)
+  - Retrain from BC weights each round on BC + DAgger data
+
+Crash-resilient: saves annotations + results after each step, resumes on restart.
 
 Branch selection from canonical bc_vs_dagger results.json (seed=42 mapping):
   Clock:       5, 115 (COLL)  +  47, 91, 64 (OK)
@@ -31,6 +35,7 @@ sys.path.insert(0, os.path.join(WORKSPACE, "src"))
 from sousvide.instruct.train_dagger import (
     _get_scene, _load_all_branches, _evaluate_run, _swap_model, _get_pkl,
     _preload_bc_trajectories, _save_benchmark_plotly, _make_terminal_fn,
+    _retrain_commander,
     DEVICE, SUCCESS_RADIUS,
 )
 from sousvide.control.pilot import Pilot
@@ -55,19 +60,15 @@ LR = 2e-5
 BATCH_SIZE = 64
 COHORT = "SSV_DAGGER_HW1_15BR"
 
+# Checkpoint directory
+CKPT_DIR = os.path.join(WORKSPACE, "cohorts", COHORT, "checkpoints")
+
 # Selected branches: actual_branch_id from all_branches[]
 # 3 success + 2 worst collision per object
 SELECTED = {
     "green clock":        {"fail": [5, 115], "success": [47, 91, 64]},
     "green and pink leafblower": {"fail": [1, 111], "success": [37, 15, 81]},
     "yellow handheld cordless drill on two boxes": {"fail": [2, 27], "success": [10, 35, 17]},
-}
-
-# Expected BC outcomes from results.json (for verification)
-VERIFY = {
-    "green clock":        {"fail_branch": 5,  "fail_goal": 6.17, "success_branch": 47, "success_goal": 2.89},
-    "green and pink leafblower": {"fail_branch": 1, "fail_goal": 2.92, "success_branch": 37, "success_goal": 2.15},
-    "yellow handheld cordless drill on two boxes": {"fail_branch": 2, "fail_goal": 1.45, "success_branch": 10, "success_goal": 1.69},
 }
 
 
@@ -128,9 +129,67 @@ def run_sim(simulator, policy, tXUi, obj_name, early_stop_fn=None):
     )
 
 
-def evaluate_branches(pilot, model_path, branches_dict, scene_data, label,
-                      output_dir=None):
-    """Evaluate pilot on selected branches. Returns per-object results + diagnostics."""
+# ──────────────────────────────────────────────────────────────────────────────
+# Checkpoint helpers
+# ──────────────────────────────────────────────────────────────────────────────
+def _ckpt_path(round_i, step):
+    """Return checkpoint file path for a given round and step."""
+    return os.path.join(CKPT_DIR, f"round_{round_i}_{step}.pt")
+
+
+def _save_checkpoint(round_i, step, data):
+    os.makedirs(CKPT_DIR, exist_ok=True)
+    path = _ckpt_path(round_i, step)
+    torch.save(data, path)
+    print(f"  [ckpt] Saved {step} -> {path}")
+
+
+def _load_checkpoint(round_i, step):
+    path = _ckpt_path(round_i, step)
+    if os.path.exists(path):
+        return torch.load(path, map_location="cpu", weights_only=False)
+    return None
+
+
+def find_resume_point():
+    """Find the last completed round and step.
+    Returns (last_completed_round, all_prior_annotations).
+    Round 0 = no DAgger done yet (start from scratch).
+    """
+    if not os.path.isdir(CKPT_DIR):
+        return 0, []
+
+    all_annotations = []
+    last_completed = 0
+
+    for r in range(1, N_ROUNDS + 1):
+        # Check if collection checkpoint exists
+        coll_data = _load_checkpoint(r, "collected")
+        if coll_data is None:
+            break
+        all_annotations.extend(coll_data["annotations"])
+
+        # Check if retrain + eval completed
+        eval_data = _load_checkpoint(r, "evaluated")
+        if eval_data is None:
+            # Collection done but retrain/eval not — resume from retrain
+            print(f"  [resume] Round {r}: collection done, retrain/eval pending")
+            return r - 1, all_annotations  # we'll redo retrain+eval for round r
+        last_completed = r
+
+    return last_completed, all_annotations
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Collection + evaluation in one pass (no separate BC baseline needed)
+# ──────────────────────────────────────────────────────────────────────────────
+def collect_and_evaluate(pilot, model_path, branches_dict, scene_data, round_i,
+                         output_dir=None, is_dagger=True):
+    """
+    Run learner on all branches. If is_dagger=True, also collect expert annotations.
+    Returns (annotations, per_object_results, diagnostics, overall_sr, overall_cr).
+    The collection IS the evaluation — no separate eval pass needed.
+    """
     from scipy.spatial import cKDTree
     pilot = _swap_model(pilot, model_path)
     simulator = scene_data["simulator"]
@@ -139,14 +198,16 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label,
     epcds_arr = scene_data.get("epcds_arr", np.zeros((0, 3)))
     pc_tree = cKDTree(epcds_arr) if epcds_arr.shape[0] > 0 else None
 
+    all_annotations = []
     per_object = {}
     all_diag = []
+    label = f"R{round_i}" if is_dagger else "BC"
 
     for obj_idx, obj_name in enumerate(queries):
         if obj_name not in branches_dict:
             continue
         obj_target = obj_targets[obj_idx]
-        branches = branches_dict[obj_name]  # list of (branch_id, tXUi)
+        branches = branches_dict[obj_name]
         successes, collisions, goal_dists = [], [], []
         obj_runs_for_plot = []
 
@@ -157,32 +218,52 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label,
                 env_min=scene_data.get("env_min"),
                 env_max=scene_data.get("env_max"),
             )
+
+            if is_dagger:
+                expert = VehicleRateMPC(tXUi, POLICY_NAME, FRAME_NAME, PILOT_NAME)
+                dagger_pol = DAggerPolicy(expert, pilot)
+                policy = dagger_pol
+            else:
+                policy = pilot
+
             _t = time.time()
-            result = run_sim(simulator, pilot, tXUi, obj_name,
+            result = run_sim(simulator, policy, tXUi, obj_name,
                              early_stop_fn=terminal_fn)
             Xro = result[1]
+            sim_s = time.time() - _t
+
             ev = _evaluate_run(Xro, obj_target, epcds_arr,
                                env_min=scene_data.get("env_min"),
                                env_max=scene_data.get("env_max"),
                                tXUi=tXUi, idx0=0)
-            s, c, gd = float(ev["success"]), float(ev["collision"]), float(ev["goal_dist"])
+
+            s = float(ev["success"])
+            c = float(ev["collision"])
+            gd = float(ev["goal_dist"])
             successes.append(s); collisions.append(c); goal_dists.append(gd)
             d0 = float(np.linalg.norm(tXUi[1:4, 0] - np.squeeze(obj_target)))
-            sim_s = time.time() - _t
             status = "OK" if s else ("COLL" if c else "MISS")
+            reason = term_info.get("reason", "timeout")
             dev = ev.get("mean_pos_dev", float("nan"))
             fov = ev.get("fov_pct", float("nan"))
 
-            print(f"  [{label}] {status:4s}  '{_short(obj_name)}'  branch={br_id}"
-                  f"  d0={d0:.1f}m  goal={gd:.2f}m  min={ev['min_goal_dist']:.2f}m"
-                  f"  dev={dev:.2f}m  fov={fov:.0%}  ({sim_s:.0f}s)")
+            if is_dagger:
+                n_ann = len(dagger_pol.annotations)
+                all_annotations.extend(dagger_pol.annotations)
+                print(f"  [{label}] {status:4s}  '{_short(obj_name)}'  branch={br_id}"
+                      f"  d0={d0:.1f}m  goal={gd:.2f}m  {n_ann} ann"
+                      f"  fov={fov:.0%}  stop={reason}  ({sim_s:.0f}s)")
+            else:
+                print(f"  [{label}] {status:4s}  '{_short(obj_name)}'  branch={br_id}"
+                      f"  d0={d0:.1f}m  goal={gd:.2f}m"
+                      f"  fov={fov:.0%}  stop={reason}  ({sim_s:.0f}s)")
 
             all_diag.append({
                 "object": obj_name, "branch_id": br_id, "d0": d0,
                 "success": bool(ev["success"]), "collision": bool(ev["collision"]),
                 "goal_dist": gd, "min_goal_dist": float(ev["min_goal_dist"]),
-                "mean_pos_dev": float(dev) if not math.isnan(dev) else None,
                 "fov_pct": float(fov) if not math.isnan(fov) else None,
+                "stop_reason": reason,
                 "sim_time_s": round(sim_s, 1),
             })
             if output_dir:
@@ -209,107 +290,7 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label,
 
     overall_sr = float(np.mean([v["success_rate"] for v in per_object.values()]))
     overall_cr = float(np.mean([v["collision_rate"] for v in per_object.values()]))
-    return per_object, all_diag, overall_sr, overall_cr
-
-
-def collect_dagger_data(pilot, model_path, branches_dict, scene_data, round_i):
-    """Deploy learner, expert relabels at visited states."""
-    from scipy.spatial import cKDTree
-    pilot = _swap_model(pilot, model_path)
-    simulator = scene_data["simulator"]
-    obj_targets = scene_data["obj_targets"]
-    queries = scene_data["queries"]
-    epcds_arr = scene_data.get("epcds_arr", np.zeros((0, 3)))
-    pc_tree = cKDTree(epcds_arr) if epcds_arr.shape[0] > 0 else None
-    all_annotations = []
-
-    for obj_idx, obj_name in enumerate(queries):
-        if obj_name not in branches_dict:
-            continue
-        obj_target = obj_targets[obj_idx]
-        for br_id, tXUi in branches_dict[obj_name]:
-            reset_pilot(pilot)
-            expert = VehicleRateMPC(tXUi, POLICY_NAME, FRAME_NAME, PILOT_NAME)
-            dagger_pol = DAggerPolicy(expert, pilot)
-            terminal_fn, term_info = _make_terminal_fn(
-                obj_target, pc_tree,
-                env_min=scene_data.get("env_min"),
-                env_max=scene_data.get("env_max"),
-            )
-            _t = time.time()
-            run_sim(simulator, dagger_pol, tXUi, obj_name,
-                    early_stop_fn=terminal_fn)
-            n_ann = len(dagger_pol.annotations)
-            reason = term_info.get("reason", "timeout")
-            print(f"  [R{round_i}] '{_short(obj_name)}'  branch={br_id}"
-                  f"  {n_ann} annotations  {reason}  ({time.time()-_t:.0f}s)")
-            all_annotations.extend(dagger_pol.annotations)
-
-    return all_annotations
-
-
-def retrain_commander_from_bc(dagger_annotations, round_i):
-    """Reload BC weights, train on BC + DAgger. Only CommanderSV."""
-    import sousvide.instruct.train_policy_unified as tp
-
-    student = Pilot(COHORT, PILOT_NAME)
-    bc_weights = torch.load(BC_MODEL_PATH, map_location="cpu", weights_only=False)
-    student.model = bc_weights
-    student.set_mode('train')
-
-    Xnn_dag, Ynn_dag = [], []
-    default_mfn = np.array([0.3, 0.3], dtype=np.float32)
-    for ann in dagger_annotations:
-        xnn = ann.get("xnn")
-        if not xnn:
-            continue
-        ynn = {
-            "unn": np.array(ann["u"], dtype=np.float32),
-            "mfn": default_mfn.copy(),
-            "onn": np.array(ann["x"], dtype=np.float32),
-        }
-        Xnn_dag.append(xnn)
-        Ynn_dag.append(ynn)
-
-    print(f"  [retrain R{round_i}] {len(Xnn_dag)} DAgger samples")
-
-    obs_data = {
-        "data": [{"Xnn": Xnn_dag, "Ynn": Ynn_dag, "Ndata": len(Xnn_dag),
-                  "rollout_id": 0, "course": "dagger",
-                  "frame": {"mass": 0.3, "force_normalized": 0.3}}],
-        "set": "", "Nobs": len(Xnn_dag), "course": "dagger",
-    }
-    course_dir = os.path.join(
-        WORKSPACE, "cohorts", COHORT, "observation_data", PILOT_NAME, "dagger")
-    os.makedirs(course_dir, exist_ok=True)
-    torch.save(obs_data, os.path.join(course_dir, "observations_dagger.pt"))
-
-    bc_obs = os.path.join(WORKSPACE, "cohorts", BC_COHORT, "observation_data", PILOT_NAME)
-    dag_obs = os.path.join(WORKSPACE, "cohorts", COHORT, "observation_data", PILOT_NAME)
-    if os.path.isdir(bc_obs):
-        for entry in os.scandir(bc_obs):
-            if not entry.is_dir() or entry.name == "dagger":
-                continue
-            link = os.path.join(dag_obs, entry.name)
-            if not os.path.exists(link):
-                os.symlink(entry.path, link)
-
-    if hasattr(student.model, 'get_network') and "Commander" in student.model.get_network:
-        student.model.get_network["Commander"]["Unlock"] = nn.ModuleList(
-            [student.model.network["CommanderSV"]])
-        n_vis = sum(p.numel() for p in student.model.network["VisionMLP"].parameters())
-        n_cmd = sum(p.numel() for p in student.model.network["CommanderSV"].parameters())
-        print(f"  [retrain R{round_i}] VisionMLP frozen ({n_vis:,}) -- CommanderSV ({n_cmd:,}) trained")
-
-    tp.train_student(COHORT, student, "Commander", N_EPOCHS_PER_ROUND,
-                     lim_sv=10, lr=LR, batch_size=BATCH_SIZE)
-
-    model_dir = os.path.join(WORKSPACE, "cohorts", COHORT, "roster", PILOT_NAME)
-    os.makedirs(model_dir, exist_ok=True)
-    model_path = os.path.join(model_dir, "model.pth")
-    torch.save(student.model, model_path)
-    print(f"  [retrain R{round_i}] Model saved -> {model_path}")
-    return model_path
+    return all_annotations, per_object, all_diag, overall_sr, overall_cr
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -327,22 +308,20 @@ def main():
     print(f"  Epochs/round: {N_EPOCHS_PER_ROUND}")
     print(f"  LR          : {LR}")
     print(f"  Cohort      : {COHORT}")
+    print(f"  Checkpoints : {CKPT_DIR}")
     print(f"  Output      : {out_dir}")
     print("=" * 70)
 
     # ── Phase 0: Load scene + branches ──
     print("\n[Phase 0] Loading scene + BC trajectories...")
     scene_data = _get_scene(SCENE, SCENES_CFG)
-    simulator = scene_data["simulator"]
-    obj_targets = scene_data["obj_targets"]
     queries = scene_data["queries"]
     flights = [[SCENE, SCENE]]
     _preload_bc_trajectories(BC_COHORT, flights, SCENES_CFG)
 
-    # Build branch lookup: obj_name -> list of (branch_id, tXUi)
     all_branch_data = {}
     selected_branches = {}
-    for obj_idx, obj_name in enumerate(queries):
+    for obj_name in queries:
         if obj_name not in SELECTED:
             continue
         pkl_data = _get_pkl(SCENE, obj_name, SCENES_CFG)
@@ -359,123 +338,155 @@ def main():
         print(f"  '{obj_name}': {len(branch_ids)} branches  ids={branch_ids}"
               f"  (from {len(all_branches)} total)")
 
-    # ── Phase 1: Verify mapping (1 fail + 1 success per object = 6 sims) ──
-    print(f"\n{'='*70}")
-    print("[Phase 1] Verifying seed=42 branch mapping (6 sims)...")
-    print(f"{'='*70}")
+    # ── Check for resume ──
+    last_completed, prior_annotations = find_resume_point()
+    if last_completed > 0:
+        print(f"\n  [resume] Resuming from round {last_completed + 1}"
+              f" ({len(prior_annotations)} prior annotations)")
 
     pilot = Pilot(BC_COHORT, PILOT_NAME)
     pilot.set_mode('deploy')
 
-    verify_branches = {}
-    for obj_name in queries:
-        if obj_name not in VERIFY:
-            continue
-        v = VERIFY[obj_name]
-        ab = all_branch_data[obj_name]
-        verify_branches[obj_name] = [
-            (v["fail_branch"], ab[v["fail_branch"]]),
-            (v["success_branch"], ab[v["success_branch"]]),
-        ]
-
-    v_results, v_diag, _, _ = evaluate_branches(
-        pilot, BC_MODEL_PATH, verify_branches, scene_data, label="VERIFY")
-
-    # Check verification
-    all_ok = True
-    print(f"\n  Verification check:")
-    for obj_name, diags in zip(queries, []):
-        pass  # handled below
-    for d in v_diag:
-        obj = d["object"]
-        v = VERIFY[obj]
-        bid = d["branch_id"]
-        if bid == v["fail_branch"]:
-            expected_coll = True
-            expected_goal = v["fail_goal"]
-        else:
-            expected_coll = False
-            expected_goal = v["success_goal"]
-
-        goal_diff = abs(d["goal_dist"] - expected_goal)
-        status_match = d["collision"] == expected_coll if expected_coll else d["success"]
-        ok = status_match and goal_diff < 2.0  # allow some tolerance due to stochastic sim
-
-        sym = "PASS" if ok else "FAIL"
-        if not ok:
-            all_ok = False
-        print(f"    {sym}  '{_short(obj)}'  branch={bid}"
-              f"  expected={'COLL' if expected_coll else 'OK'}(goal~{expected_goal:.1f}m)"
-              f"  got={'COLL' if d['collision'] else 'OK'}(goal={d['goal_dist']:.2f}m)"
-              f"  diff={goal_diff:.2f}m")
-
-    if not all_ok:
-        print("\n  WARNING: Some verifications failed. Proceeding anyway (sim is stochastic).")
-    else:
-        print("\n  All verifications PASSED. Branch mapping confirmed.")
-
-    # ── Phase 2: BC baseline on all 15 branches ──
-    print(f"\n{'='*70}")
-    print("[Phase 2] BC baseline on 15 selected branches...")
-    print(f"{'='*70}")
-    bc_results, bc_diag, bc_sr, bc_cr = evaluate_branches(
-        pilot, BC_MODEL_PATH, selected_branches, scene_data, label="BC",
-        output_dir=out_dir)
-    print(f"\n  BC baseline: {bc_sr:.0%} success, {bc_cr:.0%} collision")
-
-    # ── Phase 3: DAgger rounds ──
+    # ── DAgger rounds ──
     model_path = BC_MODEL_PATH
-    all_annotations = []
-    round_results = [{"round": 0, "label": "BC", "results": bc_results,
-                      "overall_sr": bc_sr, "overall_cr": bc_cr}]
+    all_annotations = list(prior_annotations)
+    round_results = []
 
-    for r in range(1, N_ROUNDS + 1):
+    # If resuming, reload the model from last completed round
+    if last_completed > 0:
+        model_dir = os.path.join(WORKSPACE, "cohorts", COHORT, "roster", PILOT_NAME)
+        round_model = os.path.join(model_dir, f"model_round_{last_completed}.pth")
+        fallback_model = os.path.join(model_dir, "model.pth")
+        if os.path.exists(round_model):
+            model_path = round_model
+            print(f"  [resume] Using model from round {last_completed}: {model_path}")
+        elif os.path.exists(fallback_model):
+            model_path = fallback_model
+            print(f"  [resume] Using model.pth (round {last_completed}): {model_path}")
+
+    start_round = last_completed + 1
+
+    # Round 0 = BC baseline (collection without DAgger = just eval)
+    if start_round <= 1:
+        # First DAgger round also serves as BC baseline — the learner IS the BC model
+        # on the first pass, so its performance = BC performance
+        pass
+
+    for r in range(start_round, N_ROUNDS + 1):
         print(f"\n{'='*70}")
-        print(f"[Phase 3] DAgger Round {r}/{N_ROUNDS}")
+        print(f"[DAgger Round {r}/{N_ROUNDS}]"
+              f"  (total annotations so far: {len(all_annotations)})")
         print(f"{'='*70}")
 
-        # Collect
-        print(f"\n  Collecting DAgger data...")
-        anns = collect_dagger_data(pilot, model_path, selected_branches,
-                                   scene_data, r)
-        all_annotations.extend(anns)
-        print(f"  Round {r}: {len(anns)} new, {len(all_annotations)} total")
+        # ── Collect (= run learner + expert relabel) ──
+        # Check if collection already done for this round
+        coll_ckpt = _load_checkpoint(r, "collected")
+        if coll_ckpt is not None:
+            new_anns = coll_ckpt["annotations"]
+            print(f"  [resume] Round {r} collection loaded from checkpoint"
+                  f" ({len(new_anns)} annotations)")
+        else:
+            print(f"\n  Collecting DAgger data (learner rollout + expert relabel)...")
+            new_anns, coll_results, coll_diag, coll_sr, coll_cr = \
+                collect_and_evaluate(pilot, model_path, selected_branches,
+                                     scene_data, round_i=r, output_dir=out_dir,
+                                     is_dagger=True)
+            print(f"  Round {r}: {len(new_anns)} new annotations"
+                  f"  |  learner: {coll_sr:.0%} success, {coll_cr:.0%} collision")
 
-        # Retrain
-        print(f"\n  Retraining Commander...")
-        model_path = retrain_commander_from_bc(all_annotations, r)
+            # Save collection checkpoint
+            _save_checkpoint(r, "collected", {
+                "annotations": new_anns,
+                "results": coll_results,
+                "diagnostics": coll_diag,
+                "overall_sr": coll_sr,
+                "overall_cr": coll_cr,
+            })
 
-        # Evaluate
-        print(f"\n  Evaluating after Round {r}...")
-        r_res, r_diag, r_sr, r_cr = evaluate_branches(
-            pilot, model_path, selected_branches, scene_data, label=f"R{r}",
-            output_dir=out_dir)
-        print(f"\n  Round {r}: {r_sr:.0%} success, {r_cr:.0%} collision")
+        all_annotations.extend(new_anns)
+        print(f"  Total annotations: {len(all_annotations)}")
 
-        round_results.append({"round": r, "label": f"R{r}", "results": r_res,
-                              "overall_sr": r_sr, "overall_cr": r_cr,
-                              "n_annotations": len(all_annotations),
-                              "diag": r_diag})
+        # ── Retrain ──
+        print(f"\n  Retraining Commander (BC + DAgger, {N_EPOCHS_PER_ROUND} epochs, lr={LR})...")
+
+        # Save aggregated annotations for _retrain_commander
+        agg_dir = os.path.join(WORKSPACE, "cohorts", COHORT, "dagger_data", PILOT_NAME)
+        os.makedirs(agg_dir, exist_ok=True)
+        agg_file = os.path.join(agg_dir, "aggregated_annotations.pt")
+        torch.save(all_annotations, agg_file)
+
+        # Reload BC weights and retrain using pipeline function
+        import shutil
+        model_dir = os.path.join(WORKSPACE, "cohorts", COHORT, "roster", PILOT_NAME)
+        os.makedirs(model_dir, exist_ok=True)
+        dst_model = os.path.join(model_dir, "model.pth")
+        shutil.copy2(BC_MODEL_PATH, dst_model)
+
+        _retrain_commander(
+            cohort_name=COHORT,
+            pilot_name=PILOT_NAME,
+            aggregated_file=agg_file,
+            Nep=N_EPOCHS_PER_ROUND,
+            lim_sv=10,
+            lr=LR,
+            bc_cohort_name=BC_COHORT,
+            dagger_only=False,
+            freeze_vision=True,
+        )
+        model_path = dst_model
+
+        # Save per-round model weights
+        round_model = os.path.join(model_dir, f"model_round_{r}.pth")
+        shutil.copy2(dst_model, round_model)
+        print(f"  Model saved -> {model_path}  (copy: {round_model})")
+
+        # ── Evaluate retrained model ──
+        print(f"\n  Evaluating retrained model...")
+        _, eval_results, eval_diag, eval_sr, eval_cr = \
+            collect_and_evaluate(pilot, model_path, selected_branches,
+                                 scene_data, round_i=r, output_dir=out_dir,
+                                 is_dagger=False)
+        print(f"\n  Round {r} eval: {eval_sr:.0%} success, {eval_cr:.0%} collision")
+
+        # Save eval checkpoint
+        _save_checkpoint(r, "evaluated", {
+            "results": eval_results,
+            "diagnostics": eval_diag,
+            "overall_sr": eval_sr,
+            "overall_cr": eval_cr,
+        })
+
+        round_results.append({
+            "round": r,
+            "n_new_annotations": len(new_anns),
+            "n_total_annotations": len(all_annotations),
+            "collection": {"sr": coll_ckpt["overall_sr"] if coll_ckpt else coll_sr,
+                           "cr": coll_ckpt["overall_cr"] if coll_ckpt else coll_cr},
+            "eval": {"sr": eval_sr, "cr": eval_cr},
+            "eval_per_object": eval_results,
+        })
 
     # ── Summary ──
     print(f"\n{'='*70}")
     print(f"[SUMMARY] HW1 DAgger -- {N_ROUNDS} rounds on 15 branches")
     print(f"{'='*70}")
-    header = f"  {'Round':8} {'Success':>8} {'Collision':>10} {'Annotations':>12}"
+    header = f"  {'Round':8} {'Coll SR':>8} {'Coll CR':>8} {'Eval SR':>8} {'Eval CR':>8} {'Annotations':>12}"
     print(header)
     print("  " + "-" * (len(header) - 2))
     for rr in round_results:
-        n_ann = rr.get("n_annotations", 0)
-        print(f"  {rr['label']:8} {rr['overall_sr']:>7.0%} {rr['overall_cr']:>9.0%} {n_ann:>12}")
+        print(f"  R{rr['round']:<7} {rr['collection']['sr']:>7.0%}"
+              f" {rr['collection']['cr']:>7.0%}"
+              f" {rr['eval']['sr']:>7.0%}"
+              f" {rr['eval']['cr']:>7.0%}"
+              f" {rr['n_total_annotations']:>12}")
 
-    print(f"\n  Per-object success rates:")
+    print(f"\n  Per-object eval success rates:")
+    obj_names = [q for q in queries if q in SELECTED]
     print(f"  {'Object':30} " + " ".join(f"{'R'+str(rr['round']):>6}" for rr in round_results))
-    for obj_name in queries:
-        if obj_name not in SELECTED:
-            continue
+    for obj_name in obj_names:
         cells = []
         for rr in round_results:
-            sr = rr["results"].get(obj_name, {}).get("success_rate", float("nan"))
+            sr = rr["eval_per_object"].get(obj_name, {}).get("success_rate", float("nan"))
             cells.append(f"{sr:>5.0%}")
         print(f"  {obj_name[:30]:30} " + " ".join(cells))
     print(f"{'='*70}")
@@ -489,19 +500,13 @@ def main():
         },
         "selected_branches": {k: {"fail": v["fail"], "success": v["success"]}
                               for k, v in SELECTED.items()},
-        "verification": v_diag,
-        "rounds": [{
-            "round": rr["round"], "label": rr["label"],
-            "overall_sr": rr["overall_sr"], "overall_cr": rr["overall_cr"],
-            "n_annotations": rr.get("n_annotations", 0),
-            "per_object": rr["results"],
-        } for rr in round_results],
+        "rounds": round_results,
     }
     out_path = os.path.join(out_dir, "hw1_dagger_results.json")
     with open(out_path, "w") as f:
         json.dump(summary, f, indent=2, default=float)
     print(f"\nResults saved to {out_path}")
-    print(f"Plotly visualizations in {out_dir}/plots/")
+    print(f"Checkpoints in {CKPT_DIR}")
 
 
 if __name__ == "__main__":
