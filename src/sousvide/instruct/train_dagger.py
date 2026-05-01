@@ -586,6 +586,63 @@ SUCCESS_RADIUS   = EXCLUSION_RADIUS + 2 * COLLISION_RADIUS  # 2.3m — matches M
 HORIZONTAL_FOV   = np.radians(85)  # 85° camera FOV (logged, not enforced)
 
 
+def _make_terminal_fn(goal, pc_tree, env_min=None, env_max=None):
+    """Build an early-stop callback for the simulator.
+
+    Stops simulation when the drone:
+      (a) enters the goal zone (≤ SUCCESS_RADIUS)  → terminal success
+      (b) collides with point cloud (clearance < COLLISION_RADIUS) → terminal collision
+      (c) goes out of bounds → terminal collision
+
+    Args:
+        goal: 3D goal position (array-like)
+        pc_tree: scipy.spatial.cKDTree of scene point cloud (or None)
+        env_min/max: scene boundaries (or None)
+
+    Returns:
+        early_stop_fn(xcr, k) → bool
+        terminal_info dict (mutated in-place by callback with terminal reason)
+    """
+    goal_flat = np.asarray(goal).flatten()[:3]
+    env_min_arr = np.asarray(env_min).flatten()[:3] if env_min is not None else None
+    env_max_arr = np.asarray(env_max).flatten()[:3] if env_max is not None else None
+    info = {"reason": None, "step": -1}
+
+    def _terminal_check(xcr, k):
+        pos = xcr[:3]
+        # Success: goal zone AND goal in FOV
+        goal_dist = float(np.linalg.norm(pos - goal_flat))
+        if goal_dist <= SUCCESS_RADIUS:
+            # Check FOV: is goal within camera horizontal FOV?
+            dx = goal_flat[0] - pos[0]
+            dy = goal_flat[1] - pos[1]
+            req_yaw = np.arctan2(dy, dx)
+            qx, qy, qz, qw = xcr[6], xcr[7], xcr[8], xcr[9]
+            act_yaw = np.arctan2(2 * (qw * qz + qx * qy),
+                                 1 - 2 * (qy**2 + qz**2))
+            yaw_err = abs(act_yaw - req_yaw)
+            if yaw_err > np.pi:
+                yaw_err = 2 * np.pi - yaw_err
+            if yaw_err <= (HORIZONTAL_FOV / 2):
+                info["reason"] = "success"
+                info["step"] = k
+                return True
+        if pc_tree is not None:
+            d, _ = pc_tree.query(pos, k=1)
+            if d < COLLISION_RADIUS:
+                info["reason"] = "collision_pc"
+                info["step"] = k
+                return True
+        if env_min_arr is not None and env_max_arr is not None:
+            if np.any(pos < env_min_arr) or np.any(pos > env_max_arr):
+                info["reason"] = "collision_oob"
+                info["step"] = k
+                return True
+        return False
+
+    return _terminal_check, info
+
+
 def _evaluate_run(
     Xro: np.ndarray,
     obj_target: np.ndarray,
@@ -622,6 +679,7 @@ def _evaluate_run(
     # Distance to goal at each timestep
     goal_dists = np.linalg.norm(positions - obj_target, axis=1)
     min_goal_dist = float(goal_dists.min())
+    min_goal_step = int(np.argmin(goal_dists))
     final_goal_dist = float(goal_dists[-1])
 
     # First entry into goal zone (any timestep)
@@ -631,13 +689,21 @@ def _evaluate_run(
 
     # ── Collision detection ──
 
-    # (a) Point-cloud proximity
+    # (a) Point-cloud proximity + clearance
     collided_pc = False
     collision_step = n_steps
+    min_clearance = float('inf')
+    min_clearance_step = -1
+    clearance_array = None  # per-step clearance for forensics
     if pc_bench.shape[0] > 0:
         Xro_t = torch.from_numpy(Xro[:3].T).float().to(DEVICE)
         pc_t  = torch.from_numpy(pc_bench).float().to(DEVICE)
         dists_to_pc = torch.cdist(Xro_t, pc_t)  # (N, M)
+        # Min clearance per timestep (distance to nearest obstacle)
+        per_step_clearance = dists_to_pc.min(dim=1).values  # (N,)
+        clearance_array = per_step_clearance.cpu().numpy()
+        min_clearance = float(per_step_clearance.min())
+        min_clearance_step = int(per_step_clearance.argmin())
         collision_mask = (dists_to_pc < collision_radius).any(dim=1)  # (N,)
         if collision_mask.any():
             collided_pc = True
@@ -741,12 +807,28 @@ def _evaluate_run(
                     fov_count += 1
             fov_pct = fov_count / max(T_dev, 1)
 
+    # ── Collision diagnostics ──
+    collision_type = "none"
+    collision_position = None
+    collision_dist_to_goal = float('nan')
+    actual_collision_step = -1
+    if collided:
+        actual_collision_step = collision_step if collision_step < n_steps else -1
+        if collided_pc and (not out_of_bounds or collision_step <= oob_step):
+            collision_type = "pc"
+        else:
+            collision_type = "oob"
+        if actual_collision_step >= 0 and actual_collision_step < n_steps:
+            collision_position = Xro[:3, actual_collision_step].tolist()
+            collision_dist_to_goal = float(goal_dists[actual_collision_step])
+
     return {
         "success":              success,
         "collision":            collided_before_goal,
         "collided_before_goal": collided_before_goal,
         "goal_dist":            final_goal_dist,
         "min_goal_dist":        min_goal_dist,
+        "min_goal_step":        min_goal_step,
         "first_entry_step":     first_entry_step,
         "goal_in_fov":          goal_in_fov,
         "out_of_bounds":        out_of_bounds,
@@ -754,6 +836,14 @@ def _evaluate_run(
         "mean_pos_dev":         mean_pos_dev,
         "mean_orient_dev_deg":  mean_orient_dev_deg,
         "fov_pct":              fov_pct,
+        "n_steps":              n_steps,
+        "collision_step":       actual_collision_step,
+        "collision_type":       collision_type,
+        "collision_position":   collision_position,
+        "collision_dist_to_goal": collision_dist_to_goal,
+        "min_clearance":        min_clearance,
+        "min_clearance_step":   min_clearance_step,
+        "clearance_array":      clearance_array,  # numpy array (N,) or None
     }
 
 
@@ -854,46 +944,97 @@ def _save_benchmark_plotly(
     save_path: str,
     reference_branches: list = None,
 ) -> None:
-    """Save interactive Plotly HTML reusing create_comparison_figure from compare_trajectories_3d.
+    """Save interactive Plotly HTML using canonical bd.visualize_multiple_trajectories style.
 
     Args:
         obj_runs: list of (Xro, ev_dict, tXUi) tuples for this object.
         obj_target: 3D target position.
-        simulator: FiGS simulator (for point cloud extraction).
+        simulator: FiGS simulator (for point cloud / scene context).
         obj_name: object name for title.
         save_path: output .html path.
-        reference_branches: optional list of tXUi arrays (background, not used if per-run refs exist).
+        reference_branches: unused (kept for API compat).
     """
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     try:
-        import sys as _sys
-        # __file__ = src/sousvide/instruct/train_dagger.py → 4 levels up to repo root
-        _scripts = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.dirname(os.path.abspath(__file__))))), "scripts")
-        if _scripts not in _sys.path:
-            _sys.path.insert(0, _scripts)
-        from compare_trajectories_3d import create_comparison_figure, get_point_cloud
+        import plotly.graph_objects as go
+        from scipy.spatial import cKDTree
 
-        pts, cols = get_point_cloud(simulator)
+        goal_loc = np.asarray(obj_target).flatten()[:3]
 
-        # Convert (Xro, ev, tXUi) tuples to the format expected by create_comparison_figure
-        formatted_runs = []
-        per_run_refs = []
-        for entry in obj_runs:
-            Xro, ev, tXUi = entry[0], entry[1], entry[2]
-            Tro = np.arange(Xro.shape[1], dtype=float) / 20.0
-            formatted_runs.append((Xro, Tro, ev, []))
-            per_run_refs.append(tXUi)
+        # Get scene config for bd helper
+        workspace = str(Path(__file__).resolve().parents[3])
+        scenes_cfg_dir = os.path.join(workspace, "configs", "scenes")
+        # Find scene name from the global cache
+        scene_name = None
+        for key, sd in _SCENE_CACHE.items():
+            if sd["simulator"] is simulator:
+                scene_name = key
+                break
+        if scene_name is None:
+            scene_name = "flightroom_ssv_exp"
 
-        # Use per-run reference branches (the actual RRT branch each run followed)
-        all_refs = per_run_refs if per_run_refs else (reference_branches or [])
+        scene_cfg_file = os.path.join(scenes_cfg_dir, f"{scene_name}.yml")
+        with open(scene_cfg_file) as _f:
+            sc = yaml.safe_load(_f)
+        _, _, epcds_list, epcds_arr = bd.get_objectives(
+            simulator.gsplat, sc.get("queries", []), sc.get("similarities", None), False
+        )
+        radius_info = {"r1": sc.get("r1", 1.0), "r2": sc.get("r2", SUCCESS_RADIUS)}
+        pc_tree = cKDTree(epcds_arr) if epcds_arr.shape[0] > 0 else None
 
-        fig = create_comparison_figure(
-            pts, cols, obj_target, obj_name,
-            expert_runs=[],
-            bc_runs=[],
-            dagger_runs=formatted_runs,
-            reference_branches=all_refs,
+        fig = bd.visualize_multiple_trajectories(
+            [], epcds_list, goal_loc, radius_info, scene_cfg_file, simulator
+        )
+
+        # Success zone
+        theta = np.linspace(0, 2 * np.pi, 200)
+        fig.add_trace(go.Scatter3d(
+            x=goal_loc[0] + SUCCESS_RADIUS * np.cos(theta),
+            y=goal_loc[1] + SUCCESS_RADIUS * np.sin(theta),
+            z=np.full(200, goal_loc[2]),
+            mode="lines", line=dict(color="green", width=3, dash="dash"),
+            name=f"Success Zone (r={SUCCESS_RADIUS}m)",
+        ))
+
+        colors = ["red", "orange", "purple", "magenta", "brown",
+                  "cyan", "pink", "olive", "teal", "navy"]
+        for run_i, (Xro, ev, tXUi) in enumerate(obj_runs):
+            ref_pos = tXUi[1:4, :].T
+            pilot_pos = Xro[:3, :].T
+            clr = colors[run_i % len(colors)]
+            status = "COLL" if ev["collision"] else ("OK" if ev["success"] else "MISS")
+            dev = ev.get("mean_pos_dev", float("nan"))
+
+            # Expert (blue, thin, first run only in legend)
+            fig.add_trace(go.Scatter3d(
+                x=ref_pos[:, 0], y=ref_pos[:, 1], z=ref_pos[:, 2],
+                mode="lines", line=dict(color="blue", width=3),
+                name="Expert (RRT)" if run_i == 0 else None,
+                showlegend=(run_i == 0),
+            ))
+            # Pilot
+            fig.add_trace(go.Scatter3d(
+                x=pilot_pos[:, 0], y=pilot_pos[:, 1], z=pilot_pos[:, 2],
+                mode="lines", line=dict(color=clr, width=4),
+                name=f"Run {run_i} ({status}, dev={dev:.2f}m)",
+            ))
+            # End marker
+            fig.add_trace(go.Scatter3d(
+                x=[pilot_pos[-1, 0]], y=[pilot_pos[-1, 1]], z=[pilot_pos[-1, 2]],
+                mode="markers",
+                marker=dict(size=10, color="red" if ev["collision"] else clr,
+                            symbol="x" if ev["collision"] else "circle-open"),
+                showlegend=False,
+            ))
+
+        n_ok = sum(1 for _, ev, _ in obj_runs if ev["success"])
+        fig.update_layout(
+            title=f"<b>{obj_name}</b><br>"
+                  f"<span style='font-size:14px'>"
+                  f"{n_ok}/{len(obj_runs)} success</span>",
+            showlegend=True,
+            legend=dict(x=0.01, y=0.99, bgcolor="rgba(255,255,255,0.85)",
+                        font=dict(size=11)),
         )
         fig.write_html(save_path)
         print(f"  [plotly] -> {save_path}")
@@ -1187,6 +1328,10 @@ def _run_benchmark_pilot(
                   f"{n_available} branches  seed={benchmark_seed}")
             obj_analyses = []
             obj_runs_for_plot = []
+            # Build KD-tree once per object for early stopping
+            from scipy.spatial import cKDTree as _cKDTree
+            _pc_arr = scene_data.get("epcds_arr", np.zeros((0, 3)))
+            _pc_tree = _cKDTree(_pc_arr) if _pc_arr.shape[0] > 0 else None
             for run_i, br_idx in enumerate(branch_idxs):
                 # Reset pilot history between benchmark runs
                 pilot.hy_flag = False
@@ -1203,11 +1348,17 @@ def _run_benchmark_pilot(
                 t_start = t0
                 t_end   = tf
 
+                _terminal_fn, _term_info = _make_terminal_fn(
+                    obj_target, _pc_tree,
+                    env_min=scene_data.get("env_min"),
+                    env_max=scene_data.get("env_max"),
+                )
                 _t_sim = time.time()
                 result  = simulator.simulate(
                     policy=pilot, t0=t_start, tf=t_end, x0=x0,
                     obj=np.zeros((18, 1)), query=obj_name,
                     vision_processor=None, verbose=False,
+                    early_stop_fn=_terminal_fn,
                 )
                 Tro, Xro = result[0], result[1]
                 Uro = result[2] if len(result) > 2 else None
@@ -1384,34 +1535,43 @@ def run_cross_cohort_benchmark(
     benchmark_seed: int = 123,
     max_trajectories: int = 50,
     output_path: Optional[str] = None,
-    full_range: bool = False,
+    full_range: bool = True,
+    bc_cohort: str = None,
+    cohort_path: str = None,
 ) -> dict:
     """
-    Evaluate multiple InstinctJester model variants on the **same** held-out
+    Evaluate multiple InstinctJester model variants on the **same** multi-branch
     benchmark conditions and produce a clean comparison table.
+
+    Each benchmark run starts from the BEGINNING of a different BC trajectory
+    branch (loaded via _load_all_branches). All models get the same branches
+    in the same order (deterministic via benchmark_seed).
 
     Parameters
     ----------
     models : list of dicts, each with keys:
-        - "label"       : display name (e.g. "before_dagger", "after_potential", "after_rrt")
-        - "cohort"      : cohort name used to instantiate Pilot (e.g. "ssv_CLIPSEG_NORMAL")
+        - "label"       : display name
+        - "cohort"      : cohort name used to instantiate Pilot
         - "pilot_name"  : roster name (e.g. "InstinctJester")
         - "model_path"  : path to .pth weights to load into the pilot
     flights       : same list-of-[scene, obj_query] as DAgger training
     scenes_cfg_dir: path to configs/scenes/
-    benchmark_seed: integer seed — use a value DIFFERENT from the DAgger
-                    benchmark_seed (42) so these conditions are unseen.
-    max_trajectories: trajectories per object per model (sampled from the
-                    SECOND half of tXUi — held out from BC training).
+    benchmark_seed: integer seed for reproducible branch sampling.
+    max_trajectories: number of branches per object per model.
     output_path   : optional path to write a JSON summary.
+    full_range    : kept for API compat (always True now — full trajectory from t=0).
+    bc_cohort     : BC cohort name for loading branches via _preload_bc_trajectories.
+    cohort_path   : cohort path for _load_all_branches fallback (filtered RRT).
 
     Returns
     -------
     dict: {label: {obj_name: {goal_dist, success_rate, collision_rate}}}
     """
+    workspace_path = str(Path(__file__).resolve().parents[3])
+
     print("\n" + "=" * 70)
-    print("[CrossBenchmark] Held-out cross-cohort comparison")
-    print(f"  seed={benchmark_seed}  n={max_trajectories} traj/obj  "
+    print("[CrossBenchmark] Multi-branch full-trajectory benchmark")
+    print(f"  seed={benchmark_seed}  n={max_trajectories} branches/obj  "
           f"models={[m['label'] for m in models]}")
     print("=" * 70 + "\n")
 
@@ -1420,12 +1580,21 @@ def run_cross_cohort_benchmark(
         _get_scene(scene_name, scenes_cfg_dir)
     _preload_all_pkls(flights, scenes_cfg_dir)
 
-    # Precompute shared start_idxs per (scene, obj) so EVERY model gets
-    # identical starting conditions.
+    # Pre-load BC trajectories if bc_cohort specified
+    if bc_cohort and not _BC_TRAJ_CACHE:
+        _preload_bc_trajectories(bc_cohort, flights, scenes_cfg_dir)
+
+    # Precompute shared branch indices per (scene, obj) so EVERY model gets
+    # identical starting conditions (same branches, same order).
     np.random.seed(benchmark_seed)
     torch.manual_seed(benchmark_seed)
 
-    shared_starts: Dict[str, np.ndarray] = {}  # key: f"{scene}_{obj}"
+    # Use cohort_path from first model if not provided
+    if cohort_path is None and models:
+        cohort_path = os.path.join(workspace_path, "cohorts", models[0]["cohort"])
+
+    shared_branches: Dict[str, List[np.ndarray]] = {}  # key -> list of tXUi arrays
+    shared_branch_idxs: Dict[str, np.ndarray] = {}    # key -> original branch indices
     for scene_name, _ in flights:
         scene_data = _get_scene(scene_name, scenes_cfg_dir)
         queries    = scene_data["queries"]
@@ -1434,12 +1603,23 @@ def run_cross_cohort_benchmark(
             pkl_data = _get_pkl(scene_name, obj_name, scenes_cfg_dir)
             if pkl_data is None:
                 continue
-            tXUi   = pkl_data["tXUi"]
-            n_cols = tXUi.shape[1]
-            start_idx = 1 if full_range else max(1, n_cols // 2)
-            shared_starts[key] = np.linspace(
-                start_idx, n_cols - 1, max_trajectories, dtype=int
+            tXUi_default = pkl_data["tXUi"]
+
+            # Load all available branches (same as DAgger/RL rollout collection)
+            all_branches = _load_all_branches(
+                scene_name, obj_name, cohort_path or "",
+                scenes_cfg_dir, tXUi_default,
             )
+            # Sample max_trajectories branches (deterministic via seed)
+            n_sample = min(max_trajectories, len(all_branches))
+            branch_idxs = np.random.choice(
+                len(all_branches), size=n_sample,
+                replace=(n_sample < max_trajectories and len(all_branches) > 0),
+            )
+            shared_branches[key] = [all_branches[i] for i in branch_idxs]
+            shared_branch_idxs[key] = branch_idxs
+            print(f"  [Bench] '{obj_name}': {n_sample} branches sampled from {len(all_branches)}"
+                  f"  idxs={list(branch_idxs)}")
 
     all_results: dict = {}
 
@@ -1458,6 +1638,7 @@ def run_cross_cohort_benchmark(
         pilot = _swap_model(pilot, model_path)
 
         label_results: dict = {}
+        all_diag: list = []   # per-run diagnostics for JSON export
 
         for scene_name, _ in flights:
             scene_data  = _get_scene(scene_name, scenes_cfg_dir)
@@ -1467,22 +1648,25 @@ def run_cross_cohort_benchmark(
 
             for obj_idx, obj_name in enumerate(queries):
                 key      = f"{scene_name}_{obj_name}"
-                pkl_data = _get_pkl(scene_name, obj_name, scenes_cfg_dir)
-                if pkl_data is None or key not in shared_starts:
+                if key not in shared_branches:
                     continue
 
-                tXUi       = pkl_data["tXUi"]
                 obj_target = (
                     obj_targets[obj_idx] if obj_idx < len(obj_targets)
-                    else pkl_data.get("obj_loc", np.zeros(3))
+                    else np.zeros(3)
                 )
-                t0 = float(tXUi[0,  0])
-                tf = float(tXUi[0, -1])
-                T  = tf - t0
-                start_idxs = shared_starts[key]
+                branches = shared_branches[key]
+                br_idxs  = shared_branch_idxs[key]
+                n_runs = len(branches)
 
                 goal_dists, successes, collisions = [], [], []
-                for run_i, s_idx in enumerate(start_idxs):
+                obj_runs_for_plot = []
+                # Build KD-tree once per object for early stopping
+                from scipy.spatial import cKDTree as _cKDTree
+                _pc_arr = scene_data.get("epcds_arr", np.zeros((0, 3)))
+                _pc_tree = _cKDTree(_pc_arr) if _pc_arr.shape[0] > 0 else None
+                for run_i, tXUi in enumerate(branches):
+                    br_idx = int(br_idxs[run_i])
                     # Reset pilot history between runs
                     pilot.hy_flag = False
                     pilot.hy_idx = 0
@@ -1493,15 +1677,22 @@ def run_cross_cohort_benchmark(
                         pilot.chunk_buf = None
                         pilot.chunk_step = 0
 
-                    x0      = tXUi[1:11, s_idx].copy()
-                    t_start = float(tXUi[0, s_idx])
-                    t_end   = tf
+                    # Start from BEGINNING of each branch (full trajectory)
+                    x0      = tXUi[1:11, 0].copy()
+                    t_start = float(tXUi[0, 0])
+                    t_end   = float(tXUi[0, -1])
 
+                    _terminal_fn, _term_info = _make_terminal_fn(
+                        obj_target, _pc_tree,
+                        env_min=scene_data.get("env_min"),
+                        env_max=scene_data.get("env_max"),
+                    )
                     _t = time.time()
                     result    = simulator.simulate(
                         policy=pilot, t0=t_start, tf=t_end, x0=x0,
                         obj=np.zeros((18, 1)), query=obj_name,
                         vision_processor=None, verbose=False,
+                        early_stop_fn=_terminal_fn,
                     )
                     Xro       = result[1]
                     goal_dist = float(np.linalg.norm(Xro[:3, -1] - obj_target))
@@ -1510,21 +1701,67 @@ def run_cross_cohort_benchmark(
                     ev = _evaluate_run(Xro, obj_target, pc_ev,
                                        env_min=scene_data.get("env_min"),
                                        env_max=scene_data.get("env_max"),
-                                       tXUi=tXUi, idx0=int(s_idx))
+                                       tXUi=tXUi, idx0=0)
                     success  = ev["success"]
                     collided = ev["collision"]
                     fov_ok   = ev["goal_in_fov"]
                     pos_dev = ev.get("mean_pos_dev", float('nan'))
                     ori_dev = ev.get("mean_orient_dev_deg", float('nan'))
                     fov_p   = ev.get("fov_pct", float('nan'))
+                    init_d  = float(np.linalg.norm(x0[:3] - np.asarray(obj_target).flatten()[:3]))
                     goal_dists.append(goal_dist)
                     successes.append(success)
                     collisions.append(collided)
                     status = "✓" if success else ("💥" if collided else ("👁" if not fov_ok else "✗"))
-                    dev_str = f"  pos_dev={pos_dev:.2f}m  ori_dev={ori_dev:.1f}°  fov={fov_p:.0%}" if not np.isnan(pos_dev) else ""
-                    print(f"  [{label}] {status}  '{obj_name[:20]}'  "
-                          f"run {run_i+1}/{max_trajectories}"
-                          f"  goal_dist={goal_dist:.2f}m{dev_str}  ({time.time()-_t:.1f}s)")
+                    sim_s = time.time() - _t
+
+                    # Comprehensive per-run log — includes branch_idx for traceability
+                    parts = [
+                        f"  [{label}] {status}  '{obj_name[:20]}'  run {run_i+1}/{n_runs}  branch={br_idx}  d0={init_d:.1f}m",
+                        f"goal_dist={goal_dist:.2f}m  min_goal={ev['min_goal_dist']:.2f}m@step{ev['min_goal_step']}",
+                        f"steps={ev['n_steps']}  ({sim_s:.1f}s)",
+                    ]
+                    if collided:
+                        cpos = ev.get("collision_position")
+                        cpos_str = f"({cpos[0]:.1f},{cpos[1]:.1f},{cpos[2]:.1f})" if cpos else "?"
+                        parts.append(
+                            f"COLL@step{ev['collision_step']}  type={ev['collision_type']}  "
+                            f"pos={cpos_str}  goal@coll={ev['collision_dist_to_goal']:.2f}m"
+                        )
+                    parts.append(
+                        f"clearance={ev['min_clearance']:.2f}m@step{ev['min_clearance_step']}  "
+                        f"fov={fov_p:.0%}  pos_dev={pos_dev:.2f}m  ori_dev={ori_dev:.1f}°"
+                    )
+                    print("  ".join(parts))
+
+                    # Collect per-run diagnostics
+                    import math
+                    all_diag.append({
+                        "model": label, "object": obj_name,
+                        "run": run_i, "branch_idx": br_idx,
+                        "d0": init_d,
+                        "success": bool(success), "collision": bool(collided),
+                        "collision_type": ev["collision_type"],
+                        "collision_step": ev["collision_step"],
+                        "collision_position": [float(x) for x in ev["collision_position"]] if ev.get("collision_position") is not None else None,
+                        "collision_dist_to_goal": float(ev["collision_dist_to_goal"]) if not math.isnan(ev["collision_dist_to_goal"]) else None,
+                        "goal_dist": goal_dist,
+                        "min_goal_dist": float(ev["min_goal_dist"]),
+                        "min_goal_step": ev["min_goal_step"],
+                        "first_entry_step": ev.get("first_entry_step"),
+                        "n_steps": ev["n_steps"],
+                        "sim_time_s": round(sim_s, 1),
+                        "min_clearance": float(ev["min_clearance"]),
+                        "min_clearance_step": ev["min_clearance_step"],
+                        "fov_pct": float(fov_p) if not math.isnan(fov_p) else None,
+                        "mean_pos_dev": float(pos_dev) if not math.isnan(pos_dev) else None,
+                        "mean_orient_dev_deg": float(ori_dev) if not math.isnan(ori_dev) else None,
+                        "out_of_bounds": bool(ev.get("out_of_bounds", False)),
+                    })
+
+                    # Collect data for plotly
+                    if output_path:
+                        obj_runs_for_plot.append((Xro.copy(), ev, tXUi.copy()))
 
                 sr   = float(np.mean(successes))
                 cr   = float(np.mean(collisions))
@@ -1539,8 +1776,22 @@ def run_cross_cohort_benchmark(
                     "goal_dist_min":  float(np.min(goal_dists)),
                     "success_rate":   sr,
                     "collision_rate": cr,
-                    "n_eval":         max_trajectories,
+                    "n_eval":         n_runs,
                 }
+
+                # Save plotly per object
+                if output_path and obj_runs_for_plot:
+                    obj_short = obj_name.replace(" ", "_")[:30]
+                    plots_dir = os.path.join(os.path.dirname(output_path), "plots")
+                    html_path = os.path.join(plots_dir, f"{label}_{obj_short}.html")
+                    _save_benchmark_plotly(
+                        obj_runs=obj_runs_for_plot,
+                        obj_target=obj_target,
+                        simulator=simulator,
+                        obj_name=f"{label} — {obj_name} ({sr:.0%} success)",
+                        save_path=html_path,
+                    )
+                    del obj_runs_for_plot
 
             torch.cuda.empty_cache()
 
@@ -1563,7 +1814,7 @@ def run_cross_cohort_benchmark(
     print("\n" + "=" * 70)
     print("[CrossBenchmark] COMPARISON TABLE")
     print(f"  seed={benchmark_seed}  n={max_trajectories}/obj  "
-          f"(second half of tXUi, held out from BC training)")
+          f"(multi-branch, full trajectory from t=0)")
     print("=" * 70)
 
     # Collect all object names (excluding __overall__)
@@ -1599,6 +1850,17 @@ def run_cross_cohort_benchmark(
         with open(output_path, "w") as f:
             json.dump(all_results, f, indent=2)
         print(f"[CrossBenchmark] Results saved → {output_path}")
+
+        # Save per-run diagnostics with branch IDs for traceability
+        diag_path = output_path.replace(".json", "_per_run.json")
+        with open(diag_path, "w") as f:
+            json.dump({
+                "seed": benchmark_seed,
+                "max_trajectories": max_trajectories,
+                "branch_indices": {k: [int(x) for x in v] for k, v in shared_branch_idxs.items()},
+                "runs": all_diag,
+            }, f, indent=2)
+        print(f"[CrossBenchmark] Per-run diagnostics ({len(all_diag)} runs) → {diag_path}")
 
     return all_results
 
@@ -1659,6 +1921,10 @@ def _eval_full_trajectories(
 
             goal_dists, successes, collisions = [], [], []
             pos_devs_all, ori_devs_all, fov_pcts_all = [], [], []
+            # Build KD-tree once per object for early stopping
+            from scipy.spatial import cKDTree as _cKDTree
+            _pc_arr = scene_data.get("epcds_arr", np.zeros((0, 3)))
+            _pc_tree = _cKDTree(_pc_arr) if _pc_arr.shape[0] > 0 else None
             for run_i, br_idx in enumerate(branch_idxs):
                 # Reset pilot history between eval runs
                 pilot.hy_flag = False
@@ -1671,11 +1937,17 @@ def _eval_full_trajectories(
                 t_start = float(tXUi[0, 0])
                 t_end   = float(tXUi[0, -1])
                 x0      = tXUi[1:11, 0].copy()
+                _terminal_fn, _term_info = _make_terminal_fn(
+                    obj_target, _pc_tree,
+                    env_min=scene_data.get("env_min"),
+                    env_max=scene_data.get("env_max"),
+                )
                 _t = time.time()
                 result    = simulator.simulate(
                     policy=pilot, t0=t_start, tf=t_end, x0=x0,
                     obj=np.zeros((18, 1)), query=obj_name,
                     vision_processor=vision_processor, verbose=False,
+                    early_stop_fn=_terminal_fn,
                 )
                 Xro       = result[1]
                 pc_ev = scene_data.get("epcds_arr", np.zeros((0,3)))
@@ -1776,6 +2048,11 @@ def _collect_dagger_rollout(
     print(f"  [rollout] ▶ '{obj_name}'  t=[{t0:.2f},{tf:.2f}]s  x0_pos={x0[:3]}  β={mixed_policy.beta:.3f}")
     _t_rollout = time.time()
 
+    # Build early-stop function to avoid garbage post-terminal annotations
+    from scipy.spatial import cKDTree as _cKDTree
+    _pc_tree = _cKDTree(point_cloud) if point_cloud is not None and len(point_cloud) > 0 else None
+    _terminal_fn, _term_info = _make_terminal_fn(obj_target, _pc_tree)
+
     # FIX: Simulator.simulate() retourne (Tro, Xro, Uro, ...)
     # signature: simulate(policy, t0, tf, x0, obj=None, query=None, vision_processor=None, ...)
     result = simulator.simulate(
@@ -1787,6 +2064,7 @@ def _collect_dagger_rollout(
         query=obj_name,
         vision_processor=vision_processor,
         verbose=False,
+        early_stop_fn=_terminal_fn,
     )
     # simulate() retourne un tuple (Tro, Xro, Uro, ...) selon simulator.py
     Tro, Xro = result[0], result[1]
@@ -2160,7 +2438,7 @@ def _retrain_commander(
         print(f"  [retrain] VisionMLP FROZEN ({n_frozen:,} params) — only CommanderSV ({n_unlocked:,} params) updated")
 
     tp.train_student(cohort_name, student, "Commander", Nep,
-                     lim_sv=lim_sv, lr=lr, batch_size=64, course_name=course)
+                     lim_sv=lim_sv, lr=lr, batch_size=64)
 
 
 def _wandb_log_iteration(pilot_name: str, m: dict, iteration: int) -> None:
@@ -2554,6 +2832,9 @@ def train_dagger_policy(
                 n_available = len(all_branches)
                 branch_idxs = np.random.choice(n_available, size=min(n_expert_eval, n_available), replace=False)
                 exp_sr, exp_pd, exp_od, exp_fp = [], [], [], []
+                from scipy.spatial import cKDTree as _cKDTree
+                _pc_arr = scene_data.get("epcds_arr", np.zeros((0, 3)))
+                _pc_tree = _cKDTree(_pc_arr) if _pc_arr.shape[0] > 0 else None
                 for br_idx in branch_idxs:
                     tXUi_br = all_branches[br_idx]
                     expert_policy = _make_expert(
@@ -2562,11 +2843,17 @@ def train_dagger_policy(
                         _base_policy_name, _base_frame_name, pilot_name,
                         x0_start=tXUi_br[1:4, 0],
                     )
+                    _terminal_fn, _term_info = _make_terminal_fn(
+                        obj_target, _pc_tree,
+                        env_min=scene_data.get("env_min"),
+                        env_max=scene_data.get("env_max"),
+                    )
                     result = simulator.simulate(
                         policy=expert_policy, t0=float(tXUi_br[0, 0]),
                         tf=float(tXUi_br[0, -1]), x0=tXUi_br[1:11, 0].copy(),
                         obj=np.zeros((18, 1)), query=obj_name,
                         vision_processor=None, verbose=False,
+                        early_stop_fn=_terminal_fn,
                     )
                     Xro_exp = result[1]
                     pc_ev = scene_data.get("epcds_arr", np.zeros((0, 3)))
