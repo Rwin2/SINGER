@@ -120,8 +120,7 @@ if __name__ == "__main__":
         scenes_cfg_dir=SCENES_CFG,
         benchmark_seed=42,
         max_trajectories=args.max_traj,
-        output_path=output_path,
-        full_range=True,  # Full trajectory range — most relevant benchmark
+        bc_cohort="ssv_BC_CENTROID_V9",  # Multi-branch: full trajectory from t=0
     )
 
     # Print summary table

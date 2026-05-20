@@ -1,0 +1,92 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{7}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{} and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showURL}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showURL #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[Adang et~al\mbox{.}(2025)]%
+        {singer2025}
+\bibfield{author}{\bibinfo{person}{Max Adang}, \bibinfo{person}{Junen Low}, \bibinfo{person}{Ola Shorinwa}, {and} \bibinfo{person}{Mac Schwager}.} \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{SINGER: An Onboard Generalist Vision-Language Navigation Policy for Drones}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2509.18610}} (\bibinfo{year}{2025}).
+\newblock
+
+
+\bibitem[Ball et~al\mbox{.}(2023)]%
+        {ball2023rlpd}
+\bibfield{author}{\bibinfo{person}{Philip~J Ball}, \bibinfo{person}{Laura Smith}, \bibinfo{person}{Ilya Kostrikov}, {and} \bibinfo{person}{Sergey Levine}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \showarticletitle{Efficient Online Reinforcement Learning with Offline Data}. In \bibinfo{booktitle}{\emph{ICML}}.
+\newblock
+
+
+\bibitem[Kim et~al\mbox{.}(2025)]%
+        {care2025}
+\bibfield{author}{\bibinfo{person}{Junhyeok Kim}, \bibinfo{person}{Joonhyung Sim}, \bibinfo{person}{Woojin Kim}, \bibinfo{person}{Katia Sycara}, {and} \bibinfo{person}{Changjoo Nam}.} \bibinfo{year}{2025}\natexlab{}.
+\newblock \showarticletitle{CARE: Enhancing Safety of Visual Navigation through Collision Avoidance via Repulsive Estimation}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2506.03834}} (\bibinfo{year}{2025}).
+\newblock
+
+
+\bibitem[Low et~al\mbox{.}(2024)]%
+        {sousvide2024}
+\bibfield{author}{\bibinfo{person}{Junen Low}, \bibinfo{person}{Max Adang}, \bibinfo{person}{Jerry Yu}, \bibinfo{person}{Keiko Nagami}, {and} \bibinfo{person}{Mac Schwager}.} \bibinfo{year}{2024}\natexlab{}.
+\newblock \showarticletitle{SOUS VIDE: Cooking Visual Drone Navigation Policies in a Gaussian Splatting Vacuum}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2412.16346}} (\bibinfo{year}{2024}).
+\newblock
+
+
+\bibitem[Pomerleau(1988)]%
+        {pomerleau1988alvinn}
+\bibfield{author}{\bibinfo{person}{Dean~A Pomerleau}.} \bibinfo{year}{1988}\natexlab{}.
+\newblock \showarticletitle{ALVINN: An Autonomous Land Vehicle in a Neural Network}. In \bibinfo{booktitle}{\emph{NeurIPS}}.
+\newblock
+
+
+\bibitem[Ross et~al\mbox{.}(2011)]%
+        {ross2011dagger}
+\bibfield{author}{\bibinfo{person}{St{\'e}phane Ross}, \bibinfo{person}{Geoffrey~J Gordon}, {and} \bibinfo{person}{J~Andrew Bagnell}.} \bibinfo{year}{2011}\natexlab{}.
+\newblock \showarticletitle{A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning}. In \bibinfo{booktitle}{\emph{AISTATS}}.
+\newblock
+
+
+\bibitem[Ye et~al\mbox{.}(2026)]%
+        {dreamzero2026}
+\bibfield{author}{\bibinfo{person}{Shenyuan Ye}, \bibinfo{person}{Yunhao Ge}, \bibinfo{person}{Kecheng Zheng}, \bibinfo{person}{Sherry Gao}, {and} \bibinfo{person}{Stella Yu}.} \bibinfo{year}{2026}\natexlab{}.
+\newblock \showarticletitle{World Action Models are Zero-shot Policies}.
+\newblock \bibinfo{journal}{\emph{arXiv preprint arXiv:2602.15922}} (\bibinfo{year}{2026}).
+\newblock
+
+
+\end{thebibliography}

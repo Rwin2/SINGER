@@ -1,0 +1,74 @@
+% The template is adapted for CS224R project proposal
+\documentclass{article}
+
+\usepackage[preprint]{cs224r_2026}
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage[hidelinks]{hyperref}       % hyperlinks, no colored boxes
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{amsmath}
+\usepackage{fancyhdr}       % for headers and footers
+% Setup header
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyhead[C]{CS224R Project Proposal}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Custom title format for one-page document without the proposal title
+\renewcommand{\maketitle}{
+  \begin{center}
+    {\bf \large Enhancing SINGER: Onboard Visual Drone Navigation through Iterative Imitation Learning and Reinforcement Fine-Tuning}\\
+    \vspace{0.1cm}
+    {\bf Team Members:} Erwin Poussi\\
+    \vspace{0.1cm}
+    {\bf Emails:} erwinpi@stanford.edu\\
+    \vspace{0.2cm}
+  \end{center}
+}
+
+\begin{document}
+
+\maketitle
+
+\section{Objective} % 1/4 page
+
+SINGER~\citep{singer2025} is a language-conditioned onboard visual navigation policy for drones, developed at the Stanford Multi-Robot Systems Lab where I work. The goal is to make the drone navigate autonomously using only onboard RGB frames, safely avoiding obstacles to reach the object specified by a natural language query. We train it in simulation using a photorealistic 3D Gaussian Splatting scene~\citep{sousvide2024}, with the ultimate objective of deploying on a real-world platform.
+
+The policy is trained via behavioral cloning (BC) on expert RRT trajectories, but the original pipeline exhibits inconsistencies, namely high collision rates and limited success across target objects (30\% success rate on smoke test). Closing this gap is critical since reliable obstacle avoidance and target acquisition are prerequisites for deploying autonomous drones in real-world settings such as indoor inspection or search-and-rescue, where a single collision can damage the platform or its surroundings. The goal for this class is to come up with the highest performing policy possible, where 100\% success rate would be ideal, for a safe and fully autonomous drone navigator.
+
+\section{Related Work} % 1/2 page
+
+From our literature review, behavioral cloning~\citep{pomerleau1988alvinn} appears to be a best practice for robot learning, where a policy is trained to reproduce expert actions from observations. However, BC is well known to suffer from distribution shift, as the learner progressively drifts into states absent from the training data and compounds its own errors~\citep{ross2011dagger}, which is why we plan to leverage DAgger~\citep{ross2011dagger} among the very first steps of this project. DAgger addresses this limitation by iteratively collecting on-policy rollouts and querying the expert for corrections, effectively reducing the learner's exposure to unseen states over time. That said, DAgger alone does not explicitly optimize for collision avoidance since the expert labels only provide target actions without a safety signal, which remains a key gap for achieving safe navigation as defined in our objective.
+
+Building on imitation-learned policies, several works have shown that reinforcement learning can further refine them where pure imitation plateaus. Efficient Online Reinforcement Learning with Offline Data~\citep{ball2023rlpd}, for instance, demonstrates that off-policy RL with high update-to-data ratios can efficiently improve BC-pretrained policies. This is particularly relevant for drone navigation, where BC only implicitly learns to avoid obstacles through the expert demonstrations it imitates, but never receives an explicit collision penalty. A shaped reward for obstacle proximity can thus directly optimize for safety in ways that imitation alone cannot, since we do not have recovery expert data that avoids imminent collision. However, such RL approaches assume access to a dense reward signal, which in our case requires estimating obstacle distance, a quantity not readily available from a monocular RGB camera alone.
+
+Hence, we are considering adapting approaches like CARE~\citep{care2025}, which combines collision avoidance via repulsive estimation from RGB-inferred depth with exploration capabilities when the goal is out of sight. CARE estimates depth directly from RGB frames and applies repulsive forces to steer the drone away from obstacles, all without additional sensors or model retraining, making it a natural complement to our pipeline. However, CARE focuses on reactive obstacle avoidance and does not learn a goal-directed navigation policy end-to-end, which limits its ability to reach specific language-specified targets.
+
+Another direction we are exploring draws from DreamZero~\citep{dreamzero2026}, which learns robot control by jointly predicting future states and actions, giving the model an explicit understanding of the environment's dynamics rather than treating each timestep in isolation. We could adapt this idea through auxiliary dynamics prediction, where the policy is trained to predict future goal-relative positions alongside its control outputs. We are also considering feeding previous frames to the model so that it retains a memory of where the goal was, which is especially useful if the drone loses sight of the target mid-trajectory. While DreamZero predicts forward in time, this past-frame approach would give the policy a sense of temporal context and help it recover when the goal temporarily leaves its field of view.
+
+\section{Technical Outline} % 1/2 page
+
+Our approach proceeds in three stages. Our novel contribution lies in combining goal-relative centroid features, iterative DAgger, and RL collision-avoidance fine-tuning within a Gaussian Splatting simulation pipeline for language-conditioned drone navigation.
+
+First, we are refining the BC pipeline itself. In addition to retraining on a curated dataset, we are exploring improved perception features, including a visual goal-inferred position representation based on bearing and elevation that gives the policy a more explicit sense of where the target object lies relative to the drone. We are also considering augmenting the model's input with past-frame context and dynamics-aware representations inspired by DreamZero~\citep{dreamzero2026}, which would provide the policy with a richer understanding of the environment's dynamics rather than treating each timestep in isolation.
+
+As a second step, we focus on DAgger. We are building a first pilot version of DAgger within the SINGER pipeline, initially using a decaying hybrid policy~\citep{ross2011dagger} that blends the RRT expert with the learned policy during data collection, and progressively shifting toward full-learner rollouts where the expert is only queried for annotations.
+
+Then, depending on the DAgger-trained model's performance, we plan to extend the pipeline with RL fine-tuning, specifically targeting collision avoidance. Starting from the best DAgger checkpoint, we would apply off-policy actor-critic RL with a reward function that penalizes obstacle proximity, adapting the CARE approach~\citep{care2025} to integrate RGB-inferred depth estimation into the simulation environment and use it to construct a collision avoidance reward.
+
+As an expected outcome, we aim for the closest possible to a 100\% success rate on both seen and unseen trajectories and configurations. We define success as the drone reaching close enough to the target object with the object in its field of view, without colliding with any obstacle along the way. We evaluate each stage by running 50 simulated flights per target object on both training trajectories and held-out ones the policy has never seen, reporting metrics such as success rate, collision rate, and mean distance to the goal at the end of the flight, and comparing against the baseline BC policy (30\% success rate) and each intermediate stage to isolate the contribution of each component. Further work could explore scaling SINGER to entirely unseen environments and evaluating zero-shot deployment.
+
+\section{Team Contributions} % 1/4 page
+
+I, Erwin Poussi, assert to be the sole contributor of this project.
+
+% References
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{reference}
+
+\end{document}

@@ -1,0 +1,52 @@
+# RL Fine-Tuning v5 -- Multi-branch fix (full trajectory, no near-goal freebies)
+# Fix: uses _load_all_branches() from DAgger pipeline instead of single pkl
+# Each rollout starts from beginning of a BC branch and runs full trajectory
+cohort: "SSV_RL_FINETUNE_V9_SMOKE5"
+source_cohort: "SSV_DAGGER_CENTROID_V9"
+bc_cohort: "ssv_BC_CENTROID_V9"
+method: "rrt_6s"
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"
+
+# RL hyperparameters
+n_iterations: 5
+rollouts_per_iter: 4     # 4 branches/object/iter (full trajectory each)
+utd: 5
+batch_size: 64
+critic_lr: 0.0003
+actor_lr: 0.000001
+critic_target_tau: 0.005
+discount: 0.99
+noise_std: 0.02
+stddev_clip: 0.3
+num_critics: 2
+critic_hidden: 256
+replay_capacity: 50000
+warmup_transitions: 200
+
+# Reward weights
+goal_progress_weight: 1.0
+collision_penalty_weight: 2.0
+clearance_threshold: 0.5
+fov_bonus: 0.05
+success_bonus: 10.0
+collision_penalty: 10.0
+time_penalty: 0.01
+
+# BC regularization (action-level)
+bc_reg_freq: 1
+bc_reg_weight: 1.0
+
+# Stability
+actor_grad_clip: 0.5
+critic_warmup_iters: 2
+reset_to_best: true
+
+# Evaluation
+n_eval: 10              # 10 eval runs per object (smoke)
+eval_seed: 42
+patience: 5

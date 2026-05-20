@@ -1,0 +1,64 @@
+{
+  "V9_BC_baseline": {
+    "green clock": {
+      "goal_dist": 1.9066167118522557,
+      "goal_dist_std": 0.13650924840733614,
+      "goal_dist_min": 1.4926965624189847,
+      "success_rate": 1.0,
+      "collision_rate": 0.0,
+      "n_eval": 20
+    },
+    "green and pink leafblower": {
+      "goal_dist": 1.9705517033550752,
+      "goal_dist_std": 0.4814187363406033,
+      "goal_dist_min": 0.8825252238740006,
+      "success_rate": 1.0,
+      "collision_rate": 0.0,
+      "n_eval": 20
+    },
+    "yellow handheld cordless drill on two boxes": {
+      "goal_dist": 1.6727711432585082,
+      "goal_dist_std": 0.38636382547084214,
+      "goal_dist_min": 0.8634762575355238,
+      "success_rate": 1.0,
+      "collision_rate": 0.0,
+      "n_eval": 20
+    },
+    "__overall__": {
+      "goal_dist": 1.8499798528219464,
+      "success_rate": 1.0,
+      "collision_rate": 0.0
+    }
+  },
+  "Chunked_BC_H5K2": {
+    "green clock": {
+      "goal_dist": 1.8361655453835255,
+      "goal_dist_std": 0.19199247213950607,
+      "goal_dist_min": 1.40959050736159,
+      "success_rate": 1.0,
+      "collision_rate": 0.0,
+      "n_eval": 20
+    },
+    "green and pink leafblower": {
+      "goal_dist": 2.5034873325884126,
+      "goal_dist_std": 0.3529269502068875,
+      "goal_dist_min": 2.098123297663585,
+      "success_rate": 1.0,
+      "collision_rate": 0.0,
+      "n_eval": 20
+    },
+    "yellow handheld cordless drill on two boxes": {
+      "goal_dist": 1.6683887089237763,
+      "goal_dist_std": 0.3810952101152578,
+      "goal_dist_min": 0.8991233487948476,
+      "success_rate": 1.0,
+      "collision_rate": 0.0,
+      "n_eval": 20
+    },
+    "__overall__": {
+      "goal_dist": 2.002680528965238,
+      "success_rate": 1.0,
+      "collision_rate": 0.0
+    }
+  }
+}

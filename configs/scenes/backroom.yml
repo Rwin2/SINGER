@@ -1,0 +1,42 @@
+queries: ["laptop", "blue vacuum", "yellow scissors on table"]
+# old queries: ["drone on table close to computer", "red helicopter", "blue box"]
+
+radii:
+  - [ 2.0,  0.4]
+  - [ 2.0,  0.4]
+  - [ 2.0,  0.4]
+
+altitudes:
+  - -1.0
+  - -1.0
+  - -1.0
+
+similarities:
+  - [ 0.90, 0.025 ]
+  - [ 0.90, 0.025 ]
+  - [ 0.90, 0.025 ]
+
+nbranches:
+  - 1
+  - 1
+  - 1
+
+hoverMode: False
+numTraj: all
+
+visualize: False
+
+# RRT parameters
+algorithm: 'RRT*'
+N: 2500
+dimension: '2'
+prevent_edge_overlap: 'y'
+exact_step: 'n'
+bounded_step: 'y'
+step_size: 1.0
+
+# Bounds: 90th percentile from rescale_point_cloud, manually widened slightly
+minbound: [-3.0, -6.5, -3.0]
+maxbound: [3.0, 2.5, 0.0]
+
+gif: False

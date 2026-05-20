@@ -1,0 +1,396 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{mdframed}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{hyperref}
+
+% ── colour scheme ──────────────────────────────────────────
+\definecolor{cyan}{HTML}{00B4CC}
+\definecolor{orange}{HTML}{E05A20}
+\definecolor{lime}{HTML}{6BAD3A}
+\definecolor{muted}{HTML}{555F6E}
+\definecolor{bg}{HTML}{F4F7FA}
+
+\newmdenv[
+  backgroundcolor=bg,
+  linecolor=cyan,
+  linewidth=1.2pt,
+  roundcorner=4pt,
+  innertopmargin=8pt,
+  innerbottommargin=8pt,
+]{formulabox}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\D}{\mathcal{D}}
+\newcommand{\cL}{\mathcal{L}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Bw}{\mathcal{BW}}
+\newcommand{\W}{\mathcal{W}}
+\newcommand{\sg}[1]{\lfloor #1 \rfloor_{\text{sg}}}
+
+\title{\textbf{SINGER --- Training Pipeline (V9)}\\
+       \large Behavioural Cloning + DAgger with CLIPSeg Centroid Features}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\bigskip
+
+% ══════════════════════════════════════════════════════════
+\section{Notation}
+% ══════════════════════════════════════════════════════════
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Symbol} & \textbf{Dim} & \textbf{Meaning} \\
+\midrule
+$k$                  & $\mathbb{N}$ & control timestep ($\Delta t = 50$\,ms, 20\,Hz) \\
+$I^k$                & $H{\times}W{\times}3$ & RGB camera image at step $k$ \\
+$v_{\W}^k$           & $\R^3$       & linear velocity in world frame \\
+$q_{\Bw}^k$          & $\R^4$       & body$\to$world quaternion \\
+$p_{z\W}^k$          & $\R$         & altitude (z-position) \\
+$u^k$                & $\R^4$       & action: $[k_{th},\,\omega_x,\,\omega_y,\,\omega_z]$ \\[2pt]
+$\delta^{k-5:k-1}$   & --           & 5-step history window of state-deltas + actions \\
+$o^k$                & $\R^d$       & flattened observation passed to network \\[2pt]
+$h^k$                & $\R^{8}$     & history embedding (HistoryMLP output) \\
+$\phi^k$             & $\R^{256}$   & visual embedding (SqueezeNet $+$ FE\,MLP output) \\
+$c^k$                & $\R^3$       & \textbf{centroid features (V9)}: bearing, elevation, app.\ size \\
+$\pi_\theta$         & --           & policy network (Commander head) \\
+$\beta$              & $[0,1]$      & DAgger expert-mixing coefficient \\
+$\D_{\text{BC}}$     & 158\,K       & behavioural cloning dataset (single scene) \\
+$\D_{\text{DAg}}$    & growing      & aggregated DAgger annotations \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ══════════════════════════════════════════════════════════
+\section{Architecture --- the policy $\pi_\theta$}
+% ══════════════════════════════════════════════════════════
+
+The visuomotor policy is a multi-branch network that fuses
+\textbf{visual}, \textbf{proprioceptive}, \textbf{historical} and (V9)
+\textbf{centroid} features into a single 4-D rate command.
+
+\begin{formulabox}
+\begin{align}
+\phi^k     &= \mathrm{FE\text{-}MLP}\bigl(\,\mathrm{SqueezeNet}(\mathrm{CLIPSeg}(I^k))\,\bigr)
+              & \text{(visual)} \\[2pt]
+c^k        &= \Phi_{\text{centroid}}(\mathrm{CLIPSeg}(I^k))
+              & \text{(\textcolor{orange}{V9 NEW})} \\[2pt]
+h^k        &= \mathrm{HistoryMLP}\bigl(\delta t^{k-5:k-1},\,\delta p_{\W}^{k-5:k-1},\,\delta v_{\W}^{k-5:k-1},\,\delta q_{\Bw}^{k-5:k-1},\,u^{k-5:k-1}\bigr)
+              & \text{(temporal)} \\[2pt]
+o^k        &= \bigl[\,\phi^k\,\|\,c^k\,\|\,v_{\W}^k\,\|\,q_{\Bw}^k\,\|\,p_{z\W}^k\,\|\,h^k\,\bigr]
+              & \text{(concat)} \\[2pt]
+\hat{u}^k  &= \pi_\theta(o^k) \;=\; \mathrm{ActionHead}_{[100,100]}(o^k)
+              & \text{(action)}
+\end{align}
+\end{formulabox}
+
+\noindent
+The CLIPSeg backbone is \emph{frozen} (zero-shot, prompt $=$ object name).
+Only the History MLP, Feature Extractor MLP and Action Head are learned.
+The centroid extractor $\Phi_{\text{centroid}}$ is purely analytical (no parameters).
+
+% ══════════════════════════════════════════════════════════
+\section{Centroid features $c^k$ --- the V9 addition}
+% ══════════════════════════════════════════════════════════
+
+Let $\bm{H} \in [0,1]^{H \times W}$ be the CLIPSeg sigmoid heatmap for the
+text prompt (\textit{e.g.} ``green clock''). Define the bright-pixel set
+\[
+M = \bigl\{\,(x,y)\;\bigm|\;\bm{H}(x,y) > P_{75}(\bm{H})\,\bigr\}.
+\]
+
+\begin{formulabox}
+\begin{align}
+c_x &= \frac{\sum_{(x,y)\in M} x\,\bm{H}(x,y)}{\sum_{(x,y)\in M} \bm{H}(x,y)},
+&
+c_y &= \frac{\sum_{(x,y)\in M} y\,\bm{H}(x,y)}{\sum_{(x,y)\in M} \bm{H}(x,y)} \\[6pt]
+\text{bearing}      &= 2\,c_x / W - 1, &
+\text{elevation}    &= 2\,c_y / H - 1, &
+\text{app.\ size}\;&= |M| / (H\cdot W) \\[4pt]
+c^k &= \bigl[\,\text{bearing},\,\text{elevation},\,\text{app.\ size}\,\bigr]^\top
+\end{align}
+\end{formulabox}
+
+\noindent
+\textbf{Intuition.} CLIPSeg gives a $352{\times}352$ heatmap; instead of feeding
+that giant tensor to the policy, we collapse it into 3 scalars that encode
+\emph{where} the target is (bearing, elevation) and \emph{how big} it appears
+(distance proxy). They are concatenated into the state vector --- no new
+trainable parameters.
+
+\paragraph{Known V9 caveat.} The same $P_{75}$ threshold is used for both the
+centroid mask and the size mask, so $|M|/(HW)\approx 0.25$ is structurally
+constant. The +44\,pp BC lift is therefore driven by \textbf{bearing $+$
+elevation} alone. V10 fixes this with a fixed sigmoid threshold for size.
+
+% ══════════════════════════════════════════════════════════
+\section{Stage 1 --- Behavioural Cloning (BC)}
+% ══════════════════════════════════════════════════════════
+
+\subsection{Data collection}
+
+A sampling-based motion planner (RRT$^{\!*}$ with semantic goal sets) generates
+expert trajectories from random start poses to each target object in the
+flightroom Gaussian-Splat scene.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Quantity} & \textbf{Value} & \textbf{Note} \\
+\midrule
+trajectory length     & $6$\,s            & at $20$\,Hz $\to 120$ steps \\
+trajectories / object & $110$             & 3 objects: clock, leafblower, drill-on-boxes \\
+augmentations / traj  & $4$               & domain-random visuals \\
+total samples         & $\mathbf{158{,}400}$ & $= 110 \times 3 \times 4 \times 120$ \\
+control rate          & $20$\,Hz          & $\Delta t = 50$\,ms \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Loss --- pure MSE on the action}
+
+\begin{formulabox}
+\begin{equation}
+\boxed{\;
+\cL_{\text{BC}}(\theta)
+   \;=\; \E_{(o^k,\,u^k_\star)\,\sim\,\D_{\text{BC}}}
+         \!\Bigl[\,\bigl\|\pi_\theta(o^k) - u^k_\star\bigr\|_2^{\,2}\,\Bigr]
+\;}
+\label{eq:bc}
+\end{equation}
+\end{formulabox}
+
+\noindent
+where $u^k_\star$ is the expert (RRT-MPC) action at step $k$.
+The loss is implemented as
+\texttt{nn.MSELoss(reduction='mean')} in
+\texttt{src/sousvide/instruct/train\_policy.py}, optimised with Adam at
+$\eta = 10^{-4}$, batch size $64$, for $N_{\text{ep}}^{\text{com}} = 150$
+epochs on the Commander head and $N_{\text{ep}}^{\text{his}} = 100$ on the
+History MLP. Best-checkpoint selection is done on a held-out validation
+split (every 5 epochs).
+
+% ══════════════════════════════════════════════════════════
+\section{Stage 2 --- DAgger V9}
+% ══════════════════════════════════════════════════════════
+
+DAgger (Dataset Aggregation, Ross et al., 2011) closes the BC distribution
+gap by rolling out a \emph{mixed} expert/learner policy in the simulator,
+then retraining the learner on the actions the expert would have taken at
+the states the learner actually visited.
+
+\subsection{Mixed-policy rollout}
+
+At each step $k$, both the MPC expert and the BC pilot are queried:
+
+\begin{formulabox}
+\begin{align}
+u^k_{\text{exp}}   &= \mathrm{MPC}(x^k,\,o^k)               & \text{(expert command)}\\
+u^k_{\text{pil}}   &= \pi_\theta(o^k)                       & \text{(pilot command)}\\
+u^k_{\text{exec}}  &=
+   \begin{cases}
+     u^k_{\text{exp}} & \text{w.p. } \beta_t \\
+     u^k_{\text{pil}} & \text{w.p. } 1-\beta_t
+   \end{cases}
+   & \text{(executed in sim)}\\[4pt]
+\D_{\text{DAg}}    &\leftarrow \D_{\text{DAg}} \cup
+   \bigl\{(o^k,\,u^k_{\text{exp}})\bigr\}_{k}    & \text{(annotation)}
+\end{align}
+\end{formulabox}
+
+\noindent
+Crucially, the \emph{annotation label is always $u^k_{\text{exp}}$}, even
+when the executed action was the pilot's. This is what gives DAgger its
+no-regret guarantee.
+Implementation: \texttt{class MixedPolicy} in \texttt{train\_dagger.py:951}.
+
+\subsection{Expert-mixing schedule}
+
+$\beta$ decays geometrically across iterations so the rollouts become
+progressively pilot-driven:
+
+\begin{formulabox}
+\begin{equation}
+\beta_t \;=\; \beta_{\text{start}}\cdot\beta_{\text{decay}}^{\,t}
+\quad\text{with}\quad
+\beta_{\text{start}} = 0.80,\;
+\beta_{\text{decay}} = 0.92
+\end{equation}
+\end{formulabox}
+
+\noindent
+For $T = 12$ iterations: $\beta_0 = 0.80,\,\beta_1 = 0.736,\,\dots,\,\beta_{11} \approx 0.32$.
+
+\subsection{Annotation aggregation}
+
+V9 uses \textbf{cumulative} aggregation
+(\texttt{aggregate\_dagger: true}):
+\begin{equation}
+\D_{\text{DAg}}^{(t)} \;=\; \D_{\text{DAg}}^{(t-1)} \,\cup\, \D_{\text{new}}^{(t)}
+\quad\text{(classic DAgger)}
+\end{equation}
+Annotations are also \textbf{oversampled} ($\times 20$ duplication,
+\texttt{dagger\_oversample: 20}) before being mixed with the BC dataset to
+counteract their numerical minority.
+
+\subsection{Retraining loss --- BC, restricted to two heads}
+
+After each iteration the policy is fine-tuned on the (BC $\cup$ DAgger)
+mixture. The objective is identical in form to Eq.~\eqref{eq:bc}, but the
+\textbf{VisionMLP is frozen} (only the CommanderSV head and the small MLP
+on top of the centroid + state stack are updated):
+
+\begin{formulabox}
+\begin{align}
+\theta &= \theta_{\text{CommanderSV}}
+       \quad\text{(VisionMLP frozen --- prevents catastrophic forgetting)}\\[2pt]
+\cL_{\text{DAg}}(\theta)
+   &= \E_{(o^k,\,u^k_{\text{exp}})\,\sim\,\D_{\text{BC}}\,\cup\,\D_{\text{DAg}}}
+      \!\Bigl[\,\bigl\|\pi_\theta(o^k) - u^k_{\text{exp}}\bigr\|_2^{\,2}\,\Bigr]
+\end{align}
+\end{formulabox}
+
+\noindent
+Adam at $\eta_{\text{DAg}} = 2{\times}10^{-5}$ (5$\times$ smaller than BC),
+$N_{\text{ep}}^{\text{DAg}} = 10$ epochs per iteration, batch size $64$.
+Implementation: \texttt{\_retrain\_commander} in \texttt{train\_dagger.py:2028}.
+
+\subsection{Best-checkpoint reset}
+
+\texttt{reset\_to\_best: true} --- if validation success rate at iteration
+$t$ is worse than the best so far, the model weights are restored from the
+best checkpoint before iteration $t+1$. Patience $= 5$ iterations before
+early stopping. This is what stopped the runaway-regression failure mode
+that plagued earlier DAgger versions.
+
+\subsection{Annotation filters}
+
+To prevent garbage-in-garbage-out, an annotation $(o^k, u^k_{\text{exp}})$
+is \emph{rejected} if any of the following hold:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Filter} & \textbf{Threshold} & \textbf{Purpose} \\
+\midrule
+position deviation         & $> 8$\,m   & runaway pilot, expert query meaningless \\
+goal distance              & $> 50$\,m  & lost-in-space trajectories \\
+orientation deviation      & $> 90^\circ$ & pilot pointing wrong way \\
+close-approach distance    & $< 5$\,m   & near-goal hover regime, low signal \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ══════════════════════════════════════════════════════════
+\section{One DAgger iteration --- algorithmic summary}
+% ══════════════════════════════════════════════════════════
+
+\begin{center}
+\begin{tabular}{cll}
+\toprule
+\textbf{Step} & \textbf{Operation} & \textbf{Notes} \\
+\midrule
+1 & Query mixed policy in sim ($n_{\text{rol}}{=}8$/object, 3 objects)
+  & generates $\approx 3000$ steps \\
+2 & Filter annotations (deviation, goal-dist, orient.)
+  & drop $\sim$30--50\% of raw \\
+3 & Aggregate: $\D_{\text{DAg}} \leftarrow \D_{\text{DAg}} \cup \D_{\text{new}}$
+  & cumulative \\
+4 & Oversample $\D_{\text{DAg}}$ by $\times 20$
+  & balance vs BC data \\
+5 & Mix with $\D_{\text{BC}}$ (158\,K)
+  & symlink BC observation dirs \\
+6 & Retrain Commander only ($\eta=2{\times}10^{-5}$, 10\,ep)
+  & VisionMLP frozen \\
+7 & Evaluate on $40$ held-out trajectories
+  & success / collision / goal-dist \\
+8 & If worse than best $\to$ reset to best checkpoint
+  & else update best \\
+9 & $\beta \leftarrow \beta \cdot 0.92$
+  & geometric decay \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ══════════════════════════════════════════════════════════
+\section{Hyperparameters --- V9 reference run}
+% ══════════════════════════════════════════════════════════
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Symbol} & \textbf{Value} & \textbf{Description} \\
+\midrule
+\multicolumn{3}{l}{\textit{BC stage --- \texttt{ssv\_BC\_CENTROID\_V9}}} \\
+$N_{\text{ep}}^{\text{com}}$ & $150$        & Commander epochs \\
+$N_{\text{ep}}^{\text{his}}$ & $100$        & History MLP epochs \\
+$\eta_{\text{BC}}$           & $10^{-4}$    & Adam learning rate \\
+batch size                   & $64$         & --- \\
+\midrule
+\multicolumn{3}{l}{\textit{DAgger stage --- \texttt{SSV\_DAGGER\_CENTROID\_V9}}} \\
+$T$                          & $12$         & DAgger iterations \\
+$\beta_{\text{start}}$       & $0.80$       & initial expert mix \\
+$\beta_{\text{decay}}$       & $0.92$       & geometric decay/iter \\
+$N_{\text{ep}}^{\text{DAg}}$ & $10$         & retraining epochs/iter \\
+$\eta_{\text{DAg}}$          & $2\times 10^{-5}$ & retraining LR \\
+oversample                   & $20\times$   & DAgger annotation duplication \\
+$n_{\text{rol}}$/obj         & $8$          & rollouts per object per iter \\
+$n_{\text{eval}}$            & $40$         & per-iter eval trajectories \\
+\texttt{aggregate\_dagger}   & \texttt{true} & cumulative annotation set \\
+\texttt{reset\_to\_best}     & \texttt{true} & rollback on regression \\
+\texttt{freeze\_vision}      & \texttt{true} & VisionMLP frozen during retrain \\
+patience                     & $5$ iters    & early stop \\
+seed                         & $42$         & deterministic eval \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ══════════════════════════════════════════════════════════
+\section{Final benchmark --- V9 canonical results}
+% ══════════════════════════════════════════════════════════
+
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Metric} & \textbf{Pre-Centroid BC} & \textbf{DAgger V7} & \textbf{Centroid BC (V9)} & \textbf{Centroid DAgger (V9)} \\
+\midrule
+Success           & $36.7\%$ & $52.3\%$ & $80.7\%$ & $\mathbf{88.0\%}$ \\
+Collision         & $21.3\%$ & $\sim 20\%$ & $13.3\%$ & $\mathbf{8.0\%}$ \\
+Goal dist (m)     & $3.71$ & $\sim 2.5$ & $1.84$ & $\mathbf{1.65}$ \\
+Clock             & ---    & $45\%$ & $86\%$ & $\mathbf{90\%}$ \\
+Leafblower        & ---    & $60\%$ & $76\%$ & $\mathbf{84\%}$ \\
+Drill on boxes    & ---    & $55\%$ & $80\%$ & $\mathbf{90\%}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+\textbf{Headline lifts.}
+\begin{itemize}
+  \item Centroid features alone: $36.7\% \to 80.7\%$ \quad (\textcolor{orange}{$+44.0$\,pp}, BC vs BC)
+  \item DAgger on top of centroid: $80.7\% \to 88.0\%$ \quad (\textcolor{lime}{$+7.3$\,pp})
+  \item End-to-end (Pre-Centroid BC $\to$ V9 DAgger): \quad
+        $\mathbf{+51.3}$\,pp success, $\mathbf{-13.3}$\,pp collision,
+        goal-dist $3.71 \to 1.65$\,m
+\end{itemize}
+
+\paragraph{Take-away.} Most of the gain comes from the \emph{features},
+not from DAgger. Collapsing the CLIPSeg heatmap into 3 scalars gives the BC
+policy enough inductive bias that DAgger has comparatively little left to
+fix --- but the residual lift it does provide concentrates on the hardest
+object (drill-on-boxes, $+10$\,pp) and uniformly reduces collisions across
+the board.
+
+\end{document}

@@ -14,13 +14,8 @@ def save_images_as_video(frames, video_path, fps=20):
     if not frames:
         return
     os.makedirs(os.path.dirname(video_path), exist_ok=True)
-    height, width, _ = frames[0].shape
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
-    for f in frames:
-        bgr_frame = cv2.cvtColor(f, cv2.COLOR_RGB2BGR)
-        writer.write(bgr_frame)
-    writer.release()
+    import imageio
+    imageio.mimwrite(video_path, frames, fps=fps)
 
 def load_video_frames(video_path,image_data_set) -> List[np.ndarray]:
     """

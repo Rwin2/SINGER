@@ -825,7 +825,8 @@ def main():
                 x0=x0,
                 obj=np.zeros((18, 1)),
                 query=obj_name,
-                vision_processor=None,
+                vision_processor=clipseg,
+                validation=True,
                 verbose=False,
                 early_stop_fn=terminal_fn,
             )

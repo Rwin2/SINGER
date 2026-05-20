@@ -1,0 +1,1954 @@
+{
+  "label": "ppo_iter11",
+  "runs": [
+    {
+      "object": "green clock",
+      "val_idx": 0,
+      "d0": 11.67175616343874,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2940677258768023,
+      "min_goal_dist": 2.2940677258768023,
+      "min_goal_step": 200,
+      "first_entry_step": 200,
+      "n_steps": 201,
+      "sim_time": 9.959999999999999,
+      "min_clearance": 0.19062115252017975,
+      "min_clearance_step": 119,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.6251730030839895,
+      "mean_orient_dev_deg": 6.649430573635326,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green clock",
+      "val_idx": 1,
+      "d0": 6.243697183205011,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.275866685708447,
+      "min_goal_dist": 2.275866685708447,
+      "min_goal_step": 83,
+      "first_entry_step": 83,
+      "n_steps": 84,
+      "sim_time": 4.109999999999999,
+      "min_clearance": 0.3737977147102356,
+      "min_clearance_step": 40,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.27964123208825614,
+      "mean_orient_dev_deg": 3.5021990907182197,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green clock",
+      "val_idx": 2,
+      "d0": 3.0433806336557407,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2990447485332024,
+      "min_goal_dist": 2.2990447485332024,
+      "min_goal_step": 20,
+      "first_entry_step": 20,
+      "n_steps": 21,
+      "sim_time": 0.96,
+      "min_clearance": 0.4598619341850281,
+      "min_clearance_step": 0,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.0675692943783542,
+      "mean_orient_dev_deg": 3.3443541522783926,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green clock",
+      "val_idx": 3,
+      "d0": 6.650911289858253,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2982979909962338,
+      "min_goal_dist": 2.2982979909962338,
+      "min_goal_step": 86,
+      "first_entry_step": 86,
+      "n_steps": 87,
+      "sim_time": 4.26,
+      "min_clearance": 0.5555258989334106,
+      "min_clearance_step": 0,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.20398054304556756,
+      "mean_orient_dev_deg": 2.239377570173272,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green clock",
+      "val_idx": 4,
+      "d0": 8.49740576087648,
+      "success": false,
+      "collision": true,
+      "collision_type": "pc",
+      "collision_step": 93,
+      "collision_position": [
+        -2.122061915473524,
+        -1.7583227778634505,
+        -1.1053417708918882
+      ],
+      "collision_dist_to_goal": 3.7224049782162503,
+      "goal_dist": 3.7224049782162503,
+      "min_goal_dist": 3.7224049782162503,
+      "min_goal_step": 93,
+      "first_entry_step": -1,
+      "n_steps": 94,
+      "sim_time": 4.609999999999999,
+      "min_clearance": 0.14147354662418365,
+      "min_clearance_step": 93,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.27003173850337603,
+      "mean_orient_dev_deg": 7.646544455983384,
+      "out_of_bounds": false,
+      "forensics": {
+        "clearance_window": [
+          0.6524767875671387,
+          0.5989983081817627,
+          0.5454431772232056,
+          0.49189773201942444,
+          0.4384678602218628,
+          0.38532784581184387,
+          0.3327227532863617,
+          0.2810973823070526,
+          0.23122888803482056,
+          0.18413059413433075,
+          0.14147354662418365
+        ],
+        "model_positions": [
+          {
+            "step": 88,
+            "pos": [
+              -2.11545939397762,
+              -2.037790976436142,
+              -1.1091991014088445
+            ],
+            "goal_dist": 3.995402627341799
+          },
+          {
+            "step": 89,
+            "pos": [
+              -2.116018354597682,
+              -1.9819942374307264,
+              -1.1084898947006891
+            ],
+            "goal_dist": 3.9410025283236547
+          },
+          {
+            "step": 90,
+            "pos": [
+              -2.1170017101721754,
+              -1.9261111293198174,
+              -1.1077206738877121
+            ],
+            "goal_dist": 3.88645601169226
+          },
+          {
+            "step": 91,
+            "pos": [
+              -2.118377101612321,
+              -1.870186257391887,
+              -1.1069939772092272
+            ],
+            "goal_dist": 3.831817040906215
+          },
+          {
+            "step": 92,
+            "pos": [
+              -2.120077450658987,
+              -1.8142430915141512,
+              -1.1062621543565412
+            ],
+            "goal_dist": 3.7771203135328766
+          },
+          {
+            "step": 93,
+            "pos": [
+              -2.122061915473524,
+              -1.7583227778634505,
+              -1.1053417708918882
+            ],
+            "goal_dist": 3.7224049782162503
+          }
+        ],
+        "model_commands": [
+          {
+            "step": 88,
+            "cmd": [
+              -0.40577080845832825,
+              0.0017997915856540203,
+              0.04952117055654526,
+              0.08001367747783661
+            ]
+          },
+          {
+            "step": 89,
+            "cmd": [
+              -0.40819764137268066,
+              -0.06705489009618759,
+              0.0284674521535635,
+              0.032421134412288666
+            ]
+          },
+          {
+            "step": 90,
+            "cmd": [
+              -0.40590405464172363,
+              -0.018030870705842972,
+              0.03681747615337372,
+              -0.03065922111272812
+            ]
+          },
+          {
+            "step": 91,
+            "cmd": [
+              -0.40242496132850647,
+              -0.015974173322319984,
+              0.05335850268602371,
+              -0.02082204446196556
+            ]
+          },
+          {
+            "step": 92,
+            "cmd": [
+              -0.40146172046661377,
+              -0.010769367218017578,
+              0.0686461478471756,
+              -0.013925152830779552
+            ]
+          }
+        ],
+        "goal_at_collision": {
+          "bearing": 104.08965912267954,
+          "elevation": 2.924759136211218,
+          "drone_yaw": 105.09451534025104,
+          "yaw_to_goal": -1.0048562175715006
+        },
+        "expert_positions": [
+          {
+            "step": 88,
+            "pos": [
+              -2.00135261965696,
+              -2.452352000225292,
+              -1.0
+            ],
+            "goal_dist": 4.421205420888651,
+            "deviation": 0.443627819393096
+          },
+          {
+            "step": 89,
+            "pos": [
+              -1.984336900230931,
+              -2.405250368672392,
+              -1.0
+            ],
+            "goal_dist": 4.379431670950829,
+            "deviation": 0.45635053994705777
+          },
+          {
+            "step": 90,
+            "pos": [
+              -1.9670479328623407,
+              -2.3582385557180934,
+              -1.0
+            ],
+            "goal_dist": 4.3379876721545125,
+            "deviation": 0.46991913299833593
+          },
+          {
+            "step": 91,
+            "pos": [
+              -1.9495580401905854,
+              -2.31129617611014,
+              -1.0
+            ],
+            "goal_dist": 4.296845449814221,
+            "deviation": 0.4842783776403691
+          },
+          {
+            "step": 92,
+            "pos": [
+              -1.9319395448550603,
+              -2.264402844596271,
+              -1.0
+            ],
+            "goal_dist": 4.25597563039909,
+            "deviation": 0.49933087261227477
+          },
+          {
+            "step": 93,
+            "pos": [
+              -1.9142647694951618,
+              -2.2175381759242327,
+              -1.0
+            ],
+            "goal_dist": 4.215347362091465,
+            "deviation": 0.5149323493309724
+          }
+        ],
+        "expert_commands": [
+          {
+            "step": 88,
+            "cmd": [
+              0.0,
+              0.0,
+              0.11127588318071904,
+              0.4
+            ]
+          },
+          {
+            "step": 89,
+            "cmd": [
+              0.0,
+              0.0,
+              0.11363919867524051,
+              0.4
+            ]
+          },
+          {
+            "step": 90,
+            "cmd": [
+              0.0,
+              0.0,
+              0.11669884579221337,
+              0.4
+            ]
+          },
+          {
+            "step": 91,
+            "cmd": [
+              0.0,
+              0.0,
+              0.12039398565646164,
+              0.4
+            ]
+          },
+          {
+            "step": 92,
+            "cmd": [
+              0.0,
+              0.0,
+              0.12466421421184715,
+              0.4
+            ]
+          }
+        ],
+        "expert_clearance_at_collision": 0.6347858467961971
+      }
+    },
+    {
+      "object": "green clock",
+      "val_idx": 5,
+      "d0": 7.572605198477806,
+      "success": false,
+      "collision": true,
+      "collision_type": "pc",
+      "collision_step": 53,
+      "collision_position": [
+        3.364738889985245,
+        -0.780441532273577,
+        -1.0541703185349836
+      ],
+      "collision_dist_to_goal": 6.912301790637829,
+      "goal_dist": 6.912301790637829,
+      "min_goal_dist": 6.912301790637829,
+      "min_goal_step": 53,
+      "first_entry_step": -1,
+      "n_steps": 54,
+      "sim_time": 2.61,
+      "min_clearance": 0.13790638744831085,
+      "min_clearance_step": 53,
+      "fov_pct": 0.0,
+      "mean_pos_dev": 0.6859921037239544,
+      "mean_orient_dev_deg": 41.09201476090507,
+      "out_of_bounds": false,
+      "forensics": {
+        "clearance_window": [
+          0.22812508046627045,
+          0.20492227375507355,
+          0.19278639554977417,
+          0.1940363645553589,
+          0.20834223926067352,
+          0.2057744860649109,
+          0.20157206058502197,
+          0.19630606472492218,
+          0.18606014549732208,
+          0.16369879245758057,
+          0.13790638744831085
+        ],
+        "model_positions": [
+          {
+            "step": 48,
+            "pos": [
+              3.309685312580629,
+              -1.026967288961132,
+              -1.0611474274021557
+            ],
+            "goal_dist": 6.959711354866603
+          },
+          {
+            "step": 49,
+            "pos": [
+              3.320259813228836,
+              -0.9769252042018924,
+              -1.0606490362392194
+            ],
+            "goal_dist": 6.9488409802436015
+          },
+          {
+            "step": 50,
+            "pos": [
+              3.3311419096949133,
+              -0.9272090925742906,
+              -1.05978470442654
+            ],
+            "goal_dist": 6.93873524192268
+          },
+          {
+            "step": 51,
+            "pos": [
+              3.342271954081068,
+              -0.8778451519792901,
+              -1.0585619758810962
+            ],
+            "goal_dist": 6.929347686899715
+          },
+          {
+            "step": 52,
+            "pos": [
+              3.3535245435929633,
+              -0.8288871088553971,
+              -1.056248377910028
+            ],
+            "goal_dist": 6.920565300775218
+          },
+          {
+            "step": 53,
+            "pos": [
+              3.364738889985245,
+              -0.780441532273577,
+              -1.0541703185349836
+            ],
+            "goal_dist": 6.912301790637829
+          }
+        ],
+        "model_commands": [
+          {
+            "step": 48,
+            "cmd": [
+              -0.401787668466568,
+              0.02524692565202713,
+              0.014960631728172302,
+              0.016948014497756958
+            ]
+          },
+          {
+            "step": 49,
+            "cmd": [
+              -0.4008112847805023,
+              0.09253887832164764,
+              0.06426884233951569,
+              0.3536917567253113
+            ]
+          },
+          {
+            "step": 50,
+            "cmd": [
+              -0.38160377740859985,
+              0.11900156736373901,
+              0.08582046627998352,
+              0.4409336447715759
+            ]
+          },
+          {
+            "step": 51,
+            "cmd": [
+              -0.42390555143356323,
+              0.1508350968360901,
+              0.06531649082899094,
+              0.35585567355155945
+            ]
+          },
+          {
+            "step": 52,
+            "cmd": [
+              -0.43610990047454834,
+              0.12631776928901672,
+              0.02853051759302616,
+              0.30326735973358154
+            ]
+          }
+        ],
+        "goal_at_collision": {
+          "bearing": 157.6511646816582,
+          "elevation": 1.1502733031871617,
+          "drone_yaw": 86.23347116088856,
+          "yaw_to_goal": 71.41769352076965
+        },
+        "expert_positions": [
+          {
+            "step": 48,
+            "pos": [
+              1.7112188037765492,
+              -1.4074943301594243,
+              -1.0
+            ],
+            "goal_dist": 5.749154425139003,
+            "deviation": 1.6442734008458968
+          },
+          {
+            "step": 49,
+            "pos": [
+              1.6693643022403017,
+              -1.3796652992830891,
+              -1.0
+            ],
+            "goal_dist": 5.698903856359228,
+            "deviation": 1.7003922717963789
+          },
+          {
+            "step": 50,
+            "pos": [
+              1.627736635622587,
+              -1.351654712059819,
+              -1.0
+            ],
+            "goal_dist": 5.648737582436785,
+            "deviation": 1.7565072793817964
+          },
+          {
+            "step": 51,
+            "pos": [
+              1.58632394935011,
+              -1.3234707450557979,
+              -1.0
+            ],
+            "goal_dist": 5.598650397100483,
+            "deviation": 1.8125576044756537
+          },
+          {
+            "step": 52,
+            "pos": [
+              1.5451143888495757,
+              -1.2951215748372096,
+              -1.0
+            ],
+            "goal_dist": 5.548637133045832,
+            "deviation": 1.8683912184191667
+          },
+          {
+            "step": 53,
+            "pos": [
+              1.504096099547688,
+              -1.2666153779702372,
+              -1.0
+            ],
+            "goal_dist": 5.49869265740457,
+            "deviation": 1.923873962934402
+          }
+        ],
+        "expert_commands": [
+          {
+            "step": 48,
+            "cmd": [
+              0.0,
+              0.0,
+              0.00780982925798912,
+              0.4
+            ]
+          },
+          {
+            "step": 49,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.009352188264686838,
+              0.4
+            ]
+          },
+          {
+            "step": 50,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.024491775955306373,
+              0.4
+            ]
+          },
+          {
+            "step": 51,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.03776797037001304,
+              0.4
+            ]
+          },
+          {
+            "step": 52,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.04931882975006291,
+              0.4
+            ]
+          }
+        ],
+        "expert_clearance_at_collision": 0.6698093355616228
+      }
+    },
+    {
+      "object": "green clock",
+      "val_idx": 6,
+      "d0": 8.180130451527798,
+      "success": false,
+      "collision": true,
+      "collision_type": "pc",
+      "collision_step": 110,
+      "collision_position": [
+        0.26916415263791377,
+        3.2090977214314362,
+        -1.107763272768636
+      ],
+      "collision_dist_to_goal": 3.571603911952951,
+      "goal_dist": 3.571603911952951,
+      "min_goal_dist": 3.571603911952951,
+      "min_goal_step": 110,
+      "first_entry_step": -1,
+      "n_steps": 111,
+      "sim_time": 5.46,
+      "min_clearance": 0.14958630502223969,
+      "min_clearance_step": 110,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.3243080063090894,
+      "mean_orient_dev_deg": 6.229825314649889,
+      "out_of_bounds": false,
+      "forensics": {
+        "clearance_window": [
+          0.2622065842151642,
+          0.24307580292224884,
+          0.23053701221942902,
+          0.22039179503917694,
+          0.20677773654460907,
+          0.19996175169944763,
+          0.18993575870990753,
+          0.17891094088554382,
+          0.16710922122001648,
+          0.15732964873313904,
+          0.14958630502223969
+        ],
+        "model_positions": [
+          {
+            "step": 105,
+            "pos": [
+              0.3392617181990857,
+              3.4462748764280637,
+              -1.1314512885187633
+            ],
+            "goal_dist": 3.7329934770280735
+          },
+          {
+            "step": 106,
+            "pos": [
+              0.3253468442521209,
+              3.3991847231790766,
+              -1.125839528794526
+            ],
+            "goal_dist": 3.700133927705346
+          },
+          {
+            "step": 107,
+            "pos": [
+              0.3114102299331107,
+              3.3519144988260776,
+              -1.119912290855833
+            ],
+            "goal_dist": 3.667534716431051
+          },
+          {
+            "step": 108,
+            "pos": [
+              0.2974364230672318,
+              3.304469443803805,
+              -1.1141156808385322
+            ],
+            "goal_dist": 3.635223991575837
+          },
+          {
+            "step": 109,
+            "pos": [
+              0.28337527641999444,
+              3.2568581413814806,
+              -1.1099043239069817
+            ],
+            "goal_dist": 3.603251731772546
+          },
+          {
+            "step": 110,
+            "pos": [
+              0.26916415263791377,
+              3.2090977214314362,
+              -1.107763272768636
+            ],
+            "goal_dist": 3.571603911952951
+          }
+        ],
+        "model_commands": [
+          {
+            "step": 105,
+            "cmd": [
+              -0.4029046595096588,
+              -0.005120257381349802,
+              0.0007412324193865061,
+              -0.2581202983856201
+            ]
+          },
+          {
+            "step": 106,
+            "cmd": [
+              -0.4105975031852722,
+              -0.03387683629989624,
+              -0.014749953523278236,
+              -0.11180280894041061
+            ]
+          },
+          {
+            "step": 107,
+            "cmd": [
+              -0.4435066282749176,
+              -0.049013711512088776,
+              -0.023268520832061768,
+              -0.25776365399360657
+            ]
+          },
+          {
+            "step": 108,
+            "cmd": [
+              -0.4403131902217865,
+              -0.0336577370762825,
+              -0.02368096634745598,
+              -0.2559429407119751
+            ]
+          },
+          {
+            "step": 109,
+            "cmd": [
+              -0.4213882386684418,
+              -0.03091958910226822,
+              -0.043341755867004395,
+              -0.27870336174964905
+            ]
+          }
+        ],
+        "goal_at_collision": {
+          "bearing": -157.55400960372847,
+          "elevation": 3.0872648159732874,
+          "drone_yaw": -137.09555182732737,
+          "yaw_to_goal": -20.458457776401104
+        },
+        "expert_positions": [
+          {
+            "step": 105,
+            "pos": [
+              0.5560283615596241,
+              2.8559402802281064,
+              -1.0
+            ],
+            "goal_dist": 3.723287414741877,
+            "deviation": 0.6424656834396719
+          },
+          {
+            "step": 106,
+            "pos": [
+              0.5274540295013633,
+              2.815829033464762,
+              -1.0
+            ],
+            "goal_dist": 3.6850532673898466,
+            "deviation": 0.6300688550140084
+          },
+          {
+            "step": 107,
+            "pos": [
+              0.49768096026436937,
+              2.7763460009513032,
+              -1.0
+            ],
+            "goal_dist": 3.6460844269267696,
+            "deviation": 0.6167291449431092
+          },
+          {
+            "step": 108,
+            "pos": [
+              0.4668134290849821,
+              2.7374408943390116,
+              -1.0
+            ],
+            "goal_dist": 3.606454741593934,
+            "deviation": 0.6026875929442437
+          },
+          {
+            "step": 109,
+            "pos": [
+              0.4349557111995416,
+              2.6990634252791716,
+              -1.0
+            ],
+            "goal_dist": 3.566240902811516,
+            "deviation": 0.5883795832054871
+          },
+          {
+            "step": 110,
+            "pos": [
+              0.4022120818443879,
+              2.661163305423067,
+              -1.0
+            ],
+            "goal_dist": 3.525522352940805,
+            "deviation": 0.5740616680029864
+          }
+        ],
+        "expert_commands": [
+          {
+            "step": 105,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.3518165286819585,
+              0.4
+            ]
+          },
+          {
+            "step": 106,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.35371886644968753,
+              0.4
+            ]
+          },
+          {
+            "step": 107,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.3537822804425858,
+              0.4
+            ]
+          },
+          {
+            "step": 108,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.35210186823953604,
+              0.4
+            ]
+          },
+          {
+            "step": 109,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.34880322475022646,
+              0.4
+            ]
+          }
+        ],
+        "expert_clearance_at_collision": 0.5799035725407183
+      }
+    },
+    {
+      "object": "green clock",
+      "val_idx": 7,
+      "d0": 2.0339702224734,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2953152954181117,
+      "min_goal_dist": 1.4746542921831687,
+      "min_goal_step": 62,
+      "first_entry_step": 0,
+      "n_steps": 101,
+      "sim_time": 5.0,
+      "min_clearance": 0.23739509284496307,
+      "min_clearance_step": 97,
+      "fov_pct": 0.0,
+      "mean_pos_dev": 0.8695074132615209,
+      "mean_orient_dev_deg": 34.66688413977404,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green clock",
+      "val_idx": 8,
+      "d0": 8.571035954166431,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.28437135122227,
+      "min_goal_dist": 2.28437135122227,
+      "min_goal_step": 127,
+      "first_entry_step": 127,
+      "n_steps": 128,
+      "sim_time": 6.31,
+      "min_clearance": 0.5721806287765503,
+      "min_clearance_step": 30,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.3451763235660523,
+      "mean_orient_dev_deg": 3.0432814714207397,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green clock",
+      "val_idx": 9,
+      "d0": 4.8771430613558096,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.299906197993828,
+      "min_goal_dist": 2.299906197993828,
+      "min_goal_step": 52,
+      "first_entry_step": 52,
+      "n_steps": 53,
+      "sim_time": 2.5599999999999996,
+      "min_clearance": 0.6583840250968933,
+      "min_clearance_step": 52,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.21824462568045339,
+      "mean_orient_dev_deg": 3.6861445566330246,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green clock",
+      "val_idx": 10,
+      "d0": 5.071743632516478,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.263853460715552,
+      "min_goal_dist": 2.263853460715552,
+      "min_goal_step": 64,
+      "first_entry_step": 64,
+      "n_steps": 65,
+      "sim_time": 3.1599999999999997,
+      "min_clearance": 0.17072536051273346,
+      "min_clearance_step": 44,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.3595634506483024,
+      "mean_orient_dev_deg": 14.445029366947814,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green and pink leafblower",
+      "val_idx": 0,
+      "d0": 8.17078818303826,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2949808560992686,
+      "min_goal_dist": 2.2949808560992686,
+      "min_goal_step": 140,
+      "first_entry_step": 140,
+      "n_steps": 141,
+      "sim_time": 6.96,
+      "min_clearance": 0.20227696001529694,
+      "min_clearance_step": 122,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.3824988918061139,
+      "mean_orient_dev_deg": 7.9314533541341365,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green and pink leafblower",
+      "val_idx": 1,
+      "d0": 8.054234690927668,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2844161916177153,
+      "min_goal_dist": 2.2844161916177153,
+      "min_goal_step": 192,
+      "first_entry_step": 192,
+      "n_steps": 193,
+      "sim_time": 9.56,
+      "min_clearance": 0.19740577042102814,
+      "min_clearance_step": 89,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.4387768139320889,
+      "mean_orient_dev_deg": 10.161389558332884,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green and pink leafblower",
+      "val_idx": 2,
+      "d0": 4.345321294318428,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.286892739099323,
+      "min_goal_dist": 2.286892739099323,
+      "min_goal_step": 47,
+      "first_entry_step": 47,
+      "n_steps": 48,
+      "sim_time": 2.3099999999999996,
+      "min_clearance": 0.7303499579429626,
+      "min_clearance_step": 0,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.12986214644255129,
+      "mean_orient_dev_deg": 4.518492980467869,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green and pink leafblower",
+      "val_idx": 3,
+      "d0": 9.413646862398048,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2937097934211486,
+      "min_goal_dist": 2.2937097934211486,
+      "min_goal_step": 167,
+      "first_entry_step": 167,
+      "n_steps": 168,
+      "sim_time": 8.31,
+      "min_clearance": 0.5319890975952148,
+      "min_clearance_step": 0,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.30804170372438205,
+      "mean_orient_dev_deg": 8.50472369539403,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green and pink leafblower",
+      "val_idx": 4,
+      "d0": 2.64339576659634,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 3.7642236973165017,
+      "min_goal_dist": 2.0922828776015163,
+      "min_goal_step": 70,
+      "first_entry_step": 18,
+      "n_steps": 121,
+      "sim_time": 6.0,
+      "min_clearance": 0.23654291033744812,
+      "min_clearance_step": 43,
+      "fov_pct": 0.0,
+      "mean_pos_dev": 0.34700741427043347,
+      "mean_orient_dev_deg": 16.676337858265683,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green and pink leafblower",
+      "val_idx": 5,
+      "d0": 3.329004821892064,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2584576523843474,
+      "min_goal_dist": 2.2584576523843474,
+      "min_goal_step": 23,
+      "first_entry_step": 23,
+      "n_steps": 24,
+      "sim_time": 1.11,
+      "min_clearance": 0.4350276291370392,
+      "min_clearance_step": 19,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.10849167261433292,
+      "mean_orient_dev_deg": 7.400202502975923,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green and pink leafblower",
+      "val_idx": 6,
+      "d0": 6.323469513536673,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.281326186809216,
+      "min_goal_dist": 2.281326186809216,
+      "min_goal_step": 130,
+      "first_entry_step": 130,
+      "n_steps": 131,
+      "sim_time": 6.46,
+      "min_clearance": 0.5325002074241638,
+      "min_clearance_step": 40,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.3412011365086541,
+      "mean_orient_dev_deg": 7.006929830783388,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green and pink leafblower",
+      "val_idx": 7,
+      "d0": 6.447488687037243,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.279774699361734,
+      "min_goal_dist": 2.279774699361734,
+      "min_goal_step": 92,
+      "first_entry_step": 92,
+      "n_steps": 93,
+      "sim_time": 4.56,
+      "min_clearance": 0.20498858392238617,
+      "min_clearance_step": 70,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.480427175416762,
+      "mean_orient_dev_deg": 7.182748809776651,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green and pink leafblower",
+      "val_idx": 8,
+      "d0": 5.816316905854655,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2886794484499178,
+      "min_goal_dist": 2.2886794484499178,
+      "min_goal_step": 78,
+      "first_entry_step": 78,
+      "n_steps": 79,
+      "sim_time": 3.86,
+      "min_clearance": 0.46768268942832947,
+      "min_clearance_step": 21,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.1956793143319367,
+      "mean_orient_dev_deg": 7.662409193437589,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green and pink leafblower",
+      "val_idx": 9,
+      "d0": 6.536394970139397,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2876395168517782,
+      "min_goal_dist": 2.2876395168517782,
+      "min_goal_step": 102,
+      "first_entry_step": 102,
+      "n_steps": 103,
+      "sim_time": 5.06,
+      "min_clearance": 0.5429142713546753,
+      "min_clearance_step": 0,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.3352985364895568,
+      "mean_orient_dev_deg": 6.45083770911732,
+      "out_of_bounds": false
+    },
+    {
+      "object": "green and pink leafblower",
+      "val_idx": 10,
+      "d0": 3.2065666682733305,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2857148213665517,
+      "min_goal_dist": 2.2857148213665517,
+      "min_goal_step": 35,
+      "first_entry_step": 35,
+      "n_steps": 36,
+      "sim_time": 1.71,
+      "min_clearance": 0.8550543785095215,
+      "min_clearance_step": 33,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.0937196107451306,
+      "mean_orient_dev_deg": 4.061697217343679,
+      "out_of_bounds": false
+    },
+    {
+      "object": "yellow handheld cordless drill on two boxes",
+      "val_idx": 0,
+      "d0": 12.001653555466682,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2710258388073443,
+      "min_goal_dist": 2.2710258388073443,
+      "min_goal_step": 205,
+      "first_entry_step": 205,
+      "n_steps": 206,
+      "sim_time": 10.209999999999999,
+      "min_clearance": 0.4736761152744293,
+      "min_clearance_step": 62,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.18608198292715014,
+      "mean_orient_dev_deg": 3.3658460172547486,
+      "out_of_bounds": false
+    },
+    {
+      "object": "yellow handheld cordless drill on two boxes",
+      "val_idx": 1,
+      "d0": 4.257720237986446,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2980643855051284,
+      "min_goal_dist": 2.2980643855051284,
+      "min_goal_step": 46,
+      "first_entry_step": 46,
+      "n_steps": 47,
+      "sim_time": 2.26,
+      "min_clearance": 0.45407530665397644,
+      "min_clearance_step": 0,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.11290714462835622,
+      "mean_orient_dev_deg": 4.029989461814467,
+      "out_of_bounds": false
+    },
+    {
+      "object": "yellow handheld cordless drill on two boxes",
+      "val_idx": 2,
+      "d0": 4.250778891557987,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2820845153302294,
+      "min_goal_dist": 2.2820845153302294,
+      "min_goal_step": 55,
+      "first_entry_step": 55,
+      "n_steps": 56,
+      "sim_time": 2.71,
+      "min_clearance": 0.3612304627895355,
+      "min_clearance_step": 48,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.13491124080812908,
+      "mean_orient_dev_deg": 6.700626828900599,
+      "out_of_bounds": false
+    },
+    {
+      "object": "yellow handheld cordless drill on two boxes",
+      "val_idx": 3,
+      "d0": 4.193693964291555,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.287821173896129,
+      "min_goal_dist": 2.287821173896129,
+      "min_goal_step": 44,
+      "first_entry_step": 44,
+      "n_steps": 45,
+      "sim_time": 2.1599999999999997,
+      "min_clearance": 0.5770369172096252,
+      "min_clearance_step": 36,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.13366621478322982,
+      "mean_orient_dev_deg": 0.9855484798510854,
+      "out_of_bounds": false
+    },
+    {
+      "object": "yellow handheld cordless drill on two boxes",
+      "val_idx": 4,
+      "d0": 8.424385755066549,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2932493417413133,
+      "min_goal_dist": 2.2932493417413133,
+      "min_goal_step": 129,
+      "first_entry_step": 129,
+      "n_steps": 130,
+      "sim_time": 6.41,
+      "min_clearance": 0.39429670572280884,
+      "min_clearance_step": 8,
+      "fov_pct": 0.9457364341085271,
+      "mean_pos_dev": 0.21814952122025325,
+      "mean_orient_dev_deg": 3.869103157830655,
+      "out_of_bounds": false
+    },
+    {
+      "object": "yellow handheld cordless drill on two boxes",
+      "val_idx": 5,
+      "d0": 9.841630834762425,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2860676762503074,
+      "min_goal_dist": 2.2860676762503074,
+      "min_goal_step": 167,
+      "first_entry_step": 167,
+      "n_steps": 168,
+      "sim_time": 8.31,
+      "min_clearance": 0.19765803217887878,
+      "min_clearance_step": 167,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.43289068861145996,
+      "mean_orient_dev_deg": 9.697946622929527,
+      "out_of_bounds": false
+    },
+    {
+      "object": "yellow handheld cordless drill on two boxes",
+      "val_idx": 6,
+      "d0": 7.706778251126598,
+      "success": false,
+      "collision": true,
+      "collision_type": "pc",
+      "collision_step": 108,
+      "collision_position": [
+        1.3117472547048383,
+        1.467452534344013,
+        -1.145956580498644
+      ],
+      "collision_dist_to_goal": 2.3310470106378283,
+      "goal_dist": 2.3310470106378283,
+      "min_goal_dist": 2.3310470106378283,
+      "min_goal_step": 108,
+      "first_entry_step": -1,
+      "n_steps": 109,
+      "sim_time": 5.359999999999999,
+      "min_clearance": 0.09483221173286438,
+      "min_clearance_step": 108,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.20266898540140998,
+      "mean_orient_dev_deg": 6.788185037619738,
+      "out_of_bounds": false,
+      "forensics": {
+        "clearance_window": [
+          0.7144457697868347,
+          0.6536435484886169,
+          0.5924004912376404,
+          0.5307435393333435,
+          0.46871134638786316,
+          0.40637028217315674,
+          0.3437999486923218,
+          0.28110840916633606,
+          0.21865297853946686,
+          0.15698526799678802,
+          0.09483221173286438
+        ],
+        "model_positions": [
+          {
+            "step": 103,
+            "pos": [
+              1.2378568571708317,
+              1.1615797567449728,
+              -1.1568092894417623
+            ],
+            "goal_dist": 2.6425459690276196
+          },
+          {
+            "step": 104,
+            "pos": [
+              1.2541578624144096,
+              1.222112818621128,
+              -1.156559684796214
+            ],
+            "goal_dist": 2.5808268185222
+          },
+          {
+            "step": 105,
+            "pos": [
+              1.2697099176120077,
+              1.2830845153984407,
+              -1.1560249732162462
+            ],
+            "goal_dist": 2.518828891342572
+          },
+          {
+            "step": 106,
+            "pos": [
+              1.2845207350934975,
+              1.3443838922106053,
+              -1.1536239785608646
+            ],
+            "goal_dist": 2.456373335191582
+          },
+          {
+            "step": 107,
+            "pos": [
+              1.298542691786839,
+              1.4058773343492588,
+              -1.1501809510549592
+            ],
+            "goal_dist": 2.3937286242621085
+          },
+          {
+            "step": 108,
+            "pos": [
+              1.3117472547048383,
+              1.467452534344013,
+              -1.145956580498644
+            ],
+            "goal_dist": 2.3310470106378283
+          }
+        ],
+        "model_commands": [
+          {
+            "step": 103,
+            "cmd": [
+              -0.4026517868041992,
+              0.037094153463840485,
+              0.05434346944093704,
+              0.010124198161065578
+            ]
+          },
+          {
+            "step": 104,
+            "cmd": [
+              -0.3621363043785095,
+              -0.018935974687337875,
+              0.14773398637771606,
+              -0.02638089656829834
+            ]
+          },
+          {
+            "step": 105,
+            "cmd": [
+              -0.40289127826690674,
+              0.001241951948031783,
+              0.08375349640846252,
+              -0.00312253856100142
+            ]
+          },
+          {
+            "step": 106,
+            "cmd": [
+              -0.3891352713108063,
+              -0.010658960789442062,
+              0.11984698474407196,
+              0.05539209768176079
+            ]
+          },
+          {
+            "step": 107,
+            "cmd": [
+              -0.40725138783454895,
+              0.0032643028534948826,
+              0.37580806016921997,
+              0.014607361517846584
+            ]
+          }
+        ],
+        "goal_at_collision": {
+          "bearing": 78.65831888818516,
+          "elevation": 10.616964008073518,
+          "drone_yaw": 78.18831753540928,
+          "yaw_to_goal": 0.4700013527758813
+        },
+        "expert_positions": [
+          {
+            "step": 103,
+            "pos": [
+              0.9764776007644391,
+              1.224013216034836,
+              -1.0
+            ],
+            "goal_dist": 2.6262585170068866,
+            "deviation": 0.31113695661828433
+          },
+          {
+            "step": 104,
+            "pos": [
+              0.9779240382661083,
+              1.2735367497101704,
+              -1.0
+            ],
+            "goal_dist": 2.578915250278423,
+            "deviation": 0.3216527338539735
+          },
+          {
+            "step": 105,
+            "pos": [
+              0.9781552308303201,
+              1.3231516931002483,
+              -1.0
+            ],
+            "goal_dist": 2.531946018518288,
+            "deviation": 0.3330965421322871
+          },
+          {
+            "step": 106,
+            "pos": [
+              0.9771336499101198,
+              1.372860881995675,
+              -1.0
+            ],
+            "goal_dist": 2.4853863476871805,
+            "deviation": 0.34481601742613566
+          },
+          {
+            "step": 107,
+            "pos": [
+              0.9748217669585525,
+              1.4226671521870535,
+              -1.0
+            ],
+            "goal_dist": 2.43927647824755,
+            "deviation": 0.35725544532516157
+          },
+          {
+            "step": 108,
+            "pos": [
+              0.9711820534286641,
+              1.4725733394649896,
+              -1.0
+            ],
+            "goal_dist": 2.393661951535703,
+            "deviation": 0.3705593101734528
+          }
+        ],
+        "expert_commands": [
+          {
+            "step": 103,
+            "cmd": [
+              0.0,
+              0.0,
+              0.009681975729299963,
+              0.4
+            ]
+          },
+          {
+            "step": 104,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.0050319911565174244,
+              0.4
+            ]
+          },
+          {
+            "step": 105,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.021447159767832746,
+              0.4
+            ]
+          },
+          {
+            "step": 106,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.0397685067044409,
+              0.4
+            ]
+          },
+          {
+            "step": 107,
+            "cmd": [
+              0.0,
+              0.0,
+              -0.060248976566384886,
+              0.4
+            ]
+          }
+        ],
+        "expert_clearance_at_collision": 0.367654451156957
+      }
+    },
+    {
+      "object": "yellow handheld cordless drill on two boxes",
+      "val_idx": 7,
+      "d0": 5.237048486893889,
+      "success": false,
+      "collision": true,
+      "collision_type": "pc",
+      "collision_step": 87,
+      "collision_position": [
+        -0.6056155583729982,
+        3.271585529271366,
+        -1.0984384099826126
+      ],
+      "collision_dist_to_goal": 2.438979432932714,
+      "goal_dist": 2.438979432932714,
+      "min_goal_dist": 2.438979432932714,
+      "min_goal_step": 87,
+      "first_entry_step": -1,
+      "n_steps": 88,
+      "sim_time": 4.31,
+      "min_clearance": 0.12674637138843536,
+      "min_clearance_step": 87,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.15034103235824683,
+      "mean_orient_dev_deg": 3.4136520309812366,
+      "out_of_bounds": false,
+      "forensics": {
+        "clearance_window": [
+          0.48844724893569946,
+          0.46005526185035706,
+          0.42928892374038696,
+          0.3999127745628357,
+          0.36245468258857727,
+          0.32307693362236023,
+          0.2850860059261322,
+          0.24499070644378662,
+          0.20288071036338806,
+          0.16236214339733124,
+          0.12674637138843536
+        ],
+        "model_positions": [
+          {
+            "step": 82,
+            "pos": [
+              -0.8025638883252734,
+              3.4449849003283397,
+              -1.105241020841731
+            ],
+            "goal_dist": 2.608076819665239
+          },
+          {
+            "step": 83,
+            "pos": [
+              -0.765015838512003,
+              3.409144907103736,
+              -1.1043978470503297
+            ],
+            "goal_dist": 2.5750269260245164
+          },
+          {
+            "step": 84,
+            "pos": [
+              -0.726448160291945,
+              3.3738523126809943,
+              -1.1038990219625948
+            ],
+            "goal_dist": 2.5415882182900322
+          },
+          {
+            "step": 85,
+            "pos": [
+              -0.6869518413485081,
+              3.3391330411819014,
+              -1.1028724977389521
+            ],
+            "goal_dist": 2.507719343776365
+          },
+          {
+            "step": 86,
+            "pos": [
+              -0.6466742284378657,
+              3.3050241777513727,
+              -1.100621884894525
+            ],
+            "goal_dist": 2.473452752923243
+          },
+          {
+            "step": 87,
+            "pos": [
+              -0.6056155583729982,
+              3.271585529271366,
+              -1.0984384099826126
+            ],
+            "goal_dist": 2.438979432932714
+          }
+        ],
+        "model_commands": [
+          {
+            "step": 82,
+            "cmd": [
+              -0.42425745725631714,
+              0.02307623066008091,
+              0.016648905351758003,
+              0.38489291071891785
+            ]
+          },
+          {
+            "step": 83,
+            "cmd": [
+              -0.3860582411289215,
+              0.02403225004673004,
+              0.15672799944877625,
+              0.30547940731048584
+            ]
+          },
+          {
+            "step": 84,
+            "cmd": [
+              -0.3859957754611969,
+              -0.003842014353722334,
+              0.03563324362039566,
+              0.35632526874542236
+            ]
+          },
+          {
+            "step": 85,
+            "cmd": [
+              -0.41882964968681335,
+              0.040098775178194046,
+              0.012014313600957394,
+              0.3953796923160553
+            ]
+          },
+          {
+            "step": 86,
+            "cmd": [
+              -0.40706565976142883,
+              0.033252570778131485,
+              0.018501948565244675,
+              0.4292354881763458
+            ]
+          }
+        ],
+        "goal_at_collision": {
+          "bearing": 10.57940887072119,
+          "elevation": 9.00996603412812,
+          "drone_yaw": -12.986370287046606,
+          "yaw_to_goal": 23.565779157767796
+        },
+        "expert_positions": [
+          {
+            "step": 82,
+            "pos": [
+              -1.1006937974309305,
+              3.2646140416719076,
+              -1.0
+            ],
+            "goal_dist": 2.9118822136492697,
+            "deviation": 0.36399280463165157
+          },
+          {
+            "step": 83,
+            "pos": [
+              -1.0827690458766384,
+              3.2185668483508647,
+              -1.0
+            ],
+            "goal_dist": 2.901763996750454,
+            "deviation": 0.38494935736700464
+          },
+          {
+            "step": 84,
+            "pos": [
+              -1.0643193876279424,
+              3.172947123277606,
+              -1.0
+            ],
+            "goal_dist": 2.8918615971931043,
+            "deviation": 0.4065893114132838
+          },
+          {
+            "step": 85,
+            "pos": [
+              -1.0453219538290608,
+              3.1277771246981496,
+              -1.0
+            ],
+            "goal_dist": 2.882140217542513,
+            "deviation": 0.4285827945019041
+          },
+          {
+            "step": 86,
+            "pos": [
+              -1.0257538756242128,
+              3.083079110858517,
+              -1.0
+            ],
+            "goal_dist": 2.8725642644998284,
+            "deviation": 0.4506503692983359
+          },
+          {
+            "step": 87,
+            "pos": [
+              -1.0055922841576166,
+              3.0388753400047284,
+              -1.0
+            ],
+            "goal_dist": 2.863097436127069,
+            "deviation": 0.47310203330550477
+          }
+        ],
+        "expert_commands": [
+          {
+            "step": 82,
+            "cmd": [
+              0.0,
+              0.0,
+              0.4431494861100757,
+              0.4
+            ]
+          },
+          {
+            "step": 83,
+            "cmd": [
+              0.0,
+              0.0,
+              0.44691194961957487,
+              0.4
+            ]
+          },
+          {
+            "step": 84,
+            "cmd": [
+              0.0,
+              0.0,
+              0.4505638363832437,
+              0.4
+            ]
+          },
+          {
+            "step": 85,
+            "cmd": [
+              0.0,
+              0.0,
+              0.45410823818232016,
+              0.4
+            ]
+          },
+          {
+            "step": 86,
+            "cmd": [
+              0.0,
+              0.0,
+              0.457549122192777,
+              0.4
+            ]
+          }
+        ],
+        "expert_clearance_at_collision": 0.5113869127359655
+      }
+    },
+    {
+      "object": "yellow handheld cordless drill on two boxes",
+      "val_idx": 8,
+      "d0": 4.813192627499232,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.2909157705482075,
+      "min_goal_dist": 2.2909157705482075,
+      "min_goal_step": 51,
+      "first_entry_step": 51,
+      "n_steps": 52,
+      "sim_time": 2.51,
+      "min_clearance": 0.7144437432289124,
+      "min_clearance_step": 51,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.11248290239072685,
+      "mean_orient_dev_deg": 3.0288376984044088,
+      "out_of_bounds": false
+    },
+    {
+      "object": "yellow handheld cordless drill on two boxes",
+      "val_idx": 9,
+      "d0": 10.926370587687034,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 2.29364741703322,
+      "min_goal_dist": 2.29364741703322,
+      "min_goal_step": 171,
+      "first_entry_step": 171,
+      "n_steps": 172,
+      "sim_time": 8.51,
+      "min_clearance": 0.4397633373737335,
+      "min_clearance_step": 35,
+      "fov_pct": 1.0,
+      "mean_pos_dev": 0.3617033845598133,
+      "mean_orient_dev_deg": 4.180797071263077,
+      "out_of_bounds": false
+    },
+    {
+      "object": "yellow handheld cordless drill on two boxes",
+      "val_idx": 10,
+      "d0": 2.0537264995682745,
+      "success": true,
+      "collision": false,
+      "collision_type": "none",
+      "collision_step": -1,
+      "collision_position": null,
+      "collision_dist_to_goal": null,
+      "goal_dist": 4.861171995204372,
+      "min_goal_dist": 1.685540928589288,
+      "min_goal_step": 40,
+      "first_entry_step": 0,
+      "n_steps": 161,
+      "sim_time": 8.0,
+      "min_clearance": 0.3110378384590149,
+      "min_clearance_step": 121,
+      "fov_pct": 0.0,
+      "mean_pos_dev": 2.0283222858139425,
+      "mean_orient_dev_deg": 88.9393149410331,
+      "out_of_bounds": false
+    }
+  ]
+}

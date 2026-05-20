@@ -1,0 +1,60 @@
+# RL Fine-Tuning smoke6 -- Conservative tuning after smoke5 regression
+# Key changes vs smoke5:
+#   - critic_warmup_iters: 2 -> 5 (more data before actor updates)
+#   - actor_lr: 1e-6 -> 1e-7 (10x more conservative)
+#   - rollouts_per_iter: 4 -> 8 (richer replay buffer)
+#   - bc_reg_weight: 1.0 -> 5.0 (stronger BC constraint)
+#   - n_eval: 10 -> 20 (less noisy benchmark)
+#   - resume_warmup: true (skip warmup if checkpoint exists)
+cohort: "SSV_RL_FINETUNE_V9_SMOKE6"
+source_cohort: "SSV_DAGGER_CENTROID_V9"
+bc_cohort: "ssv_BC_CENTROID_V9"
+method: "rrt_6s"
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"
+
+# RL hyperparameters
+n_iterations: 15
+rollouts_per_iter: 8     # 8 branches/object/iter -> ~24 rollouts/iter -> ~200+ transitions/iter
+utd: 5
+batch_size: 128
+critic_lr: 0.0003
+actor_lr: 0.0000001      # 1e-7 — very conservative for near-optimal policy
+critic_target_tau: 0.005
+discount: 0.99
+noise_std: 0.02
+stddev_clip: 0.3
+num_critics: 2
+critic_hidden: 256
+replay_capacity: 200000
+warmup_transitions: 200
+
+# Reward weights
+goal_progress_weight: 1.0
+collision_penalty_weight: 2.0
+clearance_threshold: 0.5
+fov_bonus: 0.05
+success_bonus: 10.0
+collision_penalty: 10.0
+time_penalty: 0.01
+
+# BC regularization (action-level)
+bc_reg_freq: 1
+bc_reg_weight: 5.0       # 5x stronger BC constraint to prevent destabilization
+
+# Stability
+actor_grad_clip: 0.1     # tighter gradient clipping (was 0.5)
+critic_warmup_iters: 5   # 5 warmup iters -> ~12000 transitions before actor updates
+reset_to_best: true
+
+# Evaluation
+n_eval: 20               # 20 eval runs per object (less noisy)
+eval_seed: 42
+patience: 8              # more patience before stopping
+
+# Resume
+resume_warmup: true      # load critic + replay from checkpoint if available

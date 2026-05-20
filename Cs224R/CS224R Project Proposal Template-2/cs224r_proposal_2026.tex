@@ -1,0 +1,77 @@
+% The template is adapted for CS224R project proposal
+\documentclass{article}
+
+\usepackage[preprint]{cs224r_2026}
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+\usepackage{amsmath}
+\usepackage{fancyhdr}       % for headers and footers
+\usepackage{lipsum}
+% Setup header
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyhead[C]{CS224R Project Proposal}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Custom title format for one-page document without the proposal title
+\renewcommand{\maketitle}{
+  \begin{center}
+    {\bf \large Project Title: Your Project Title Here}\\
+    \vspace{0.1cm}
+    {\bf Team Members:} Member 1, Member 2, Member 3\\
+    \vspace{0.1cm}
+    {\bf Emails:} email1@stanford.edu, email2@stanford.edu, email3@stanford.edu\\
+    \vspace{0.2cm}
+  \end{center}
+}
+
+\begin{document}
+
+\maketitle
+
+\textcolor{purple}{(Please remove this paragraph in your submission) This template provides a suggested structure for your project proposal report. Please replace the placeholder text with your actual content and feel free to modify section headings and organization as appropriate.}
+
+\section{Objective} % 1/4 page
+% Explain the objectives of the project and why they are relevant and important
+\lipsum[1][1-25] % This generates approximately 1/4 page of lorem ipsum text
+
+\section{Related Work} % 1/2 page
+% Review the most relevant prior work and highlight limitations
+\lipsum[2-4] % This generates approximately 1/2 page of lorem ipsum text
+
+\section{Technical Outline} % 1/2 page
+% Explain approach, novel technical contribution, and evaluation plan
+\lipsum[5-8] % This generates approximately 1/2 page of lorem ipsum text
+
+\section{Team Contributions} % 1/4 page
+% Brief breakdown of planned contributions of each group member
+\begin{itemize}
+    \item \textbf{Team Member 1}: \lipsum[6][1-3]
+    \item \textbf{Team Member 2}: \lipsum[6][4-6]
+    \item \textbf{Team Member 3}: \lipsum[6][7-9]
+\end{itemize}
+
+\lipsum[7][1-2] % Additional text to fill 1/4 page
+
+% Include any additional notes about the proposal format here
+
+% References
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{reference}
+% If you don't have a .bib file, you can use the following manual format:
+%\begin{thebibliography}{9}
+%\bibitem{ref1}
+%Author, A. et al. (Year). Title of paper. \textit{Conference/Journal}, pages.
+%
+%\bibitem{ref2}
+%Author, B. et al. (Year). Title of paper. \textit{Conference/Journal}, pages.
+%\end{thebibliography}
+
+\end{document}

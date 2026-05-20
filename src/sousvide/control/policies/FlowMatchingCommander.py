@@ -230,6 +230,7 @@ class FlowMatchingCommanderWrapper(nn.Module):
         self.get_data = svnet_model.get_data
         self.get_network = svnet_model.get_network
         self.get_commander_inputs = svnet_model.get_commander_inputs
+        self.extract_inputs = svnet_model.extract_inputs
 
     def forward_flow(self, tx_com, obj_com, dxu_par, img_vis, tx_vis,
                      noisy_action, flow_time):

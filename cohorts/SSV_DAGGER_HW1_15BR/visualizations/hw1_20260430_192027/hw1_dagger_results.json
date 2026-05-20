@@ -1,0 +1,212 @@
+{
+  "timestamp": "20260430_192027",
+  "config": {
+    "n_rounds": 5,
+    "n_epochs_per_round": 30,
+    "lr": 2e-05,
+    "batch_size": 64,
+    "cohort": "SSV_DAGGER_HW1_15BR"
+  },
+  "selected_branches": {
+    "green clock": {
+      "fail": [
+        5,
+        115
+      ],
+      "success": [
+        47,
+        91,
+        64
+      ]
+    },
+    "green and pink leafblower": {
+      "fail": [
+        1,
+        111
+      ],
+      "success": [
+        37,
+        15,
+        81
+      ]
+    },
+    "yellow handheld cordless drill on two boxes": {
+      "fail": [
+        2,
+        27
+      ],
+      "success": [
+        10,
+        35,
+        17
+      ]
+    }
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "n_new_annotations": 1750,
+      "n_total_annotations": 1750,
+      "collection": {
+        "sr": 0.6666666666666666,
+        "cr": 0.26666666666666666
+      },
+      "eval": {
+        "sr": 0.8666666666666667,
+        "cr": 0.13333333333333333
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.6,
+          "collision_rate": 0.4,
+          "goal_dist": 3.4933136001503087,
+          "n_eval": 5
+        },
+        "green and pink leafblower": {
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "goal_dist": 2.277270824920171,
+          "n_eval": 5
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "goal_dist": 2.2823797287731233,
+          "n_eval": 5
+        }
+      }
+    },
+    {
+      "round": 2,
+      "n_new_annotations": 1791,
+      "n_total_annotations": 3541,
+      "collection": {
+        "sr": 0.7999999999999999,
+        "cr": 0.13333333333333333
+      },
+      "eval": {
+        "sr": 0.9333333333333332,
+        "cr": 0.06666666666666667
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.8,
+          "collision_rate": 0.2,
+          "goal_dist": 3.153905668012796,
+          "n_eval": 5
+        },
+        "green and pink leafblower": {
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "goal_dist": 2.281747871352158,
+          "n_eval": 5
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "goal_dist": 2.286786040406344,
+          "n_eval": 5
+        }
+      }
+    },
+    {
+      "round": 3,
+      "n_new_annotations": 1836,
+      "n_total_annotations": 5377,
+      "collection": {
+        "sr": 0.9333333333333332,
+        "cr": 0.06666666666666667
+      },
+      "eval": {
+        "sr": 0.8000000000000002,
+        "cr": 0.13333333333333333
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.6,
+          "collision_rate": 0.2,
+          "goal_dist": 3.1256594401367015,
+          "n_eval": 5
+        },
+        "green and pink leafblower": {
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "goal_dist": 2.2782935883266973,
+          "n_eval": 5
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.8,
+          "collision_rate": 0.2,
+          "goal_dist": 2.3026348477755763,
+          "n_eval": 5
+        }
+      }
+    },
+    {
+      "round": 4,
+      "n_new_annotations": 1804,
+      "n_total_annotations": 7181,
+      "collection": {
+        "sr": 0.8000000000000002,
+        "cr": 0.13333333333333333
+      },
+      "eval": {
+        "sr": 0.7333333333333334,
+        "cr": 0.20000000000000004
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.6,
+          "collision_rate": 0.2,
+          "goal_dist": 3.762003862624809,
+          "n_eval": 5
+        },
+        "green and pink leafblower": {
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "goal_dist": 2.287163818818901,
+          "n_eval": 5
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.6,
+          "collision_rate": 0.4,
+          "goal_dist": 2.313041600288239,
+          "n_eval": 5
+        }
+      }
+    },
+    {
+      "round": 5,
+      "n_new_annotations": 1743,
+      "n_total_annotations": 8924,
+      "collection": {
+        "sr": 0.7333333333333334,
+        "cr": 0.20000000000000004
+      },
+      "eval": {
+        "sr": 0.7999999999999999,
+        "cr": 0.13333333333333333
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.4,
+          "collision_rate": 0.4,
+          "goal_dist": 4.357944987230018,
+          "n_eval": 5
+        },
+        "green and pink leafblower": {
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "goal_dist": 2.286557197514955,
+          "n_eval": 5
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "goal_dist": 2.285959517524603,
+          "n_eval": 5
+        }
+      }
+    }
+  ]
+}

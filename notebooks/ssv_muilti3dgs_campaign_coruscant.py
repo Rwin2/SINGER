@@ -149,6 +149,121 @@ def train_rl(config_file: str):
     )
 
 
+@app.command("rl-finetune")
+def rl_finetune(
+    config_file: Path = typer.Option(..., exists=True),
+):
+    """Step 7: RL fine-tuning of a pre-trained DAgger/BC model using off-policy actor-critic (UTD=5)."""
+    import yaml
+    from sousvide.instruct.train_rl_finetune import train_rl_finetune
+
+    with open(config_file) as f:
+        cfg = yaml.safe_load(f)
+
+    flights = [tuple(x) for x in cfg["flights"]]
+    roster = cfg.get("roster") or ["InstinctJester"]
+
+    train_rl_finetune(
+        cohort_name=cfg["cohort"],
+        method_name=cfg["method"],
+        roster=roster,
+        flights=flights,
+        source_cohort=cfg.get("source_cohort"),
+        bc_cohort=cfg.get("bc_cohort"),
+        # RL hyperparameters
+        n_iterations=cfg.get("n_iterations", 20),
+        rollouts_per_iter=cfg.get("rollouts_per_iter", 6),
+        utd=cfg.get("utd", 5),
+        batch_size=cfg.get("batch_size", 128),
+        critic_lr=cfg.get("critic_lr", 3e-4),
+        actor_lr=cfg.get("actor_lr", 1e-5),
+        critic_target_tau=cfg.get("critic_target_tau", 0.005),
+        discount=cfg.get("discount", 0.99),
+        noise_std=cfg.get("noise_std", 0.05),
+        stddev_clip=cfg.get("stddev_clip", 0.3),
+        num_critics=cfg.get("num_critics", 2),
+        critic_hidden=cfg.get("critic_hidden", 256),
+        replay_capacity=cfg.get("replay_capacity", 200000),
+        warmup_transitions=cfg.get("warmup_transitions", 500),
+        # Reward weights
+        goal_progress_weight=cfg.get("goal_progress_weight", 1.0),
+        collision_penalty_weight=cfg.get("collision_penalty_weight", 2.0),
+        clearance_threshold=cfg.get("clearance_threshold", 0.5),
+        fov_bonus=cfg.get("fov_bonus", 0.05),
+        success_bonus=cfg.get("success_bonus", 10.0),
+        collision_penalty=cfg.get("collision_penalty", 10.0),
+        time_penalty=cfg.get("time_penalty", 0.01),
+        # BC regularization
+        bc_reg_freq=cfg.get("bc_reg_freq", 1),
+        bc_reg_weight=cfg.get("bc_reg_weight", 1.0),
+        # Stability
+        actor_grad_clip=cfg.get("actor_grad_clip", 0.5),
+        critic_warmup_iters=cfg.get("critic_warmup_iters", 2),
+        reset_to_best=cfg.get("reset_to_best", True),
+        # Evaluation
+        n_eval=cfg.get("n_eval", 20),
+        eval_seed=cfg.get("eval_seed", 42),
+        patience=cfg.get("patience", 5),
+        # Resume
+        resume_warmup=cfg.get("resume_warmup", True),
+    )
+
+
+@app.command("rl-ppo")
+def rl_ppo(
+    config_file: Path = typer.Option(..., exists=True),
+):
+    """Step 7b: RL fine-tuning via PPO with KL constraint to DAgger reference."""
+    import yaml
+    from sousvide.instruct.train_rl_ppo import train_rl_ppo
+
+    with open(config_file) as f:
+        cfg = yaml.safe_load(f)
+
+    flights = [tuple(x) for x in cfg["flights"]]
+    roster = cfg.get("roster") or ["InstinctJester"]
+
+    train_rl_ppo(
+        cohort_name=cfg["cohort"],
+        method_name=cfg["method"],
+        roster=roster,
+        flights=flights,
+        source_cohort=cfg.get("source_cohort"),
+        bc_cohort=cfg.get("bc_cohort"),
+        # PPO hyperparameters
+        n_iterations=cfg.get("n_iterations", 30),
+        rollouts_per_iter=cfg.get("rollouts_per_iter", 8),
+        ppo_epochs=cfg.get("ppo_epochs", 3),
+        batch_size=cfg.get("batch_size", 128),
+        actor_lr=cfg.get("actor_lr", 1e-6),
+        value_lr=cfg.get("value_lr", 3e-4),
+        clip_eps=cfg.get("clip_eps", 0.1),
+        gamma=cfg.get("gamma", 0.99),
+        gae_lambda=cfg.get("gae_lambda", 0.95),
+        value_coef=cfg.get("value_coef", 0.5),
+        entropy_coef=cfg.get("entropy_coef", 0.01),
+        kl_coef=cfg.get("kl_coef", 0.1),
+        log_std_init=cfg.get("log_std_init", -2.0),
+        value_hidden=cfg.get("value_hidden", 256),
+        # Reward weights
+        goal_progress_weight=cfg.get("goal_progress_weight", 1.0),
+        collision_penalty_weight=cfg.get("collision_penalty_weight", 2.0),
+        clearance_threshold=cfg.get("clearance_threshold", 0.5),
+        fov_bonus=cfg.get("fov_bonus", 0.05),
+        success_bonus=cfg.get("success_bonus", 10.0),
+        collision_penalty=cfg.get("collision_penalty", 10.0),
+        time_penalty=cfg.get("time_penalty", 0.01),
+        # Stability
+        max_grad_norm=cfg.get("max_grad_norm", 0.5),
+        reset_to_best=cfg.get("reset_to_best", True),
+        # Evaluation
+        n_eval=cfg.get("n_eval", 20),
+        eval_seed=cfg.get("eval_seed", 42),
+        patience=cfg.get("patience", 8),
+        use_unseen_eval=cfg.get("use_unseen_eval", False),
+    )
+
+
 @app.command("generate-rollouts")
 def generate_rollouts(
     config_file: Path = typer.Option(..., exists=True),

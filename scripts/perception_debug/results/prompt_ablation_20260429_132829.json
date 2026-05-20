@@ -1,0 +1,933 @@
+{
+  "basic": {
+    "green_and_pink_leafblower_val0_success": {
+      "det": {
+        "n": 17,
+        "mean": 10.542711255723546,
+        "median": 4.683968815310878,
+        "p90": 7.538127617907673,
+        "max": 100.65063678905393
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 17,
+      "n_tp": 17,
+      "n_fp": 0,
+      "det_rate": 0.16037735849056603
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "det": {
+        "n": 7,
+        "mean": 175.805054828405,
+        "median": 196.5571622033753,
+        "p90": 224.40511303387052,
+        "max": 237.87455067572608
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 7,
+      "n_tp": 7,
+      "n_fp": 0,
+      "det_rate": 0.08139534883720931
+    },
+    "green_clock_val0_success": {
+      "det": {
+        "n": 153,
+        "mean": 14.268945716279061,
+        "median": 7.080179327142838,
+        "p90": 16.398813579708396,
+        "max": 311.8765470182091
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 153,
+      "n_tp": 153,
+      "n_fp": 0,
+      "det_rate": 0.7846153846153846
+    },
+    "green_clock_val4_failed": {
+      "det": {
+        "n": 23,
+        "mean": 6.29336505265929,
+        "median": 6.536848235994209,
+        "p90": 8.71929205453858,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 23,
+      "n_tp": 23,
+      "n_fp": 0,
+      "det_rate": 0.18253968253968253
+    },
+    "green_clock_val5_failed": {
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 0,
+      "n_tp": 0,
+      "n_fp": 0,
+      "det_rate": 0.0
+    },
+    "green_clock_val6_failed": {
+      "det": {
+        "n": 101,
+        "mean": 14.644392578696037,
+        "median": 9.858855991505516,
+        "p90": 25.284544878034367,
+        "max": 32.235158949889644
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 101,
+      "n_tp": 101,
+      "n_fp": 0,
+      "det_rate": 0.6870748299319728
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "det": {
+        "n": 174,
+        "mean": 89.64977835918694,
+        "median": 31.665810884249066,
+        "p90": 205.7447053262544,
+        "max": 255.12803886505998
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 174,
+      "n_tp": 174,
+      "n_fp": 0,
+      "det_rate": 0.8656716417910447
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "det": {
+        "n": 61,
+        "mean": 20.366470058420308,
+        "median": 14.750021097661392,
+        "p90": 18.07997030869095,
+        "max": 187.24021711287682
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 61,
+      "n_tp": 61,
+      "n_fp": 0,
+      "det_rate": 0.5596330275229358
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "det": {
+        "n": 36,
+        "mean": 33.8722442948474,
+        "median": 21.363452895056675,
+        "p90": 28.20917360935492,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 43,
+      "n_tp": 36,
+      "n_fp": 7,
+      "det_rate": 0.782608695652174
+    }
+  },
+  "basic_2": {
+    "green_and_pink_leafblower_val0_success": {
+      "det": {
+        "n": 94,
+        "mean": 94.70475004698575,
+        "median": 31.376997670706338,
+        "p90": 432.9884531519698,
+        "max": 517.2325914894909
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 111,
+      "n_tp": 94,
+      "n_fp": 17,
+      "det_rate": 0.8867924528301887
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "det": {
+        "n": 61,
+        "mean": 141.56500825082745,
+        "median": 108.20331076745929,
+        "p90": 306.0084525164175,
+        "max": 348.04047287669755
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 61,
+      "n_tp": 61,
+      "n_fp": 0,
+      "det_rate": 0.7093023255813954
+    },
+    "green_clock_val0_success": {
+      "det": {
+        "n": 181,
+        "mean": 7.962718073384446,
+        "median": 6.628802662289017,
+        "p90": 14.482884407671655,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 181,
+      "n_tp": 181,
+      "n_fp": 0,
+      "det_rate": 0.9282051282051282
+    },
+    "green_clock_val4_failed": {
+      "det": {
+        "n": 24,
+        "mean": 6.540921329393414,
+        "median": 6.585196154658139,
+        "p90": 8.751427916929977,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 24,
+      "n_tp": 24,
+      "n_fp": 0,
+      "det_rate": 0.19047619047619047
+    },
+    "green_clock_val5_failed": {
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 0,
+      "n_tp": 0,
+      "n_fp": 0,
+      "det_rate": 0.0
+    },
+    "green_clock_val6_failed": {
+      "det": {
+        "n": 108,
+        "mean": 14.464826575184414,
+        "median": 9.722905417776797,
+        "p90": 24.979631934287536,
+        "max": 32.235158949889644
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 108,
+      "n_tp": 108,
+      "n_fp": 0,
+      "det_rate": 0.7346938775510204
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "det": {
+        "n": 192,
+        "mean": 97.53341719125244,
+        "median": 77.97602859091623,
+        "p90": 211.3180630192309,
+        "max": 248.6045673682087
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_tp": 192,
+      "n_fp": 0,
+      "det_rate": 0.9552238805970149
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "det": {
+        "n": 72,
+        "mean": 41.08375172241534,
+        "median": 15.18489872890045,
+        "p90": 166.05243955857546,
+        "max": 335.532891557053
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_tp": 72,
+      "n_fp": 0,
+      "det_rate": 0.6605504587155964
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "det": {
+        "n": 41,
+        "mean": 54.03833176657892,
+        "median": 21.857040145540505,
+        "p90": 199.7128082513839,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_tp": 41,
+      "n_fp": 29,
+      "det_rate": 0.8913043478260869
+    }
+  },
+  "rich_5": {
+    "green_and_pink_leafblower_val0_success": {
+      "det": {
+        "n": 96,
+        "mean": 80.83936149718105,
+        "median": 26.90021861880523,
+        "p90": 197.75369852346745,
+        "max": 526.0360344364054
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 121,
+      "n_tp": 96,
+      "n_fp": 25,
+      "det_rate": 0.9056603773584906
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "det": {
+        "n": 68,
+        "mean": 128.91036181101677,
+        "median": 95.22366030384623,
+        "p90": 304.72617895760044,
+        "max": 348.04047287669755
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 68,
+      "n_tp": 68,
+      "n_fp": 0,
+      "det_rate": 0.7906976744186046
+    },
+    "green_clock_val0_success": {
+      "det": {
+        "n": 186,
+        "mean": 7.821659352806036,
+        "median": 6.5959170577370925,
+        "p90": 14.22083903563325,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 186,
+      "n_tp": 186,
+      "n_fp": 0,
+      "det_rate": 0.9538461538461539
+    },
+    "green_clock_val4_failed": {
+      "det": {
+        "n": 26,
+        "mean": 6.572676253099788,
+        "median": 6.585196154658139,
+        "p90": 8.744523899871922,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_tp": 26,
+      "n_fp": 0,
+      "det_rate": 0.20634920634920634
+    },
+    "green_clock_val5_failed": {
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_tp": 0,
+      "n_fp": 4,
+      "det_rate": 0.0
+    },
+    "green_clock_val6_failed": {
+      "det": {
+        "n": 109,
+        "mean": 14.686595097405249,
+        "median": 9.758973292449184,
+        "p90": 25.778004514139724,
+        "max": 37.157906898995165
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_tp": 109,
+      "n_fp": 0,
+      "det_rate": 0.7414965986394558
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "det": {
+        "n": 192,
+        "mean": 97.51034556766994,
+        "median": 77.97602859091623,
+        "p90": 211.3180630192309,
+        "max": 248.6045673682087
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_tp": 192,
+      "n_fp": 0,
+      "det_rate": 0.9552238805970149
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "det": {
+        "n": 72,
+        "mean": 40.72078647524781,
+        "median": 15.18489872890045,
+        "p90": 164.34728100371566,
+        "max": 322.41152516661936
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_tp": 72,
+      "n_fp": 0,
+      "det_rate": 0.6605504587155964
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "det": {
+        "n": 41,
+        "mean": 54.03833176657892,
+        "median": 21.857040145540505,
+        "p90": 199.7128082513839,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_tp": 41,
+      "n_fp": 29,
+      "det_rate": 0.8913043478260869
+    }
+  },
+  "extended_10": {
+    "green_and_pink_leafblower_val0_success": {
+      "det": {
+        "n": 105,
+        "mean": 57.67494471164607,
+        "median": 23.210826839249354,
+        "p90": 184.03976950705245,
+        "max": 526.0360344364054
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 139,
+      "n_tp": 105,
+      "n_fp": 34,
+      "det_rate": 0.9905660377358491
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "det": {
+        "n": 74,
+        "mean": 170.53336910623392,
+        "median": 156.38879244118405,
+        "p90": 305.4589067054959,
+        "max": 350.6221255667435
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 74,
+      "n_tp": 74,
+      "n_fp": 0,
+      "det_rate": 0.8604651162790697
+    },
+    "green_clock_val0_success": {
+      "det": {
+        "n": 187,
+        "mean": 7.79505667265088,
+        "median": 6.572622341377777,
+        "p90": 14.168429961225574,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 187,
+      "n_tp": 187,
+      "n_fp": 0,
+      "det_rate": 0.958974358974359
+    },
+    "green_clock_val4_failed": {
+      "det": {
+        "n": 26,
+        "mean": 6.572676253099788,
+        "median": 6.585196154658139,
+        "p90": 8.744523899871922,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_tp": 26,
+      "n_fp": 0,
+      "det_rate": 0.20634920634920634
+    },
+    "green_clock_val5_failed": {
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 5,
+      "n_tp": 0,
+      "n_fp": 5,
+      "det_rate": 0.0
+    },
+    "green_clock_val6_failed": {
+      "det": {
+        "n": 109,
+        "mean": 14.688390616723302,
+        "median": 9.758973292449184,
+        "p90": 25.778004514139724,
+        "max": 37.35361850466305
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_tp": 109,
+      "n_fp": 0,
+      "det_rate": 0.7414965986394558
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "det": {
+        "n": 201,
+        "mean": 74.87033465647391,
+        "median": 24.765309401383963,
+        "p90": 199.5177909070168,
+        "max": 245.43817486171352
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 201,
+      "n_tp": 201,
+      "n_fp": 0,
+      "det_rate": 1.0
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "det": {
+        "n": 84,
+        "mean": 29.512751836365933,
+        "median": 14.973495648804011,
+        "p90": 23.639046166462226,
+        "max": 185.65789638496435
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 84,
+      "n_tp": 84,
+      "n_fp": 0,
+      "det_rate": 0.7706422018348624
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "det": {
+        "n": 45,
+        "mean": 40.0808367708662,
+        "median": 22.062160369365373,
+        "p90": 29.560841269410112,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 74,
+      "n_tp": 45,
+      "n_fp": 29,
+      "det_rate": 0.9782608695652174
+    }
+  },
+  "color_focus": {
+    "green_and_pink_leafblower_val0_success": {
+      "det": {
+        "n": 95,
+        "mean": 45.05422516128585,
+        "median": 20.30565169657344,
+        "p90": 90.96201079019065,
+        "max": 510.6271999836617
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 110,
+      "n_tp": 95,
+      "n_fp": 15,
+      "det_rate": 0.8962264150943396
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "det": {
+        "n": 66,
+        "mean": 139.4258056620243,
+        "median": 97.9018667722392,
+        "p90": 309.9205230978805,
+        "max": 348.04047287669755
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 66,
+      "n_tp": 66,
+      "n_fp": 0,
+      "det_rate": 0.7674418604651163
+    },
+    "green_clock_val0_success": {
+      "det": {
+        "n": 183,
+        "mean": 43.24847605020226,
+        "median": 7.312825636167148,
+        "p90": 259.7091836732501,
+        "max": 319.27879529991776
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 183,
+      "n_tp": 183,
+      "n_fp": 0,
+      "det_rate": 0.9384615384615385
+    },
+    "green_clock_val4_failed": {
+      "det": {
+        "n": 64,
+        "mean": 104.04454804340011,
+        "median": 114.78264916159199,
+        "p90": 203.98881857410754,
+        "max": 263.67305943237045
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 64,
+      "n_tp": 64,
+      "n_fp": 0,
+      "det_rate": 0.5079365079365079
+    },
+    "green_clock_val5_failed": {
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_tp": 0,
+      "n_fp": 4,
+      "det_rate": 0.0
+    },
+    "green_clock_val6_failed": {
+      "det": {
+        "n": 107,
+        "mean": 14.577112187754192,
+        "median": 9.686837543104412,
+        "p90": 26.271464150245084,
+        "max": 37.35361850466305
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 107,
+      "n_tp": 107,
+      "n_fp": 0,
+      "det_rate": 0.7278911564625851
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "det": {
+        "n": 201,
+        "mean": 79.26608440759733,
+        "median": 26.68116596255103,
+        "p90": 199.73081745892435,
+        "max": 245.43817486171352
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 201,
+      "n_tp": 201,
+      "n_fp": 0,
+      "det_rate": 1.0
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "det": {
+        "n": 79,
+        "mean": 24.33864967233325,
+        "median": 14.750021097661392,
+        "p90": 18.586604955120407,
+        "max": 337.2724080672566
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 79,
+      "n_tp": 79,
+      "n_fp": 0,
+      "det_rate": 0.7247706422018348
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "det": {
+        "n": 44,
+        "mean": 40.60664439092744,
+        "median": 21.975361824862567,
+        "p90": 28.71278816807935,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 56,
+      "n_tp": 44,
+      "n_fp": 12,
+      "det_rate": 0.9565217391304348
+    }
+  },
+  "scene_context": {
+    "green_and_pink_leafblower_val0_success": {
+      "det": {
+        "n": 98,
+        "mean": 166.99494924039448,
+        "median": 70.36243838581981,
+        "p90": 502.44062712955247,
+        "max": 573.1200930126774
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 132,
+      "n_tp": 98,
+      "n_fp": 34,
+      "det_rate": 0.9245283018867925
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "det": {
+        "n": 78,
+        "mean": 142.0730030354248,
+        "median": 104.01528826955828,
+        "p90": 311.6752759692785,
+        "max": 350.6221255667435
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 78,
+      "n_tp": 78,
+      "n_fp": 0,
+      "det_rate": 0.9069767441860465
+    },
+    "green_clock_val0_success": {
+      "det": {
+        "n": 195,
+        "mean": 97.32782104595731,
+        "median": 119.87052746912428,
+        "p90": 155.86876418993168,
+        "max": 192.86170911612717
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 195,
+      "n_tp": 195,
+      "n_fp": 0,
+      "det_rate": 1.0
+    },
+    "green_clock_val4_failed": {
+      "det": {
+        "n": 113,
+        "mean": 160.68742026773535,
+        "median": 142.94654964404145,
+        "p90": 387.1561725260771,
+        "max": 402.6705303853989
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 113,
+      "n_tp": 113,
+      "n_fp": 0,
+      "det_rate": 0.8968253968253969
+    },
+    "green_clock_val5_failed": {
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 9,
+      "n_tp": 0,
+      "n_fp": 9,
+      "det_rate": 0.0
+    },
+    "green_clock_val6_failed": {
+      "det": {
+        "n": 145,
+        "mean": 140.05137594995713,
+        "median": 96.18496941194573,
+        "p90": 371.3568858440479,
+        "max": 399.168697711717
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 145,
+      "n_tp": 145,
+      "n_fp": 0,
+      "det_rate": 0.9863945578231292
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "det": {
+        "n": 201,
+        "mean": 90.7196223405694,
+        "median": 72.95894756944887,
+        "p90": 211.30493373302448,
+        "max": 345.6086676921669
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 201,
+      "n_tp": 201,
+      "n_fp": 0,
+      "det_rate": 1.0
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "det": {
+        "n": 91,
+        "mean": 76.04101304744579,
+        "median": 16.02781058444399,
+        "p90": 254.1220212854624,
+        "max": 337.40491017965815
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 91,
+      "n_tp": 91,
+      "n_fp": 0,
+      "det_rate": 0.8348623853211009
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "det": {
+        "n": 45,
+        "mean": 89.69353222680184,
+        "median": 22.116435204167175,
+        "p90": 358.84026600007945,
+        "max": 590.9654874077968
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 87,
+      "n_tp": 45,
+      "n_fp": 42,
+      "det_rate": 0.9782608695652174
+    }
+  },
+  "descriptive": {
+    "green_and_pink_leafblower_val0_success": {
+      "det": {
+        "n": 88,
+        "mean": 112.1313762054276,
+        "median": 31.73746728748678,
+        "p90": 466.1073580364553,
+        "max": 525.0665707134291
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 97,
+      "n_tp": 88,
+      "n_fp": 9,
+      "det_rate": 0.8301886792452831
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "det": {
+        "n": 65,
+        "mean": 105.0315814151862,
+        "median": 73.46450433763218,
+        "p90": 234.93059073918525,
+        "max": 311.0728154528159
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 65,
+      "n_tp": 65,
+      "n_fp": 0,
+      "det_rate": 0.7558139534883721
+    },
+    "green_clock_val0_success": {
+      "det": {
+        "n": 192,
+        "mean": 7.662701246936767,
+        "median": 6.519900098936176,
+        "p90": 13.909275014800487,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 192,
+      "n_tp": 192,
+      "n_fp": 0,
+      "det_rate": 0.9846153846153847
+    },
+    "green_clock_val4_failed": {
+      "det": {
+        "n": 45,
+        "mean": 113.33077035042955,
+        "median": 8.727263857226784,
+        "p90": 296.6062224766564,
+        "max": 399.68071752929444
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 45,
+      "n_tp": 45,
+      "n_fp": 0,
+      "det_rate": 0.35714285714285715
+    },
+    "green_clock_val5_failed": {
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 0,
+      "n_tp": 0,
+      "n_fp": 0,
+      "det_rate": 0.0
+    },
+    "green_clock_val6_failed": {
+      "det": {
+        "n": 112,
+        "mean": 16.369057214846322,
+        "median": 9.80891464197735,
+        "p90": 27.965467867250712,
+        "max": 112.64264964954647
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 112,
+      "n_tp": 112,
+      "n_fp": 0,
+      "det_rate": 0.7619047619047619
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "det": {
+        "n": 171,
+        "mean": 104.69320401099353,
+        "median": 78.49320328780881,
+        "p90": 219.57232652842117,
+        "max": 366.14075113595686
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 171,
+      "n_tp": 171,
+      "n_fp": 0,
+      "det_rate": 0.8507462686567164
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "det": {
+        "n": 78,
+        "mean": 42.408517665728034,
+        "median": 15.67630579230854,
+        "p90": 174.2992160061815,
+        "max": 200.03333098426154
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 78,
+      "n_tp": 78,
+      "n_fp": 0,
+      "det_rate": 0.7155963302752294
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "det": {
+        "n": 34,
+        "mean": 58.11765200317348,
+        "median": 21.094217906709392,
+        "p90": 154.53208409209788,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 48,
+      "n_tp": 34,
+      "n_fp": 14,
+      "det_rate": 0.7391304347826086
+    }
+  }
+}

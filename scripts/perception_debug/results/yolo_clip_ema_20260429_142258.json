@@ -1,0 +1,411 @@
+{
+  "green_and_pink_leafblower_val0_success": {
+    "query": "green and pink leafblower",
+    "n_frames": 140,
+    "yolo_world": {
+      "det": {
+        "n": 0
+      },
+      "ema": {
+        "n": 0
+      },
+      "n_gt_vis": 106,
+      "n_tp": 0,
+      "n_fp": 0,
+      "n_det": 0,
+      "det_rate": 0.0,
+      "latency_ms": 12.358520712171282
+    },
+    "clipseg": {
+      "det": {
+        "n": 9,
+        "mean": 16.63644055489753,
+        "median": 16.88700184780142,
+        "p90": 21.53817221425169,
+        "max": 30.21129496429539
+      },
+      "ema": {
+        "n": 69,
+        "mean": 42.19283379613776,
+        "median": 36.24905007361696,
+        "p90": 83.3156961498091,
+        "max": 112.62390484607161
+      },
+      "n_gt_vis": 106,
+      "n_tp": 9,
+      "n_fp": 0,
+      "n_det": 9,
+      "det_rate": 0.08490566037735849,
+      "latency_ms": 28.996465887342183
+    },
+    "video": "/data/erwinpi/SINGER/scripts/perception_debug/visualizations/yolo_clip_ema_20260429_142258/green_and_pink_leafblower_val0_success_yolo_clip.mp4"
+  },
+  "green_and_pink_leafblower_val1_failed": {
+    "query": "green and pink leafblower",
+    "n_frames": 86,
+    "yolo_world": {
+      "det": {
+        "n": 0
+      },
+      "ema": {
+        "n": 0
+      },
+      "n_gt_vis": 86,
+      "n_tp": 0,
+      "n_fp": 0,
+      "n_det": 0,
+      "det_rate": 0.0,
+      "latency_ms": 9.166875550913256
+    },
+    "clipseg": {
+      "det": {
+        "n": 5,
+        "mean": 232.4579890798751,
+        "median": 140.15055031957263,
+        "p90": 391.56885851201906,
+        "max": 391.9102720646942
+      },
+      "ema": {
+        "n": 45,
+        "mean": 218.95840388735928,
+        "median": 255.60287778107764,
+        "p90": 266.3017883132376,
+        "max": 269.3117998081974
+      },
+      "n_gt_vis": 86,
+      "n_tp": 5,
+      "n_fp": 0,
+      "n_det": 5,
+      "det_rate": 0.05813953488372093,
+      "latency_ms": 29.393672943115234
+    },
+    "video": "/data/erwinpi/SINGER/scripts/perception_debug/visualizations/yolo_clip_ema_20260429_142258/green_and_pink_leafblower_val1_failed_yolo_clip.mp4"
+  },
+  "green_clock_val0_success": {
+    "query": "green clock",
+    "n_frames": 195,
+    "yolo_world": {
+      "det": {
+        "n": 105,
+        "mean": 11.903630264466331,
+        "median": 7.8655855012478035,
+        "p90": 16.108308263698582,
+        "max": 180.31829702577468
+      },
+      "ema": {
+        "n": 147,
+        "mean": 16.490490355559402,
+        "median": 10.00188670506017,
+        "p90": 31.75675862654326,
+        "max": 96.12491922838852
+      },
+      "n_gt_vis": 195,
+      "n_tp": 105,
+      "n_fp": 0,
+      "n_det": 105,
+      "det_rate": 0.5384615384615384,
+      "latency_ms": 9.311465727977263
+    },
+    "clipseg": {
+      "det": {
+        "n": 84,
+        "mean": 11.64471840860533,
+        "median": 7.8928321216007,
+        "p90": 15.79622095324596,
+        "max": 198.87308570325297
+      },
+      "ema": {
+        "n": 139,
+        "mean": 50.99660796008455,
+        "median": 16.149135008422352,
+        "p90": 178.54792503709166,
+        "max": 198.87308570325297
+      },
+      "n_gt_vis": 195,
+      "n_tp": 84,
+      "n_fp": 0,
+      "n_det": 84,
+      "det_rate": 0.4307692307692308,
+      "latency_ms": 29.424312787178238
+    },
+    "video": "/data/erwinpi/SINGER/scripts/perception_debug/visualizations/yolo_clip_ema_20260429_142258/green_clock_val0_success_yolo_clip.mp4"
+  },
+  "green_clock_val4_failed": {
+    "query": "green clock",
+    "n_frames": 126,
+    "yolo_world": {
+      "det": {
+        "n": 26,
+        "mean": 8.123661127224416,
+        "median": 7.928319119836178,
+        "p90": 10.26880498778895,
+        "max": 11.195350041837298
+      },
+      "ema": {
+        "n": 26,
+        "mean": 6.087113631733484,
+        "median": 6.489358247588756,
+        "p90": 8.213063239782542,
+        "max": 8.62842293349267
+      },
+      "n_gt_vis": 126,
+      "n_tp": 26,
+      "n_fp": 0,
+      "n_det": 26,
+      "det_rate": 0.20634920634920634,
+      "latency_ms": 8.710081615145244
+    },
+    "clipseg": {
+      "det": {
+        "n": 41,
+        "mean": 61.48641256993704,
+        "median": 7.6862640557119715,
+        "p90": 142.52005398750813,
+        "max": 374.57012712249775
+      },
+      "ema": {
+        "n": 109,
+        "mean": 137.51608100601462,
+        "median": 127.1224426224215,
+        "p90": 360.7587975647255,
+        "max": 374.57012712249775
+      },
+      "n_gt_vis": 126,
+      "n_tp": 41,
+      "n_fp": 0,
+      "n_det": 41,
+      "det_rate": 0.3253968253968254,
+      "latency_ms": 29.75241153959244
+    },
+    "video": "/data/erwinpi/SINGER/scripts/perception_debug/visualizations/yolo_clip_ema_20260429_142258/green_clock_val4_failed_yolo_clip.mp4"
+  },
+  "green_clock_val5_failed": {
+    "query": "green clock",
+    "n_frames": 26,
+    "yolo_world": {
+      "det": {
+        "n": 0
+      },
+      "ema": {
+        "n": 0
+      },
+      "n_gt_vis": 0,
+      "n_tp": 0,
+      "n_fp": 0,
+      "n_det": 0,
+      "det_rate": 0.0,
+      "latency_ms": 9.397139916053185
+    },
+    "clipseg": {
+      "det": {
+        "n": 0
+      },
+      "ema": {
+        "n": 0
+      },
+      "n_gt_vis": 0,
+      "n_tp": 0,
+      "n_fp": 7,
+      "n_det": 7,
+      "det_rate": 0.0,
+      "latency_ms": 29.758700957665077
+    },
+    "video": "/data/erwinpi/SINGER/scripts/perception_debug/visualizations/yolo_clip_ema_20260429_142258/green_clock_val5_failed_yolo_clip.mp4"
+  },
+  "green_clock_val6_failed": {
+    "query": "green clock",
+    "n_frames": 147,
+    "yolo_world": {
+      "det": {
+        "n": 106,
+        "mean": 36.66563992616477,
+        "median": 10.508196839918558,
+        "p90": 30.17316090836674,
+        "max": 289.13001292881216
+      },
+      "ema": {
+        "n": 147,
+        "mean": 69.44588185560077,
+        "median": 21.321640312029412,
+        "p90": 285.23254733954127,
+        "max": 312.73464930850963
+      },
+      "n_gt_vis": 147,
+      "n_tp": 106,
+      "n_fp": 0,
+      "n_det": 106,
+      "det_rate": 0.7210884353741497,
+      "latency_ms": 9.26761400131952
+    },
+    "clipseg": {
+      "det": {
+        "n": 64,
+        "mean": 24.600485637669507,
+        "median": 29.462905633859457,
+        "p90": 38.22282878602454,
+        "max": 44.3051611294688
+      },
+      "ema": {
+        "n": 116,
+        "mean": 21.669761632016943,
+        "median": 23.148887846103726,
+        "p90": 32.72538777738184,
+        "max": 40.79284335137483
+      },
+      "n_gt_vis": 147,
+      "n_tp": 64,
+      "n_fp": 0,
+      "n_det": 64,
+      "det_rate": 0.43537414965986393,
+      "latency_ms": 29.482736068517983
+    },
+    "video": "/data/erwinpi/SINGER/scripts/perception_debug/visualizations/yolo_clip_ema_20260429_142258/green_clock_val6_failed_yolo_clip.mp4"
+  },
+  "yellow_handheld_cordless_drill_val0_success": {
+    "query": "yellow handheld cordless drill on two boxes",
+    "n_frames": 201,
+    "yolo_world": {
+      "det": {
+        "n": 55,
+        "mean": 18.88859460862373,
+        "median": 17.8642944231778,
+        "p90": 26.114825332771368,
+        "max": 27.623956444621605
+      },
+      "ema": {
+        "n": 56,
+        "mean": 19.537980427880523,
+        "median": 17.74747501388115,
+        "p90": 28.514728322246768,
+        "max": 29.21381390581907
+      },
+      "n_gt_vis": 201,
+      "n_tp": 55,
+      "n_fp": 0,
+      "n_det": 55,
+      "det_rate": 0.2736318407960199,
+      "latency_ms": 8.898188225665496
+    },
+    "clipseg": {
+      "det": {
+        "n": 30,
+        "mean": 128.4671681041548,
+        "median": 89.65537813706948,
+        "p90": 248.13317499681693,
+        "max": 250.8054291062378
+      },
+      "ema": {
+        "n": 110,
+        "mean": 159.04522478790045,
+        "median": 138.19963728382928,
+        "p90": 251.78978882840647,
+        "max": 260.28743306355665
+      },
+      "n_gt_vis": 201,
+      "n_tp": 30,
+      "n_fp": 0,
+      "n_det": 30,
+      "det_rate": 0.14925373134328357,
+      "latency_ms": 29.504864963132945
+    },
+    "video": "/data/erwinpi/SINGER/scripts/perception_debug/visualizations/yolo_clip_ema_20260429_142258/yellow_handheld_cordless_drill_val0_success_yolo_clip.mp4"
+  },
+  "yellow_handheld_cordless_drill_val6_failed": {
+    "query": "yellow handheld cordless drill on two boxes",
+    "n_frames": 109,
+    "yolo_world": {
+      "det": {
+        "n": 41,
+        "mean": 14.48506809311551,
+        "median": 14.836337054183323,
+        "p90": 16.48200205374937,
+        "max": 18.978039191303896
+      },
+      "ema": {
+        "n": 74,
+        "mean": 25.66838155907425,
+        "median": 17.437321018889847,
+        "p90": 48.87259861125906,
+        "max": 69.63977224284335
+      },
+      "n_gt_vis": 109,
+      "n_tp": 41,
+      "n_fp": 0,
+      "n_det": 41,
+      "det_rate": 0.3761467889908257,
+      "latency_ms": 9.151056272174241
+    },
+    "clipseg": {
+      "det": {
+        "n": 9,
+        "mean": 77.86394696210917,
+        "median": 20.14335835207148,
+        "p90": 194.38941879872263,
+        "max": 209.4393712615008
+      },
+      "ema": {
+        "n": 56,
+        "mean": 140.81457474029685,
+        "median": 197.84337764811437,
+        "p90": 226.5417755973579,
+        "max": 236.27111764980862
+      },
+      "n_gt_vis": 109,
+      "n_tp": 9,
+      "n_fp": 0,
+      "n_det": 9,
+      "det_rate": 0.08256880733944955,
+      "latency_ms": 29.087709724356277
+    },
+    "video": "/data/erwinpi/SINGER/scripts/perception_debug/visualizations/yolo_clip_ema_20260429_142258/yellow_handheld_cordless_drill_val6_failed_yolo_clip.mp4"
+  },
+  "yellow_handheld_cordless_drill_val7_failed": {
+    "query": "yellow handheld cordless drill on two boxes",
+    "n_frames": 88,
+    "yolo_world": {
+      "det": {
+        "n": 21,
+        "mean": 19.265021659084425,
+        "median": 18.898709945816194,
+        "p90": 24.266535419268198,
+        "max": 27.765416552483558
+      },
+      "ema": {
+        "n": 46,
+        "mean": 40.56298775725446,
+        "median": 21.10041197885856,
+        "p90": 47.89847464251322,
+        "max": 300.382273587954
+      },
+      "n_gt_vis": 46,
+      "n_tp": 21,
+      "n_fp": 1,
+      "n_det": 22,
+      "det_rate": 0.45652173913043476,
+      "latency_ms": 8.934952995993873
+    },
+    "clipseg": {
+      "det": {
+        "n": 13,
+        "mean": 434.1495028974584,
+        "median": 428.4872898430374,
+        "p90": 475.7926232189241,
+        "max": 490.4757287652697
+      },
+      "ema": {
+        "n": 13,
+        "mean": 424.9409193573731,
+        "median": 418.7425037939385,
+        "p90": 466.1092647220038,
+        "max": 477.4894107389181
+      },
+      "n_gt_vis": 46,
+      "n_tp": 13,
+      "n_fp": 0,
+      "n_det": 13,
+      "det_rate": 0.2826086956521739,
+      "latency_ms": 29.79620478369973
+    },
+    "video": "/data/erwinpi/SINGER/scripts/perception_debug/visualizations/yolo_clip_ema_20260429_142258/yellow_handheld_cordless_drill_val7_failed_yolo_clip.mp4"
+  }
+}

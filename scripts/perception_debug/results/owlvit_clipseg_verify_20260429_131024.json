@@ -1,0 +1,3444 @@
+{
+  "bbox_mean_0.20": {
+    "green_and_pink_leafblower_val0_success": {
+      "filt": {
+        "n": 69,
+        "mean": 36.54422831892493,
+        "median": 31.016124838541646,
+        "p90": 80.64622944679745,
+        "max": 115.55085460523432
+      },
+      "det": {
+        "n": 9,
+        "mean": 16.128887899323313,
+        "median": 16.273138439831794,
+        "p90": 26.488828199316856,
+        "max": 31.60635760814265
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 121,
+      "n_est": 69,
+      "n_tp": 96,
+      "n_fp": 25,
+      "n_verified": 9,
+      "n_rejected": 112,
+      "verified_tp": 9,
+      "verified_fp": 0,
+      "det_rate": 0.9056603773584906,
+      "verified_det_rate": 0.08490566037735849,
+      "coverage": 0.6509433962264151,
+      "verify_scores_tp": {
+        "n": 96,
+        "mean": 0.05826754112973731,
+        "median": 0.015281864441931248,
+        "p90": 0.16361991316080093,
+        "max": 0.39786794781684875
+      },
+      "verify_scores_fp": {
+        "n": 25,
+        "mean": 0.0013773622444205103,
+        "median": 4.180651012575254e-05,
+        "p90": 0.004344048257917167,
+        "max": 0.011478765867650509
+      }
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "filt": {
+        "n": 32,
+        "mean": 94.57693637933843,
+        "median": 92.51355637565504,
+        "p90": 103.16927713284561,
+        "max": 104.12012293500234
+      },
+      "det": {
+        "n": 2,
+        "mean": 85.17522616918315,
+        "median": 85.17522616918315,
+        "p90": 86.58120124883945,
+        "max": 86.93269501875352
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 68,
+      "n_est": 32,
+      "n_tp": 68,
+      "n_fp": 0,
+      "n_verified": 2,
+      "n_rejected": 66,
+      "verified_tp": 2,
+      "verified_fp": 0,
+      "det_rate": 0.7906976744186046,
+      "verified_det_rate": 0.023255813953488372,
+      "coverage": 0.37209302325581395,
+      "verify_scores_tp": {
+        "n": 68,
+        "mean": 0.02709490451054401,
+        "median": 0.0028339551063254476,
+        "p90": 0.07740492671728136,
+        "max": 0.2708978056907654
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val0_success": {
+      "filt": {
+        "n": 178,
+        "mean": 8.408861905295378,
+        "median": 6.324555320336759,
+        "p90": 16.0312195418814,
+        "max": 26.476404589747453
+      },
+      "det": {
+        "n": 115,
+        "mean": 9.609931879521334,
+        "median": 8.367918934630733,
+        "p90": 16.73837402097983,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 186,
+      "n_est": 178,
+      "n_tp": 186,
+      "n_fp": 0,
+      "n_verified": 115,
+      "n_rejected": 71,
+      "verified_tp": 115,
+      "verified_fp": 0,
+      "det_rate": 0.9538461538461539,
+      "verified_det_rate": 0.5897435897435898,
+      "coverage": 0.9128205128205128,
+      "verify_scores_tp": {
+        "n": 186,
+        "mean": 0.3125854060754821,
+        "median": 0.2497919499874115,
+        "p90": 0.6233592331409454,
+        "max": 0.7587567567825317
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val4_failed": {
+      "filt": {
+        "n": 26,
+        "mean": 4.747525049711617,
+        "median": 5.0,
+        "p90": 6.8896358721824225,
+        "max": 7.810249675906654
+      },
+      "det": {
+        "n": 26,
+        "mean": 6.572676253099788,
+        "median": 6.585196154658139,
+        "p90": 8.744523899871922,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_est": 26,
+      "n_tp": 26,
+      "n_fp": 0,
+      "n_verified": 26,
+      "n_rejected": 0,
+      "verified_tp": 26,
+      "verified_fp": 0,
+      "det_rate": 0.20634920634920634,
+      "verified_det_rate": 0.20634920634920634,
+      "coverage": 0.20634920634920634,
+      "verify_scores_tp": {
+        "n": 26,
+        "mean": 0.4576904521538661,
+        "median": 0.43577800691127777,
+        "p90": 0.6551171541213989,
+        "max": 0.7110275030136108
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val5_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_est": 0,
+      "n_tp": 0,
+      "n_fp": 4,
+      "n_verified": 0,
+      "n_rejected": 4,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.0,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 0
+      },
+      "verify_scores_fp": {
+        "n": 4,
+        "mean": 0.04051128658466041,
+        "median": 0.015958208590745926,
+        "p90": 0.08861152343451978,
+        "max": 0.11901294440031052
+      }
+    },
+    "green_clock_val6_failed": {
+      "filt": {
+        "n": 108,
+        "mean": 17.9518318947391,
+        "median": 18.986832980505138,
+        "p90": 25.747741459228365,
+        "max": 32.0624390837628
+      },
+      "det": {
+        "n": 67,
+        "mean": 18.401303279889962,
+        "median": 20.951392401045585,
+        "p90": 28.536286387972755,
+        "max": 32.235158949889644
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_est": 108,
+      "n_tp": 109,
+      "n_fp": 0,
+      "n_verified": 67,
+      "n_rejected": 42,
+      "verified_tp": 67,
+      "verified_fp": 0,
+      "det_rate": 0.7414965986394558,
+      "verified_det_rate": 0.4557823129251701,
+      "coverage": 0.7346938775510204,
+      "verify_scores_tp": {
+        "n": 109,
+        "mean": 0.3227570495747645,
+        "median": 0.2944360077381134,
+        "p90": 0.5824515342712403,
+        "max": 0.7372896671295166
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "filt": {
+        "n": 138,
+        "mean": 155.72040286499686,
+        "median": 173.81967323579545,
+        "p90": 242.92673528358688,
+        "max": 251.40604606890423
+      },
+      "det": {
+        "n": 36,
+        "mean": 119.58055141198555,
+        "median": 133.81550996793987,
+        "p90": 243.73450966807866,
+        "max": 248.6045673682087
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_est": 138,
+      "n_tp": 192,
+      "n_fp": 0,
+      "n_verified": 36,
+      "n_rejected": 156,
+      "verified_tp": 36,
+      "verified_fp": 0,
+      "det_rate": 0.9552238805970149,
+      "verified_det_rate": 0.1791044776119403,
+      "coverage": 0.6865671641791045,
+      "verify_scores_tp": {
+        "n": 192,
+        "mean": 0.09598511416356814,
+        "median": 0.04726058430969715,
+        "p90": 0.2698544770479203,
+        "max": 0.46483099460601807
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "filt": {
+        "n": 24,
+        "mean": 38.77274658866085,
+        "median": 34.713217673535155,
+        "p90": 66.26553262867483,
+        "max": 74.06078584514209
+      },
+      "det": {
+        "n": 6,
+        "mean": 18.054437489607498,
+        "median": 18.072683091922475,
+        "p90": 18.600077055945004,
+        "max": 18.62253055731933
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_est": 24,
+      "n_tp": 72,
+      "n_fp": 0,
+      "n_verified": 6,
+      "n_rejected": 66,
+      "verified_tp": 6,
+      "verified_fp": 0,
+      "det_rate": 0.6605504587155964,
+      "verified_det_rate": 0.05504587155963303,
+      "coverage": 0.22018348623853212,
+      "verify_scores_tp": {
+        "n": 72,
+        "mean": 0.04808096565602682,
+        "median": 0.004922304302453995,
+        "p90": 0.14330739229917525,
+        "max": 0.4950369596481323
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "filt": {
+        "n": 26,
+        "mean": 58.10098788227664,
+        "median": 42.934809533863685,
+        "p90": 134.65004265689382,
+        "max": 201.02238681301145
+      },
+      "det": {
+        "n": 2,
+        "mean": 244.80601523462974,
+        "median": 244.80601523462974,
+        "p90": 423.7159796203852,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_est": 26,
+      "n_tp": 41,
+      "n_fp": 29,
+      "n_verified": 2,
+      "n_rejected": 68,
+      "verified_tp": 2,
+      "verified_fp": 0,
+      "det_rate": 0.8913043478260869,
+      "verified_det_rate": 0.043478260869565216,
+      "coverage": 0.5652173913043478,
+      "verify_scores_tp": {
+        "n": 41,
+        "mean": 0.0612254652071165,
+        "median": 0.040447741746902466,
+        "p90": 0.1427074372768402,
+        "max": 0.2643631100654602
+      },
+      "verify_scores_fp": {
+        "n": 29,
+        "mean": 0.005841159571618532,
+        "median": 6.164117803564295e-05,
+        "p90": 0.0009402637835592028,
+        "max": 0.16152505576610565
+      }
+    }
+  },
+  "bbox_mean_0.30": {
+    "green_and_pink_leafblower_val0_success": {
+      "filt": {
+        "n": 69,
+        "mean": 47.43044518485042,
+        "median": 32.69556544854363,
+        "p90": 107.21231893020172,
+        "max": 141.03900169811186
+      },
+      "det": {
+        "n": 4,
+        "mean": 15.03675602249666,
+        "median": 12.728644789951968,
+        "p90": 28.356446555077774,
+        "max": 31.60635760814265
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 121,
+      "n_est": 69,
+      "n_tp": 96,
+      "n_fp": 25,
+      "n_verified": 4,
+      "n_rejected": 117,
+      "verified_tp": 4,
+      "verified_fp": 0,
+      "det_rate": 0.9056603773584906,
+      "verified_det_rate": 0.03773584905660377,
+      "coverage": 0.6509433962264151,
+      "verify_scores_tp": {
+        "n": 96,
+        "mean": 0.05826754112973731,
+        "median": 0.015281864441931248,
+        "p90": 0.16361991316080093,
+        "max": 0.39786794781684875
+      },
+      "verify_scores_fp": {
+        "n": 25,
+        "mean": 0.0013773622444205103,
+        "median": 4.180651012575254e-05,
+        "p90": 0.004344048257917167,
+        "max": 0.011478765867650509
+      }
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 68,
+      "n_est": 0,
+      "n_tp": 68,
+      "n_fp": 0,
+      "n_verified": 0,
+      "n_rejected": 68,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.7906976744186046,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 68,
+        "mean": 0.02709490451054401,
+        "median": 0.0028339551063254476,
+        "p90": 0.07740492671728136,
+        "max": 0.2708978056907654
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val0_success": {
+      "filt": {
+        "n": 112,
+        "mean": 10.589425708523907,
+        "median": 9.137464797715152,
+        "p90": 19.023667831396402,
+        "max": 26.476404589747453
+      },
+      "det": {
+        "n": 80,
+        "mean": 11.296750340590837,
+        "median": 9.913667303361777,
+        "p90": 19.19284152257433,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 186,
+      "n_est": 112,
+      "n_tp": 186,
+      "n_fp": 0,
+      "n_verified": 80,
+      "n_rejected": 106,
+      "verified_tp": 80,
+      "verified_fp": 0,
+      "det_rate": 0.9538461538461539,
+      "verified_det_rate": 0.41025641025641024,
+      "coverage": 0.5743589743589743,
+      "verify_scores_tp": {
+        "n": 186,
+        "mean": 0.3125854060754821,
+        "median": 0.2497919499874115,
+        "p90": 0.6233592331409454,
+        "max": 0.7587567567825317
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val4_failed": {
+      "filt": {
+        "n": 26,
+        "mean": 5.514396856294786,
+        "median": 5.830951894845301,
+        "p90": 7.343420458864692,
+        "max": 10.0
+      },
+      "det": {
+        "n": 22,
+        "mean": 6.718422487289238,
+        "median": 6.693075869902459,
+        "p90": 8.723277955882683,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_est": 26,
+      "n_tp": 26,
+      "n_fp": 0,
+      "n_verified": 22,
+      "n_rejected": 4,
+      "verified_tp": 22,
+      "verified_fp": 0,
+      "det_rate": 0.20634920634920634,
+      "verified_det_rate": 0.1746031746031746,
+      "coverage": 0.20634920634920634,
+      "verify_scores_tp": {
+        "n": 26,
+        "mean": 0.4576904521538661,
+        "median": 0.43577800691127777,
+        "p90": 0.6551171541213989,
+        "max": 0.7110275030136108
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val5_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_est": 0,
+      "n_tp": 0,
+      "n_fp": 4,
+      "n_verified": 0,
+      "n_rejected": 4,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.0,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 0
+      },
+      "verify_scores_fp": {
+        "n": 4,
+        "mean": 0.04051128658466041,
+        "median": 0.015958208590745926,
+        "p90": 0.08861152343451978,
+        "max": 0.11901294440031052
+      }
+    },
+    "green_clock_val6_failed": {
+      "filt": {
+        "n": 93,
+        "mean": 19.966205137715534,
+        "median": 22.360679774997898,
+        "p90": 28.01428116179504,
+        "max": 32.0624390837628
+      },
+      "det": {
+        "n": 54,
+        "mean": 19.845236363732884,
+        "median": 22.230589677224145,
+        "p90": 28.55660040910753,
+        "max": 32.235158949889644
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_est": 93,
+      "n_tp": 109,
+      "n_fp": 0,
+      "n_verified": 54,
+      "n_rejected": 55,
+      "verified_tp": 54,
+      "verified_fp": 0,
+      "det_rate": 0.7414965986394558,
+      "verified_det_rate": 0.3673469387755102,
+      "coverage": 0.6326530612244898,
+      "verify_scores_tp": {
+        "n": 109,
+        "mean": 0.3227570495747645,
+        "median": 0.2944360077381134,
+        "p90": 0.5824515342712403,
+        "max": 0.7372896671295166
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "filt": {
+        "n": 78,
+        "mean": 163.53785375227318,
+        "median": 189.3330244167513,
+        "p90": 247.16495793255578,
+        "max": 252.04959829366916
+      },
+      "det": {
+        "n": 16,
+        "mean": 131.0325076887,
+        "median": 109.64476769753006,
+        "p90": 244.6004165443405,
+        "max": 248.6045673682087
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_est": 78,
+      "n_tp": 192,
+      "n_fp": 0,
+      "n_verified": 16,
+      "n_rejected": 176,
+      "verified_tp": 16,
+      "verified_fp": 0,
+      "det_rate": 0.9552238805970149,
+      "verified_det_rate": 0.07960199004975124,
+      "coverage": 0.3880597014925373,
+      "verify_scores_tp": {
+        "n": 192,
+        "mean": 0.09598511416356814,
+        "median": 0.04726058430969715,
+        "p90": 0.2698544770479203,
+        "max": 0.46483099460601807
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "filt": {
+        "n": 23,
+        "mean": 39.558314830566566,
+        "median": 36.124783736376884,
+        "p90": 66.84613926700897,
+        "max": 74.06078584514209
+      },
+      "det": {
+        "n": 5,
+        "mean": 17.94081887606513,
+        "median": 18.065395875154,
+        "p90": 18.378562256218785,
+        "max": 18.57762355457068
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_est": 23,
+      "n_tp": 72,
+      "n_fp": 0,
+      "n_verified": 5,
+      "n_rejected": 67,
+      "verified_tp": 5,
+      "verified_fp": 0,
+      "det_rate": 0.6605504587155964,
+      "verified_det_rate": 0.045871559633027525,
+      "coverage": 0.21100917431192662,
+      "verify_scores_tp": {
+        "n": 72,
+        "mean": 0.04808096565602682,
+        "median": 0.004922304302453995,
+        "p90": 0.14330739229917525,
+        "max": 0.4950369596481323
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_est": 0,
+      "n_tp": 41,
+      "n_fp": 29,
+      "n_verified": 0,
+      "n_rejected": 70,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.8913043478260869,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 41,
+        "mean": 0.0612254652071165,
+        "median": 0.040447741746902466,
+        "p90": 0.1427074372768402,
+        "max": 0.2643631100654602
+      },
+      "verify_scores_fp": {
+        "n": 29,
+        "mean": 0.005841159571618532,
+        "median": 6.164117803564295e-05,
+        "p90": 0.0009402637835592028,
+        "max": 0.16152505576610565
+      }
+    }
+  },
+  "bbox_mean_0.40": {
+    "green_and_pink_leafblower_val0_success": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 121,
+      "n_est": 0,
+      "n_tp": 96,
+      "n_fp": 25,
+      "n_verified": 0,
+      "n_rejected": 121,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.9056603773584906,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 96,
+        "mean": 0.05826754112973731,
+        "median": 0.015281864441931248,
+        "p90": 0.16361991316080093,
+        "max": 0.39786794781684875
+      },
+      "verify_scores_fp": {
+        "n": 25,
+        "mean": 0.0013773622444205103,
+        "median": 4.180651012575254e-05,
+        "p90": 0.004344048257917167,
+        "max": 0.011478765867650509
+      }
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 68,
+      "n_est": 0,
+      "n_tp": 68,
+      "n_fp": 0,
+      "n_verified": 0,
+      "n_rejected": 68,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.7906976744186046,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 68,
+        "mean": 0.02709490451054401,
+        "median": 0.0028339551063254476,
+        "p90": 0.07740492671728136,
+        "max": 0.2708978056907654
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val0_success": {
+      "filt": {
+        "n": 79,
+        "mean": 13.015065758956435,
+        "median": 12.041594578792296,
+        "p90": 21.244084421351502,
+        "max": 26.476404589747453
+      },
+      "det": {
+        "n": 65,
+        "mean": 11.965814750825121,
+        "median": 10.590390061001354,
+        "p90": 19.647396584467103,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 186,
+      "n_est": 79,
+      "n_tp": 186,
+      "n_fp": 0,
+      "n_verified": 65,
+      "n_rejected": 121,
+      "verified_tp": 65,
+      "verified_fp": 0,
+      "det_rate": 0.9538461538461539,
+      "verified_det_rate": 0.3333333333333333,
+      "coverage": 0.40512820512820513,
+      "verify_scores_tp": {
+        "n": 186,
+        "mean": 0.3125854060754821,
+        "median": 0.2497919499874115,
+        "p90": 0.6233592331409454,
+        "max": 0.7587567567825317
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val4_failed": {
+      "filt": {
+        "n": 18,
+        "mean": 5.2382828208380365,
+        "median": 5.830951894845301,
+        "p90": 6.9804746845087315,
+        "max": 7.615773105863909
+      },
+      "det": {
+        "n": 14,
+        "mean": 7.286992331135285,
+        "median": 7.7667675037957045,
+        "p90": 8.751427916929977,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_est": 18,
+      "n_tp": 26,
+      "n_fp": 0,
+      "n_verified": 14,
+      "n_rejected": 12,
+      "verified_tp": 14,
+      "verified_fp": 0,
+      "det_rate": 0.20634920634920634,
+      "verified_det_rate": 0.1111111111111111,
+      "coverage": 0.14285714285714285,
+      "verify_scores_tp": {
+        "n": 26,
+        "mean": 0.4576904521538661,
+        "median": 0.43577800691127777,
+        "p90": 0.6551171541213989,
+        "max": 0.7110275030136108
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val5_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_est": 0,
+      "n_tp": 0,
+      "n_fp": 4,
+      "n_verified": 0,
+      "n_rejected": 4,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.0,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 0
+      },
+      "verify_scores_fp": {
+        "n": 4,
+        "mean": 0.04051128658466041,
+        "median": 0.015958208590745926,
+        "p90": 0.08861152343451978,
+        "max": 0.11901294440031052
+      }
+    },
+    "green_clock_val6_failed": {
+      "filt": {
+        "n": 85,
+        "mean": 21.145085661355296,
+        "median": 23.08679276123039,
+        "p90": 29.0,
+        "max": 31.0
+      },
+      "det": {
+        "n": 37,
+        "mean": 21.009517603054476,
+        "median": 22.266443642433373,
+        "p90": 26.271464150245066,
+        "max": 29.486078730756244
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_est": 85,
+      "n_tp": 109,
+      "n_fp": 0,
+      "n_verified": 37,
+      "n_rejected": 72,
+      "verified_tp": 37,
+      "verified_fp": 0,
+      "det_rate": 0.7414965986394558,
+      "verified_det_rate": 0.25170068027210885,
+      "coverage": 0.5782312925170068,
+      "verify_scores_tp": {
+        "n": 109,
+        "mean": 0.3227570495747645,
+        "median": 0.2944360077381134,
+        "p90": 0.5824515342712403,
+        "max": 0.7372896671295166
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "filt": {
+        "n": 62,
+        "mean": 161.1528036429485,
+        "median": 243.7981204025635,
+        "p90": 251.21599255813192,
+        "max": 255.5621255194126
+      },
+      "det": {
+        "n": 5,
+        "mean": 156.9875486818657,
+        "median": 240.0932668254836,
+        "p90": 246.66780371171222,
+        "max": 248.6045673682087
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_est": 62,
+      "n_tp": 192,
+      "n_fp": 0,
+      "n_verified": 5,
+      "n_rejected": 187,
+      "verified_tp": 5,
+      "verified_fp": 0,
+      "det_rate": 0.9552238805970149,
+      "verified_det_rate": 0.024875621890547265,
+      "coverage": 0.30845771144278605,
+      "verify_scores_tp": {
+        "n": 192,
+        "mean": 0.09598511416356814,
+        "median": 0.04726058430969715,
+        "p90": 0.2698544770479203,
+        "max": 0.46483099460601807
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "filt": {
+        "n": 22,
+        "mean": 41.08380738482963,
+        "median": 37.913431008736225,
+        "p90": 68.02038977735603,
+        "max": 74.63243262818116
+      },
+      "det": {
+        "n": 3,
+        "mean": 17.92533001700468,
+        "median": 18.065395875154,
+        "p90": 18.07705542198356,
+        "max": 18.07997030869095
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_est": 22,
+      "n_tp": 72,
+      "n_fp": 0,
+      "n_verified": 3,
+      "n_rejected": 69,
+      "verified_tp": 3,
+      "verified_fp": 0,
+      "det_rate": 0.6605504587155964,
+      "verified_det_rate": 0.027522935779816515,
+      "coverage": 0.2018348623853211,
+      "verify_scores_tp": {
+        "n": 72,
+        "mean": 0.04808096565602682,
+        "median": 0.004922304302453995,
+        "p90": 0.14330739229917525,
+        "max": 0.4950369596481323
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_est": 0,
+      "n_tp": 41,
+      "n_fp": 29,
+      "n_verified": 0,
+      "n_rejected": 70,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.8913043478260869,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 41,
+        "mean": 0.0612254652071165,
+        "median": 0.040447741746902466,
+        "p90": 0.1427074372768402,
+        "max": 0.2643631100654602
+      },
+      "verify_scores_fp": {
+        "n": 29,
+        "mean": 0.005841159571618532,
+        "median": 6.164117803564295e-05,
+        "p90": 0.0009402637835592028,
+        "max": 0.16152505576610565
+      }
+    }
+  },
+  "bbox_mean_0.50": {
+    "green_and_pink_leafblower_val0_success": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 121,
+      "n_est": 0,
+      "n_tp": 96,
+      "n_fp": 25,
+      "n_verified": 0,
+      "n_rejected": 121,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.9056603773584906,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 96,
+        "mean": 0.05826754112973731,
+        "median": 0.015281864441931248,
+        "p90": 0.16361991316080093,
+        "max": 0.39786794781684875
+      },
+      "verify_scores_fp": {
+        "n": 25,
+        "mean": 0.0013773622444205103,
+        "median": 4.180651012575254e-05,
+        "p90": 0.004344048257917167,
+        "max": 0.011478765867650509
+      }
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 68,
+      "n_est": 0,
+      "n_tp": 68,
+      "n_fp": 0,
+      "n_verified": 0,
+      "n_rejected": 68,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.7906976744186046,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 68,
+        "mean": 0.02709490451054401,
+        "median": 0.0028339551063254476,
+        "p90": 0.07740492671728136,
+        "max": 0.2708978056907654
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val0_success": {
+      "filt": {
+        "n": 78,
+        "mean": 13.055946267273157,
+        "median": 12.582762530298218,
+        "p90": 21.318615077162757,
+        "max": 26.476404589747453
+      },
+      "det": {
+        "n": 48,
+        "mean": 13.185572556813653,
+        "median": 11.687802170804904,
+        "p90": 21.226873671936552,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 186,
+      "n_est": 78,
+      "n_tp": 186,
+      "n_fp": 0,
+      "n_verified": 48,
+      "n_rejected": 138,
+      "verified_tp": 48,
+      "verified_fp": 0,
+      "det_rate": 0.9538461538461539,
+      "verified_det_rate": 0.24615384615384617,
+      "coverage": 0.4,
+      "verify_scores_tp": {
+        "n": 186,
+        "mean": 0.3125854060754821,
+        "median": 0.2497919499874115,
+        "p90": 0.6233592331409454,
+        "max": 0.7587567567825317
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val4_failed": {
+      "filt": {
+        "n": 10,
+        "mean": 6.5304583325782435,
+        "median": 6.708203932499369,
+        "p90": 6.798960849835823,
+        "max": 7.615773105863909
+      },
+      "det": {
+        "n": 10,
+        "mean": 8.154785572529443,
+        "median": 8.431336471476452,
+        "p90": 8.844509887406913,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_est": 10,
+      "n_tp": 26,
+      "n_fp": 0,
+      "n_verified": 10,
+      "n_rejected": 16,
+      "verified_tp": 10,
+      "verified_fp": 0,
+      "det_rate": 0.20634920634920634,
+      "verified_det_rate": 0.07936507936507936,
+      "coverage": 0.07936507936507936,
+      "verify_scores_tp": {
+        "n": 26,
+        "mean": 0.4576904521538661,
+        "median": 0.43577800691127777,
+        "p90": 0.6551171541213989,
+        "max": 0.7110275030136108
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val5_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_est": 0,
+      "n_tp": 0,
+      "n_fp": 4,
+      "n_verified": 0,
+      "n_rejected": 4,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.0,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 0
+      },
+      "verify_scores_fp": {
+        "n": 4,
+        "mean": 0.04051128658466041,
+        "median": 0.015958208590745926,
+        "p90": 0.08861152343451978,
+        "max": 0.11901294440031052
+      }
+    },
+    "green_clock_val6_failed": {
+      "filt": {
+        "n": 39,
+        "mean": 24.388738823344156,
+        "median": 24.08318915758459,
+        "p90": 27.073972741361768,
+        "max": 28.071337695236398
+      },
+      "det": {
+        "n": 28,
+        "mean": 22.329406466152527,
+        "median": 22.293097318135715,
+        "p90": 23.29860452161203,
+        "max": 27.75184305856112
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_est": 39,
+      "n_tp": 109,
+      "n_fp": 0,
+      "n_verified": 28,
+      "n_rejected": 81,
+      "verified_tp": 28,
+      "verified_fp": 0,
+      "det_rate": 0.7414965986394558,
+      "verified_det_rate": 0.19047619047619047,
+      "coverage": 0.2653061224489796,
+      "verify_scores_tp": {
+        "n": 109,
+        "mean": 0.3227570495747645,
+        "median": 0.2944360077381134,
+        "p90": 0.5824515342712403,
+        "max": 0.7372896671295166
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_est": 0,
+      "n_tp": 192,
+      "n_fp": 0,
+      "n_verified": 0,
+      "n_rejected": 192,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.9552238805970149,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 192,
+        "mean": 0.09598511416356814,
+        "median": 0.04726058430969715,
+        "p90": 0.2698544770479203,
+        "max": 0.46483099460601807
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_est": 0,
+      "n_tp": 72,
+      "n_fp": 0,
+      "n_verified": 0,
+      "n_rejected": 72,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.6605504587155964,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 72,
+        "mean": 0.04808096565602682,
+        "median": 0.004922304302453995,
+        "p90": 0.14330739229917525,
+        "max": 0.4950369596481323
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_est": 0,
+      "n_tp": 41,
+      "n_fp": 29,
+      "n_verified": 0,
+      "n_rejected": 70,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.8913043478260869,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 41,
+        "mean": 0.0612254652071165,
+        "median": 0.040447741746902466,
+        "p90": 0.1427074372768402,
+        "max": 0.2643631100654602
+      },
+      "verify_scores_fp": {
+        "n": 29,
+        "mean": 0.005841159571618532,
+        "median": 6.164117803564295e-05,
+        "p90": 0.0009402637835592028,
+        "max": 0.16152505576610565
+      }
+    }
+  },
+  "bbox_max_0.50": {
+    "green_and_pink_leafblower_val0_success": {
+      "filt": {
+        "n": 69,
+        "mean": 36.50555260991259,
+        "median": 31.25699921617557,
+        "p90": 81.90601796248178,
+        "max": 116.86744627996283
+      },
+      "det": {
+        "n": 9,
+        "mean": 16.032980356158767,
+        "median": 16.273138439831794,
+        "p90": 25.79829388853213,
+        "max": 31.60635760814265
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 121,
+      "n_est": 69,
+      "n_tp": 96,
+      "n_fp": 25,
+      "n_verified": 9,
+      "n_rejected": 112,
+      "verified_tp": 9,
+      "verified_fp": 0,
+      "det_rate": 0.9056603773584906,
+      "verified_det_rate": 0.08490566037735849,
+      "coverage": 0.6509433962264151,
+      "verify_scores_tp": {
+        "n": 96,
+        "mean": 0.16146352993966198,
+        "median": 0.06557794287800789,
+        "p90": 0.4854525625705719,
+        "max": 0.7321077585220337
+      },
+      "verify_scores_fp": {
+        "n": 25,
+        "mean": 0.004545511262913351,
+        "median": 0.00012993181007914245,
+        "p90": 0.01893162541091444,
+        "max": 0.0369291715323925
+      }
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "filt": {
+        "n": 32,
+        "mean": 94.57693637933843,
+        "median": 92.51355637565504,
+        "p90": 103.16927713284561,
+        "max": 104.12012293500234
+      },
+      "det": {
+        "n": 2,
+        "mean": 85.17522616918315,
+        "median": 85.17522616918315,
+        "p90": 86.58120124883945,
+        "max": 86.93269501875352
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 68,
+      "n_est": 32,
+      "n_tp": 68,
+      "n_fp": 0,
+      "n_verified": 2,
+      "n_rejected": 66,
+      "verified_tp": 2,
+      "verified_fp": 0,
+      "det_rate": 0.7906976744186046,
+      "verified_det_rate": 0.023255813953488372,
+      "coverage": 0.37209302325581395,
+      "verify_scores_tp": {
+        "n": 68,
+        "mean": 0.07058999957135871,
+        "median": 0.010348501149564981,
+        "p90": 0.1758766114711762,
+        "max": 0.6554197669029236
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val0_success": {
+      "filt": {
+        "n": 116,
+        "mean": 10.482603338466618,
+        "median": 9.055385138137417,
+        "p90": 19.013148795220225,
+        "max": 26.476404589747453
+      },
+      "det": {
+        "n": 87,
+        "mean": 10.972998272356419,
+        "median": 9.742757259099509,
+        "p90": 18.723288182160033,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 186,
+      "n_est": 116,
+      "n_tp": 186,
+      "n_fp": 0,
+      "n_verified": 87,
+      "n_rejected": 99,
+      "verified_tp": 87,
+      "verified_fp": 0,
+      "det_rate": 0.9538461538461539,
+      "verified_det_rate": 0.4461538461538462,
+      "coverage": 0.5948717948717949,
+      "verify_scores_tp": {
+        "n": 186,
+        "mean": 0.5208125948024693,
+        "median": 0.46615345776081085,
+        "p90": 0.9019178450107574,
+        "max": 0.9744722843170166
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val4_failed": {
+      "filt": {
+        "n": 26,
+        "mean": 4.747525049711617,
+        "median": 5.0,
+        "p90": 6.8896358721824225,
+        "max": 7.810249675906654
+      },
+      "det": {
+        "n": 26,
+        "mean": 6.572676253099788,
+        "median": 6.585196154658139,
+        "p90": 8.744523899871922,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_est": 26,
+      "n_tp": 26,
+      "n_fp": 0,
+      "n_verified": 26,
+      "n_rejected": 0,
+      "verified_tp": 26,
+      "verified_fp": 0,
+      "det_rate": 0.20634920634920634,
+      "verified_det_rate": 0.20634920634920634,
+      "coverage": 0.20634920634920634,
+      "verify_scores_tp": {
+        "n": 26,
+        "mean": 0.8293023636707892,
+        "median": 0.8084578812122345,
+        "p90": 0.9598219692707062,
+        "max": 0.9745848178863525
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val5_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_est": 0,
+      "n_tp": 0,
+      "n_fp": 4,
+      "n_verified": 0,
+      "n_rejected": 4,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.0,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 0
+      },
+      "verify_scores_fp": {
+        "n": 4,
+        "mean": 0.16750259511172771,
+        "median": 0.18717725574970245,
+        "p90": 0.22902393937110901,
+        "max": 0.2458605319261551
+      }
+    },
+    "green_clock_val6_failed": {
+      "filt": {
+        "n": 95,
+        "mean": 18.740770260321735,
+        "median": 21.0,
+        "p90": 27.640299967890996,
+        "max": 31.953090617340916
+      },
+      "det": {
+        "n": 63,
+        "mean": 19.076320443447987,
+        "median": 21.59378477820399,
+        "p90": 28.607553030747827,
+        "max": 37.157906898995165
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_est": 95,
+      "n_tp": 109,
+      "n_fp": 0,
+      "n_verified": 63,
+      "n_rejected": 46,
+      "verified_tp": 63,
+      "verified_fp": 0,
+      "det_rate": 0.7414965986394558,
+      "verified_det_rate": 0.42857142857142855,
+      "coverage": 0.6462585034013606,
+      "verify_scores_tp": {
+        "n": 109,
+        "mean": 0.5719178425609519,
+        "median": 0.611548900604248,
+        "p90": 0.9177935242652893,
+        "max": 0.9470255970954895
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "filt": {
+        "n": 105,
+        "mean": 169.85204145320466,
+        "median": 192.31744590650115,
+        "p90": 245.51186649819334,
+        "max": 252.04959829366916
+      },
+      "det": {
+        "n": 31,
+        "mean": 122.09657236351897,
+        "median": 32.390248052056066,
+        "p90": 243.70636110918983,
+        "max": 248.6045673682087
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_est": 105,
+      "n_tp": 192,
+      "n_fp": 0,
+      "n_verified": 31,
+      "n_rejected": 161,
+      "verified_tp": 31,
+      "verified_fp": 0,
+      "det_rate": 0.9552238805970149,
+      "verified_det_rate": 0.15422885572139303,
+      "coverage": 0.5223880597014925,
+      "verify_scores_tp": {
+        "n": 192,
+        "mean": 0.2212900549908833,
+        "median": 0.14356808364391327,
+        "p90": 0.6356745481491091,
+        "max": 0.7891117930412292
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "filt": {
+        "n": 24,
+        "mean": 38.77274658866085,
+        "median": 34.713217673535155,
+        "p90": 66.26553262867483,
+        "max": 74.06078584514209
+      },
+      "det": {
+        "n": 6,
+        "mean": 18.054437489607498,
+        "median": 18.072683091922475,
+        "p90": 18.600077055945004,
+        "max": 18.62253055731933
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_est": 24,
+      "n_tp": 72,
+      "n_fp": 0,
+      "n_verified": 6,
+      "n_rejected": 66,
+      "verified_tp": 6,
+      "verified_fp": 0,
+      "det_rate": 0.6605504587155964,
+      "verified_det_rate": 0.05504587155963303,
+      "coverage": 0.22018348623853212,
+      "verify_scores_tp": {
+        "n": 72,
+        "mean": 0.10260576037843647,
+        "median": 0.009246383793652058,
+        "p90": 0.38477736115455624,
+        "max": 0.8411838412284851
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "filt": {
+        "n": 3,
+        "mean": 468.9176848757557,
+        "median": 468.2734244007447,
+        "p90": 470.64571925629957,
+        "max": 471.2387929701883
+      },
+      "det": {
+        "n": 1,
+        "mean": 468.44347071682404,
+        "median": 468.44347071682404,
+        "p90": 468.44347071682404,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_est": 3,
+      "n_tp": 41,
+      "n_fp": 29,
+      "n_verified": 1,
+      "n_rejected": 69,
+      "verified_tp": 1,
+      "verified_fp": 0,
+      "det_rate": 0.8913043478260869,
+      "verified_det_rate": 0.021739130434782608,
+      "coverage": 0.06521739130434782,
+      "verify_scores_tp": {
+        "n": 41,
+        "mean": 0.16338366469958934,
+        "median": 0.12400604039430618,
+        "p90": 0.3692619800567627,
+        "max": 0.8753049969673157
+      },
+      "verify_scores_fp": {
+        "n": 29,
+        "mean": 0.014032217854978156,
+        "median": 0.00016607852012384683,
+        "p90": 0.0032245962880551784,
+        "max": 0.3733140230178833
+      }
+    }
+  },
+  "bbox_max_0.60": {
+    "green_and_pink_leafblower_val0_success": {
+      "filt": {
+        "n": 69,
+        "mean": 40.48330957793897,
+        "median": 31.953090617340916,
+        "p90": 93.29422467488487,
+        "max": 128.15615474880636
+      },
+      "det": {
+        "n": 8,
+        "mean": 16.37052438695381,
+        "median": 18.523229602212425,
+        "p90": 26.52430185348344,
+        "max": 31.60635760814265
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 121,
+      "n_est": 69,
+      "n_tp": 96,
+      "n_fp": 25,
+      "n_verified": 8,
+      "n_rejected": 113,
+      "verified_tp": 8,
+      "verified_fp": 0,
+      "det_rate": 0.9056603773584906,
+      "verified_det_rate": 0.07547169811320754,
+      "coverage": 0.6509433962264151,
+      "verify_scores_tp": {
+        "n": 96,
+        "mean": 0.16146352993966198,
+        "median": 0.06557794287800789,
+        "p90": 0.4854525625705719,
+        "max": 0.7321077585220337
+      },
+      "verify_scores_fp": {
+        "n": 25,
+        "mean": 0.004545511262913351,
+        "median": 0.00012993181007914245,
+        "p90": 0.01893162541091444,
+        "max": 0.0369291715323925
+      }
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "filt": {
+        "n": 31,
+        "mean": 96.94125314343857,
+        "median": 95.00526301210897,
+        "p90": 105.17128885774862,
+        "max": 106.1178590059185
+      },
+      "det": {
+        "n": 1,
+        "mean": 86.93269501875352,
+        "median": 86.93269501875352,
+        "p90": 86.93269501875352,
+        "max": 86.93269501875352
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 68,
+      "n_est": 31,
+      "n_tp": 68,
+      "n_fp": 0,
+      "n_verified": 1,
+      "n_rejected": 67,
+      "verified_tp": 1,
+      "verified_fp": 0,
+      "det_rate": 0.7906976744186046,
+      "verified_det_rate": 0.011627906976744186,
+      "coverage": 0.36046511627906974,
+      "verify_scores_tp": {
+        "n": 68,
+        "mean": 0.07058999957135871,
+        "median": 0.010348501149564981,
+        "p90": 0.1758766114711762,
+        "max": 0.6554197669029236
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val0_success": {
+      "filt": {
+        "n": 87,
+        "mean": 12.064000051377823,
+        "median": 11.0,
+        "p90": 21.095023109728988,
+        "max": 26.476404589747453
+      },
+      "det": {
+        "n": 78,
+        "mean": 11.447919543881616,
+        "median": 10.115636097885279,
+        "p90": 19.22718157857396,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 186,
+      "n_est": 87,
+      "n_tp": 186,
+      "n_fp": 0,
+      "n_verified": 78,
+      "n_rejected": 108,
+      "verified_tp": 78,
+      "verified_fp": 0,
+      "det_rate": 0.9538461538461539,
+      "verified_det_rate": 0.4,
+      "coverage": 0.4461538461538462,
+      "verify_scores_tp": {
+        "n": 186,
+        "mean": 0.5208125948024693,
+        "median": 0.46615345776081085,
+        "p90": 0.9019178450107574,
+        "max": 0.9744722843170166
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val4_failed": {
+      "filt": {
+        "n": 26,
+        "mean": 4.747525049711617,
+        "median": 5.0,
+        "p90": 6.8896358721824225,
+        "max": 7.810249675906654
+      },
+      "det": {
+        "n": 26,
+        "mean": 6.572676253099788,
+        "median": 6.585196154658139,
+        "p90": 8.744523899871922,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_est": 26,
+      "n_tp": 26,
+      "n_fp": 0,
+      "n_verified": 26,
+      "n_rejected": 0,
+      "verified_tp": 26,
+      "verified_fp": 0,
+      "det_rate": 0.20634920634920634,
+      "verified_det_rate": 0.20634920634920634,
+      "coverage": 0.20634920634920634,
+      "verify_scores_tp": {
+        "n": 26,
+        "mean": 0.8293023636707892,
+        "median": 0.8084578812122345,
+        "p90": 0.9598219692707062,
+        "max": 0.9745848178863525
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val5_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_est": 0,
+      "n_tp": 0,
+      "n_fp": 4,
+      "n_verified": 0,
+      "n_rejected": 4,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.0,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 0
+      },
+      "verify_scores_fp": {
+        "n": 4,
+        "mean": 0.16750259511172771,
+        "median": 0.18717725574970245,
+        "p90": 0.22902393937110901,
+        "max": 0.2458605319261551
+      }
+    },
+    "green_clock_val6_failed": {
+      "filt": {
+        "n": 94,
+        "mean": 19.198175344416036,
+        "median": 21.51189802081432,
+        "p90": 27.734687838979195,
+        "max": 31.953090617340916
+      },
+      "det": {
+        "n": 56,
+        "mean": 20.368331843142858,
+        "median": 22.256588061191742,
+        "p90": 28.63666580066137,
+        "max": 37.157906898995165
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_est": 94,
+      "n_tp": 109,
+      "n_fp": 0,
+      "n_verified": 56,
+      "n_rejected": 53,
+      "verified_tp": 56,
+      "verified_fp": 0,
+      "det_rate": 0.7414965986394558,
+      "verified_det_rate": 0.38095238095238093,
+      "coverage": 0.6394557823129252,
+      "verify_scores_tp": {
+        "n": 109,
+        "mean": 0.5719178425609519,
+        "median": 0.611548900604248,
+        "p90": 0.9177935242652893,
+        "max": 0.9470255970954895
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "filt": {
+        "n": 78,
+        "mean": 164.66695298871014,
+        "median": 215.86837815377777,
+        "p90": 247.16495793255578,
+        "max": 252.04959829366916
+      },
+      "det": {
+        "n": 22,
+        "mean": 136.21208078718988,
+        "median": 199.10211053801427,
+        "p90": 243.75702851518972,
+        "max": 248.6045673682087
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_est": 78,
+      "n_tp": 192,
+      "n_fp": 0,
+      "n_verified": 22,
+      "n_rejected": 170,
+      "verified_tp": 22,
+      "verified_fp": 0,
+      "det_rate": 0.9552238805970149,
+      "verified_det_rate": 0.10945273631840796,
+      "coverage": 0.3880597014925373,
+      "verify_scores_tp": {
+        "n": 192,
+        "mean": 0.2212900549908833,
+        "median": 0.14356808364391327,
+        "p90": 0.6356745481491091,
+        "max": 0.7891117930412292
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "filt": {
+        "n": 23,
+        "mean": 39.558314830566566,
+        "median": 36.124783736376884,
+        "p90": 66.84613926700897,
+        "max": 74.06078584514209
+      },
+      "det": {
+        "n": 5,
+        "mean": 17.94081887606513,
+        "median": 18.065395875154,
+        "p90": 18.378562256218785,
+        "max": 18.57762355457068
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_est": 23,
+      "n_tp": 72,
+      "n_fp": 0,
+      "n_verified": 5,
+      "n_rejected": 67,
+      "verified_tp": 5,
+      "verified_fp": 0,
+      "det_rate": 0.6605504587155964,
+      "verified_det_rate": 0.045871559633027525,
+      "coverage": 0.21100917431192662,
+      "verify_scores_tp": {
+        "n": 72,
+        "mean": 0.10260576037843647,
+        "median": 0.009246383793652058,
+        "p90": 0.38477736115455624,
+        "max": 0.8411838412284851
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "filt": {
+        "n": 3,
+        "mean": 468.9176848757557,
+        "median": 468.2734244007447,
+        "p90": 470.64571925629957,
+        "max": 471.2387929701883
+      },
+      "det": {
+        "n": 1,
+        "mean": 468.44347071682404,
+        "median": 468.44347071682404,
+        "p90": 468.44347071682404,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_est": 3,
+      "n_tp": 41,
+      "n_fp": 29,
+      "n_verified": 1,
+      "n_rejected": 69,
+      "verified_tp": 1,
+      "verified_fp": 0,
+      "det_rate": 0.8913043478260869,
+      "verified_det_rate": 0.021739130434782608,
+      "coverage": 0.06521739130434782,
+      "verify_scores_tp": {
+        "n": 41,
+        "mean": 0.16338366469958934,
+        "median": 0.12400604039430618,
+        "p90": 0.3692619800567627,
+        "max": 0.8753049969673157
+      },
+      "verify_scores_fp": {
+        "n": 29,
+        "mean": 0.014032217854978156,
+        "median": 0.00016607852012384683,
+        "p90": 0.0032245962880551784,
+        "max": 0.3733140230178833
+      }
+    }
+  },
+  "bbox_max_0.70": {
+    "green_and_pink_leafblower_val0_success": {
+      "filt": {
+        "n": 35,
+        "mean": 59.16538225205292,
+        "median": 52.49761899362675,
+        "p90": 119.52477207366957,
+        "max": 137.88400922514546
+      },
+      "det": {
+        "n": 3,
+        "mean": 17.368842163718593,
+        "median": 20.77332076459306,
+        "p90": 23.63168651982221,
+        "max": 24.346277958629496
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 121,
+      "n_est": 35,
+      "n_tp": 96,
+      "n_fp": 25,
+      "n_verified": 3,
+      "n_rejected": 118,
+      "verified_tp": 3,
+      "verified_fp": 0,
+      "det_rate": 0.9056603773584906,
+      "verified_det_rate": 0.02830188679245283,
+      "coverage": 0.330188679245283,
+      "verify_scores_tp": {
+        "n": 96,
+        "mean": 0.16146352993966198,
+        "median": 0.06557794287800789,
+        "p90": 0.4854525625705719,
+        "max": 0.7321077585220337
+      },
+      "verify_scores_fp": {
+        "n": 25,
+        "mean": 0.004545511262913351,
+        "median": 0.00012993181007914245,
+        "p90": 0.01893162541091444,
+        "max": 0.0369291715323925
+      }
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 68,
+      "n_est": 0,
+      "n_tp": 68,
+      "n_fp": 0,
+      "n_verified": 0,
+      "n_rejected": 68,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.7906976744186046,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 68,
+        "mean": 0.07058999957135871,
+        "median": 0.010348501149564981,
+        "p90": 0.1758766114711762,
+        "max": 0.6554197669029236
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val0_success": {
+      "filt": {
+        "n": 87,
+        "mean": 12.252461179751862,
+        "median": 11.045361017187261,
+        "p90": 21.095023109728988,
+        "max": 26.476404589747453
+      },
+      "det": {
+        "n": 72,
+        "mean": 11.692548567749066,
+        "median": 10.38105054845514,
+        "p90": 19.330201746572854,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 186,
+      "n_est": 87,
+      "n_tp": 186,
+      "n_fp": 0,
+      "n_verified": 72,
+      "n_rejected": 114,
+      "verified_tp": 72,
+      "verified_fp": 0,
+      "det_rate": 0.9538461538461539,
+      "verified_det_rate": 0.36923076923076925,
+      "coverage": 0.4461538461538462,
+      "verify_scores_tp": {
+        "n": 186,
+        "mean": 0.5208125948024693,
+        "median": 0.46615345776081085,
+        "p90": 0.9019178450107574,
+        "max": 0.9744722843170166
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val4_failed": {
+      "filt": {
+        "n": 26,
+        "mean": 4.9079701602983015,
+        "median": 5.0,
+        "p90": 6.8896358721824225,
+        "max": 7.810249675906654
+      },
+      "det": {
+        "n": 25,
+        "mean": 6.478293882739377,
+        "median": 6.536848235994209,
+        "p90": 8.711320251850374,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_est": 26,
+      "n_tp": 26,
+      "n_fp": 0,
+      "n_verified": 25,
+      "n_rejected": 1,
+      "verified_tp": 25,
+      "verified_fp": 0,
+      "det_rate": 0.20634920634920634,
+      "verified_det_rate": 0.1984126984126984,
+      "coverage": 0.20634920634920634,
+      "verify_scores_tp": {
+        "n": 26,
+        "mean": 0.8293023636707892,
+        "median": 0.8084578812122345,
+        "p90": 0.9598219692707062,
+        "max": 0.9745848178863525
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val5_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_est": 0,
+      "n_tp": 0,
+      "n_fp": 4,
+      "n_verified": 0,
+      "n_rejected": 4,
+      "verified_tp": 0,
+      "verified_fp": 0,
+      "det_rate": 0.0,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 0
+      },
+      "verify_scores_fp": {
+        "n": 4,
+        "mean": 0.16750259511172771,
+        "median": 0.18717725574970245,
+        "p90": 0.22902393937110901,
+        "max": 0.2458605319261551
+      }
+    },
+    "green_clock_val6_failed": {
+      "filt": {
+        "n": 74,
+        "mean": 22.092325341215396,
+        "median": 23.054260813836535,
+        "p90": 28.071337695236398,
+        "max": 31.953090617340916
+      },
+      "det": {
+        "n": 42,
+        "mean": 23.922968649764282,
+        "median": 22.693441029958418,
+        "p90": 29.40328274972547,
+        "max": 37.157906898995165
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_est": 74,
+      "n_tp": 109,
+      "n_fp": 0,
+      "n_verified": 42,
+      "n_rejected": 67,
+      "verified_tp": 42,
+      "verified_fp": 0,
+      "det_rate": 0.7414965986394558,
+      "verified_det_rate": 0.2857142857142857,
+      "coverage": 0.5034013605442177,
+      "verify_scores_tp": {
+        "n": 109,
+        "mean": 0.5719178425609519,
+        "median": 0.611548900604248,
+        "p90": 0.9177935242652893,
+        "max": 0.9470255970954895
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "filt": {
+        "n": 63,
+        "mean": 147.77859444308672,
+        "median": 211.9929244102265,
+        "p90": 230.47960975160953,
+        "max": 235.9872877932199
+      },
+      "det": {
+        "n": 7,
+        "mean": 85.11697990809732,
+        "median": 29.682345815824657,
+        "p90": 224.2880235306017,
+        "max": 243.7626582269675
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_est": 63,
+      "n_tp": 192,
+      "n_fp": 0,
+      "n_verified": 7,
+      "n_rejected": 185,
+      "verified_tp": 7,
+      "verified_fp": 0,
+      "det_rate": 0.9552238805970149,
+      "verified_det_rate": 0.03482587064676617,
+      "coverage": 0.31343283582089554,
+      "verify_scores_tp": {
+        "n": 192,
+        "mean": 0.2212900549908833,
+        "median": 0.14356808364391327,
+        "p90": 0.6356745481491091,
+        "max": 0.7891117930412292
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "filt": {
+        "n": 22,
+        "mean": 40.48675182329614,
+        "median": 37.16736504273124,
+        "p90": 67.4267459053431,
+        "max": 74.06078584514209
+      },
+      "det": {
+        "n": 4,
+        "mean": 18.088403401396178,
+        "median": 18.072683091922475,
+        "p90": 18.42832758080676,
+        "max": 18.57762355457068
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_est": 22,
+      "n_tp": 72,
+      "n_fp": 0,
+      "n_verified": 4,
+      "n_rejected": 68,
+      "verified_tp": 4,
+      "verified_fp": 0,
+      "det_rate": 0.6605504587155964,
+      "verified_det_rate": 0.03669724770642202,
+      "coverage": 0.2018348623853211,
+      "verify_scores_tp": {
+        "n": 72,
+        "mean": 0.10260576037843647,
+        "median": 0.009246383793652058,
+        "p90": 0.38477736115455624,
+        "max": 0.8411838412284851
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "filt": {
+        "n": 3,
+        "mean": 468.9176848757557,
+        "median": 468.2734244007447,
+        "p90": 470.64571925629957,
+        "max": 471.2387929701883
+      },
+      "det": {
+        "n": 1,
+        "mean": 468.44347071682404,
+        "median": 468.44347071682404,
+        "p90": 468.44347071682404,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_est": 3,
+      "n_tp": 41,
+      "n_fp": 29,
+      "n_verified": 1,
+      "n_rejected": 69,
+      "verified_tp": 1,
+      "verified_fp": 0,
+      "det_rate": 0.8913043478260869,
+      "verified_det_rate": 0.021739130434782608,
+      "coverage": 0.06521739130434782,
+      "verify_scores_tp": {
+        "n": 41,
+        "mean": 0.16338366469958934,
+        "median": 0.12400604039430618,
+        "p90": 0.3692619800567627,
+        "max": 0.8753049969673157
+      },
+      "verify_scores_fp": {
+        "n": 29,
+        "mean": 0.014032217854978156,
+        "median": 0.00016607852012384683,
+        "p90": 0.0032245962880551784,
+        "max": 0.3733140230178833
+      }
+    }
+  },
+  "bbox_ratio_2.0": {
+    "green_and_pink_leafblower_val0_success": {
+      "filt": {
+        "n": 106,
+        "mean": 33.17521232901383,
+        "median": 15.888495669547813,
+        "p90": 88.96238484277532,
+        "max": 189.42280749687984
+      },
+      "det": {
+        "n": 56,
+        "mean": 36.39268768598424,
+        "median": 22.37371775948502,
+        "p90": 74.74060094761396,
+        "max": 330.47090048140444
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 121,
+      "n_est": 106,
+      "n_tp": 96,
+      "n_fp": 25,
+      "n_verified": 57,
+      "n_rejected": 64,
+      "verified_tp": 56,
+      "verified_fp": 1,
+      "det_rate": 0.9056603773584906,
+      "verified_det_rate": 0.5283018867924528,
+      "coverage": 1.0,
+      "verify_scores_tp": {
+        "n": 96,
+        "mean": 23.509829399025364,
+        "median": 2.9212649911642075,
+        "p90": 89.35570499573566,
+        "max": 149.16619185021548
+      },
+      "verify_scores_fp": {
+        "n": 25,
+        "mean": 0.23413220251592531,
+        "median": 0.004180651012575254,
+        "p90": 1.0508321944011711,
+        "max": 2.3232732110163714
+      }
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "filt": {
+        "n": 54,
+        "mean": 160.73556170233473,
+        "median": 189.0978556018874,
+        "p90": 200.58133457957717,
+        "max": 202.6746160721663
+      },
+      "det": {
+        "n": 22,
+        "mean": 128.58186269192518,
+        "median": 121.65473098877088,
+        "p90": 185.95546348023768,
+        "max": 204.58401889956968
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 68,
+      "n_est": 54,
+      "n_tp": 68,
+      "n_fp": 0,
+      "n_verified": 22,
+      "n_rejected": 46,
+      "verified_tp": 22,
+      "verified_fp": 0,
+      "det_rate": 0.7906976744186046,
+      "verified_det_rate": 0.2558139534883721,
+      "coverage": 0.627906976744186,
+      "verify_scores_tp": {
+        "n": 68,
+        "mean": 3.78198141134185,
+        "median": 0.28339551063254476,
+        "p90": 10.148659032703387,
+        "max": 53.380828793059436
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val0_success": {
+      "filt": {
+        "n": 192,
+        "mean": 7.898124766092742,
+        "median": 6.082762530298219,
+        "p90": 15.122800993216693,
+        "max": 26.476404589747453
+      },
+      "det": {
+        "n": 185,
+        "mean": 7.834666577114921,
+        "median": 6.619211774096408,
+        "p90": 14.27324811004093,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 186,
+      "n_est": 192,
+      "n_tp": 186,
+      "n_fp": 0,
+      "n_verified": 185,
+      "n_rejected": 1,
+      "verified_tp": 185,
+      "verified_fp": 0,
+      "det_rate": 0.9538461538461539,
+      "verified_det_rate": 0.9487179487179487,
+      "coverage": 0.9846153846153847,
+      "verify_scores_tp": {
+        "n": 186,
+        "mean": 50.77224081655467,
+        "median": 33.91866918811498,
+        "p90": 115.63005698160534,
+        "max": 145.69731970905084
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val4_failed": {
+      "filt": {
+        "n": 26,
+        "mean": 4.747525049711617,
+        "median": 5.0,
+        "p90": 6.8896358721824225,
+        "max": 7.810249675906654
+      },
+      "det": {
+        "n": 26,
+        "mean": 6.572676253099788,
+        "median": 6.585196154658139,
+        "p90": 8.744523899871922,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_est": 26,
+      "n_tp": 26,
+      "n_fp": 0,
+      "n_verified": 26,
+      "n_rejected": 0,
+      "verified_tp": 26,
+      "verified_fp": 0,
+      "det_rate": 0.20634920634920634,
+      "verified_det_rate": 0.20634920634920634,
+      "coverage": 0.20634920634920634,
+      "verify_scores_tp": {
+        "n": 26,
+        "mean": 58.63494990987965,
+        "median": 32.023521841785325,
+        "p90": 131.62115185440462,
+        "max": 156.7943440573278
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val5_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_est": 0,
+      "n_tp": 0,
+      "n_fp": 4,
+      "n_verified": 1,
+      "n_rejected": 3,
+      "verified_tp": 0,
+      "verified_fp": 1,
+      "det_rate": 0.0,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 0
+      },
+      "verify_scores_fp": {
+        "n": 4,
+        "mean": 4.379122314694564,
+        "median": 1.477389529179466,
+        "p90": 9.917311381702795,
+        "max": 13.40623734101005
+      }
+    },
+    "green_clock_val6_failed": {
+      "filt": {
+        "n": 139,
+        "mean": 14.750464847753058,
+        "median": 12.0,
+        "p90": 24.186773244895647,
+        "max": 31.953090617340916
+      },
+      "det": {
+        "n": 109,
+        "mean": 14.686595097405249,
+        "median": 9.758973292449184,
+        "p90": 25.778004514139724,
+        "max": 37.157906898995165
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_est": 139,
+      "n_tp": 109,
+      "n_fp": 0,
+      "n_verified": 109,
+      "n_rejected": 0,
+      "verified_tp": 109,
+      "verified_fp": 0,
+      "det_rate": 0.7414965986394558,
+      "verified_det_rate": 0.7414965986394558,
+      "coverage": 0.9455782312925171,
+      "verify_scores_tp": {
+        "n": 109,
+        "mean": 39.99749071576863,
+        "median": 33.93115495203541,
+        "p90": 80.60895284494954,
+        "max": 104.31883208645158
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "filt": {
+        "n": 186,
+        "mean": 114.26717333274104,
+        "median": 124.5598555647268,
+        "p90": 199.6608633762053,
+        "max": 246.1422353030865
+      },
+      "det": {
+        "n": 116,
+        "mean": 120.58022139241696,
+        "median": 144.9472258252133,
+        "p90": 218.83322932287197,
+        "max": 248.6045673682087
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_est": 186,
+      "n_tp": 192,
+      "n_fp": 0,
+      "n_verified": 116,
+      "n_rejected": 76,
+      "verified_tp": 116,
+      "verified_fp": 0,
+      "det_rate": 0.9552238805970149,
+      "verified_det_rate": 0.5771144278606966,
+      "coverage": 0.9253731343283582,
+      "verify_scores_tp": {
+        "n": 192,
+        "mean": 38.69318156260931,
+        "median": 7.413967698812485,
+        "p90": 131.37625831284927,
+        "max": 247.13082103143287
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "filt": {
+        "n": 107,
+        "mean": 73.659592073082,
+        "median": 45.48626166217664,
+        "p90": 159.70462212158418,
+        "max": 170.7629936490925
+      },
+      "det": {
+        "n": 23,
+        "mean": 42.814725868020645,
+        "median": 17.630623867169085,
+        "p90": 163.53789141651185,
+        "max": 172.08299654253463
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_est": 107,
+      "n_tp": 72,
+      "n_fp": 0,
+      "n_verified": 23,
+      "n_rejected": 49,
+      "verified_tp": 23,
+      "verified_fp": 0,
+      "det_rate": 0.6605504587155964,
+      "verified_det_rate": 0.21100917431192662,
+      "coverage": 0.981651376146789,
+      "verify_scores_tp": {
+        "n": 72,
+        "mean": 19.828418784402157,
+        "median": 0.5167893366888165,
+        "p90": 14.85340803861618,
+        "max": 459.156866349244
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "filt": {
+        "n": 46,
+        "mean": 26.872797083401252,
+        "median": 18.411932612718005,
+        "p90": 23.614582870131542,
+        "max": 242.0185943269649
+      },
+      "det": {
+        "n": 33,
+        "mean": 35.18472344073832,
+        "median": 21.55834603767793,
+        "p90": 28.23783285575985,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_est": 46,
+      "n_tp": 41,
+      "n_fp": 29,
+      "n_verified": 34,
+      "n_rejected": 36,
+      "verified_tp": 33,
+      "verified_fp": 1,
+      "det_rate": 0.8913043478260869,
+      "verified_det_rate": 0.717391304347826,
+      "coverage": 1.0,
+      "verify_scores_tp": {
+        "n": 41,
+        "mean": 13.696939282846193,
+        "median": 5.3324297070503235,
+        "p90": 30.36370857144399,
+        "max": 137.25883590228247
+      },
+      "verify_scores_fp": {
+        "n": 29,
+        "mean": 0.5934118461139161,
+        "median": 0.006164117803564295,
+        "p90": 0.10481702396646135,
+        "max": 16.152505576610565
+      }
+    }
+  },
+  "bbox_ratio_3.0": {
+    "green_and_pink_leafblower_val0_success": {
+      "filt": {
+        "n": 106,
+        "mean": 25.025088540588932,
+        "median": 16.56225774829855,
+        "p90": 55.55167265140972,
+        "max": 88.64536084872124
+      },
+      "det": {
+        "n": 47,
+        "mean": 29.050880683468023,
+        "median": 21.53660867972069,
+        "p90": 65.72083746474402,
+        "max": 106.45897785057502
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 121,
+      "n_est": 106,
+      "n_tp": 96,
+      "n_fp": 25,
+      "n_verified": 47,
+      "n_rejected": 74,
+      "verified_tp": 47,
+      "verified_fp": 0,
+      "det_rate": 0.9056603773584906,
+      "verified_det_rate": 0.44339622641509435,
+      "coverage": 1.0,
+      "verify_scores_tp": {
+        "n": 96,
+        "mean": 23.509829399025364,
+        "median": 2.9212649911642075,
+        "p90": 89.35570499573566,
+        "max": 149.16619185021548
+      },
+      "verify_scores_fp": {
+        "n": 25,
+        "mean": 0.23413220251592531,
+        "median": 0.004180651012575254,
+        "p90": 1.0508321944011711,
+        "max": 2.3232732110163714
+      }
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "filt": {
+        "n": 54,
+        "mean": 158.52289059029204,
+        "median": 188.09837581038465,
+        "p90": 199.58925697616095,
+        "max": 201.6829194552677
+      },
+      "det": {
+        "n": 19,
+        "mean": 123.52053617714749,
+        "median": 108.20331076745929,
+        "p90": 189.58406429906256,
+        "max": 204.58401889956968
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 68,
+      "n_est": 54,
+      "n_tp": 68,
+      "n_fp": 0,
+      "n_verified": 19,
+      "n_rejected": 49,
+      "verified_tp": 19,
+      "verified_fp": 0,
+      "det_rate": 0.7906976744186046,
+      "verified_det_rate": 0.22093023255813954,
+      "coverage": 0.627906976744186,
+      "verify_scores_tp": {
+        "n": 68,
+        "mean": 3.78198141134185,
+        "median": 0.28339551063254476,
+        "p90": 10.148659032703387,
+        "max": 53.380828793059436
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val0_success": {
+      "filt": {
+        "n": 192,
+        "mean": 7.9287318047516955,
+        "median": 6.082762530298219,
+        "p90": 15.122800993216693,
+        "max": 26.476404589747453
+      },
+      "det": {
+        "n": 179,
+        "mean": 7.984912782206705,
+        "median": 6.636621386098414,
+        "p90": 14.513110289021439,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 186,
+      "n_est": 192,
+      "n_tp": 186,
+      "n_fp": 0,
+      "n_verified": 179,
+      "n_rejected": 7,
+      "verified_tp": 179,
+      "verified_fp": 0,
+      "det_rate": 0.9538461538461539,
+      "verified_det_rate": 0.9179487179487179,
+      "coverage": 0.9846153846153847,
+      "verify_scores_tp": {
+        "n": 186,
+        "mean": 50.77224081655467,
+        "median": 33.91866918811498,
+        "p90": 115.63005698160534,
+        "max": 145.69731970905084
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val4_failed": {
+      "filt": {
+        "n": 26,
+        "mean": 4.747525049711617,
+        "median": 5.0,
+        "p90": 6.8896358721824225,
+        "max": 7.810249675906654
+      },
+      "det": {
+        "n": 26,
+        "mean": 6.572676253099788,
+        "median": 6.585196154658139,
+        "p90": 8.744523899871922,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_est": 26,
+      "n_tp": 26,
+      "n_fp": 0,
+      "n_verified": 26,
+      "n_rejected": 0,
+      "verified_tp": 26,
+      "verified_fp": 0,
+      "det_rate": 0.20634920634920634,
+      "verified_det_rate": 0.20634920634920634,
+      "coverage": 0.20634920634920634,
+      "verify_scores_tp": {
+        "n": 26,
+        "mean": 58.63494990987965,
+        "median": 32.023521841785325,
+        "p90": 131.62115185440462,
+        "max": 156.7943440573278
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val5_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_est": 0,
+      "n_tp": 0,
+      "n_fp": 4,
+      "n_verified": 1,
+      "n_rejected": 3,
+      "verified_tp": 0,
+      "verified_fp": 1,
+      "det_rate": 0.0,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 0
+      },
+      "verify_scores_fp": {
+        "n": 4,
+        "mean": 4.379122314694564,
+        "median": 1.477389529179466,
+        "p90": 9.917311381702795,
+        "max": 13.40623734101005
+      }
+    },
+    "green_clock_val6_failed": {
+      "filt": {
+        "n": 139,
+        "mean": 14.750464847753058,
+        "median": 12.0,
+        "p90": 24.186773244895647,
+        "max": 31.953090617340916
+      },
+      "det": {
+        "n": 109,
+        "mean": 14.686595097405249,
+        "median": 9.758973292449184,
+        "p90": 25.778004514139724,
+        "max": 37.157906898995165
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_est": 139,
+      "n_tp": 109,
+      "n_fp": 0,
+      "n_verified": 109,
+      "n_rejected": 0,
+      "verified_tp": 109,
+      "verified_fp": 0,
+      "det_rate": 0.7414965986394558,
+      "verified_det_rate": 0.7414965986394558,
+      "coverage": 0.9455782312925171,
+      "verify_scores_tp": {
+        "n": 109,
+        "mean": 39.99749071576863,
+        "median": 33.93115495203541,
+        "p90": 80.60895284494954,
+        "max": 104.31883208645158
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "filt": {
+        "n": 165,
+        "mean": 125.28572134244916,
+        "median": 152.16109883935513,
+        "p90": 200.29464072342458,
+        "max": 246.1422353030865
+      },
+      "det": {
+        "n": 108,
+        "mean": 127.84408296066066,
+        "median": 155.3025014998402,
+        "p90": 220.1203067131815,
+        "max": 248.6045673682087
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_est": 165,
+      "n_tp": 192,
+      "n_fp": 0,
+      "n_verified": 108,
+      "n_rejected": 84,
+      "verified_tp": 108,
+      "verified_fp": 0,
+      "det_rate": 0.9552238805970149,
+      "verified_det_rate": 0.5373134328358209,
+      "coverage": 0.8208955223880597,
+      "verify_scores_tp": {
+        "n": 192,
+        "mean": 38.69318156260931,
+        "median": 7.413967698812485,
+        "p90": 131.37625831284927,
+        "max": 247.13082103143287
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "filt": {
+        "n": 101,
+        "mean": 81.45169057832531,
+        "median": 45.27692569068709,
+        "p90": 185.05404615949362,
+        "max": 204.9438947614688
+      },
+      "det": {
+        "n": 19,
+        "mean": 33.14993677377756,
+        "median": 17.630623867169085,
+        "p90": 49.71484600677088,
+        "max": 172.08299654253463
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_est": 101,
+      "n_tp": 72,
+      "n_fp": 0,
+      "n_verified": 19,
+      "n_rejected": 53,
+      "verified_tp": 19,
+      "verified_fp": 0,
+      "det_rate": 0.6605504587155964,
+      "verified_det_rate": 0.1743119266055046,
+      "coverage": 0.926605504587156,
+      "verify_scores_tp": {
+        "n": 72,
+        "mean": 19.828418784402157,
+        "median": 0.5167893366888165,
+        "p90": 14.85340803861618,
+        "max": 459.156866349244
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "filt": {
+        "n": 46,
+        "mean": 26.467832319638195,
+        "median": 18.384776310850235,
+        "p90": 21.988606972822694,
+        "max": 238.03361107205006
+      },
+      "det": {
+        "n": 29,
+        "mean": 36.657218211633705,
+        "median": 21.168559752435417,
+        "p90": 28.27878355499742,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_est": 46,
+      "n_tp": 41,
+      "n_fp": 29,
+      "n_verified": 30,
+      "n_rejected": 40,
+      "verified_tp": 29,
+      "verified_fp": 1,
+      "det_rate": 0.8913043478260869,
+      "verified_det_rate": 0.6304347826086957,
+      "coverage": 1.0,
+      "verify_scores_tp": {
+        "n": 41,
+        "mean": 13.696939282846193,
+        "median": 5.3324297070503235,
+        "p90": 30.36370857144399,
+        "max": 137.25883590228247
+      },
+      "verify_scores_fp": {
+        "n": 29,
+        "mean": 0.5934118461139161,
+        "median": 0.006164117803564295,
+        "p90": 0.10481702396646135,
+        "max": 16.152505576610565
+      }
+    }
+  },
+  "bbox_ratio_5.0": {
+    "green_and_pink_leafblower_val0_success": {
+      "filt": {
+        "n": 106,
+        "mean": 21.350792437451716,
+        "median": 16.925531052437634,
+        "p90": 40.74812416793048,
+        "max": 76.90253571892151
+      },
+      "det": {
+        "n": 38,
+        "mean": 27.192657166530118,
+        "median": 22.37371775948502,
+        "p90": 48.258715116418536,
+        "max": 101.67430574980033
+      },
+      "n_frames": 140,
+      "n_gt_vis": 106,
+      "n_det": 121,
+      "n_est": 106,
+      "n_tp": 96,
+      "n_fp": 25,
+      "n_verified": 38,
+      "n_rejected": 83,
+      "verified_tp": 38,
+      "verified_fp": 0,
+      "det_rate": 0.9056603773584906,
+      "verified_det_rate": 0.3584905660377358,
+      "coverage": 1.0,
+      "verify_scores_tp": {
+        "n": 96,
+        "mean": 23.509829399025364,
+        "median": 2.9212649911642075,
+        "p90": 89.35570499573566,
+        "max": 149.16619185021548
+      },
+      "verify_scores_fp": {
+        "n": 25,
+        "mean": 0.23413220251592531,
+        "median": 0.004180651012575254,
+        "p90": 1.0508321944011711,
+        "max": 2.3232732110163714
+      }
+    },
+    "green_and_pink_leafblower_val1_failed": {
+      "filt": {
+        "n": 54,
+        "mean": 152.15614290600075,
+        "median": 180.07220559823702,
+        "p90": 191.52720831398273,
+        "max": 193.62076334938874
+      },
+      "det": {
+        "n": 15,
+        "mean": 117.14518515829636,
+        "median": 104.20027393627291,
+        "p90": 176.04085554927116,
+        "max": 204.58401889956968
+      },
+      "n_frames": 86,
+      "n_gt_vis": 86,
+      "n_det": 68,
+      "n_est": 54,
+      "n_tp": 68,
+      "n_fp": 0,
+      "n_verified": 15,
+      "n_rejected": 53,
+      "verified_tp": 15,
+      "verified_fp": 0,
+      "det_rate": 0.7906976744186046,
+      "verified_det_rate": 0.1744186046511628,
+      "coverage": 0.627906976744186,
+      "verify_scores_tp": {
+        "n": 68,
+        "mean": 3.78198141134185,
+        "median": 0.28339551063254476,
+        "p90": 10.148659032703387,
+        "max": 53.380828793059436
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val0_success": {
+      "filt": {
+        "n": 192,
+        "mean": 8.051783235617284,
+        "median": 6.082762530298219,
+        "p90": 15.122800993216693,
+        "max": 26.476404589747453
+      },
+      "det": {
+        "n": 168,
+        "mean": 8.220768710741238,
+        "median": 6.852185888206513,
+        "p90": 14.654812437191623,
+        "max": 24.849450540177397
+      },
+      "n_frames": 195,
+      "n_gt_vis": 195,
+      "n_det": 186,
+      "n_est": 192,
+      "n_tp": 186,
+      "n_fp": 0,
+      "n_verified": 168,
+      "n_rejected": 18,
+      "verified_tp": 168,
+      "verified_fp": 0,
+      "det_rate": 0.9538461538461539,
+      "verified_det_rate": 0.8615384615384616,
+      "coverage": 0.9846153846153847,
+      "verify_scores_tp": {
+        "n": 186,
+        "mean": 50.77224081655467,
+        "median": 33.91866918811498,
+        "p90": 115.63005698160534,
+        "max": 145.69731970905084
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val4_failed": {
+      "filt": {
+        "n": 26,
+        "mean": 4.747525049711617,
+        "median": 5.0,
+        "p90": 6.8896358721824225,
+        "max": 7.810249675906654
+      },
+      "det": {
+        "n": 26,
+        "mean": 6.572676253099788,
+        "median": 6.585196154658139,
+        "p90": 8.744523899871922,
+        "max": 9.589043391415595
+      },
+      "n_frames": 126,
+      "n_gt_vis": 126,
+      "n_det": 26,
+      "n_est": 26,
+      "n_tp": 26,
+      "n_fp": 0,
+      "n_verified": 26,
+      "n_rejected": 0,
+      "verified_tp": 26,
+      "verified_fp": 0,
+      "det_rate": 0.20634920634920634,
+      "verified_det_rate": 0.20634920634920634,
+      "coverage": 0.20634920634920634,
+      "verify_scores_tp": {
+        "n": 26,
+        "mean": 58.63494990987965,
+        "median": 32.023521841785325,
+        "p90": 131.62115185440462,
+        "max": 156.7943440573278
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "green_clock_val5_failed": {
+      "filt": {
+        "n": 0
+      },
+      "det": {
+        "n": 0
+      },
+      "n_frames": 26,
+      "n_gt_vis": 0,
+      "n_det": 4,
+      "n_est": 0,
+      "n_tp": 0,
+      "n_fp": 4,
+      "n_verified": 1,
+      "n_rejected": 3,
+      "verified_tp": 0,
+      "verified_fp": 1,
+      "det_rate": 0.0,
+      "verified_det_rate": 0.0,
+      "coverage": 0.0,
+      "verify_scores_tp": {
+        "n": 0
+      },
+      "verify_scores_fp": {
+        "n": 4,
+        "mean": 4.379122314694564,
+        "median": 1.477389529179466,
+        "p90": 9.917311381702795,
+        "max": 13.40623734101005
+      }
+    },
+    "green_clock_val6_failed": {
+      "filt": {
+        "n": 137,
+        "mean": 14.896696500229677,
+        "median": 12.041594578792296,
+        "p90": 24.186773244895647,
+        "max": 31.953090617340916
+      },
+      "det": {
+        "n": 106,
+        "mean": 14.95999029303118,
+        "median": 10.54828377899204,
+        "p90": 26.518193968297744,
+        "max": 37.157906898995165
+      },
+      "n_frames": 147,
+      "n_gt_vis": 147,
+      "n_det": 109,
+      "n_est": 137,
+      "n_tp": 109,
+      "n_fp": 0,
+      "n_verified": 106,
+      "n_rejected": 3,
+      "verified_tp": 106,
+      "verified_fp": 0,
+      "det_rate": 0.7414965986394558,
+      "verified_det_rate": 0.7210884353741497,
+      "coverage": 0.9319727891156463,
+      "verify_scores_tp": {
+        "n": 109,
+        "mean": 39.99749071576863,
+        "median": 33.93115495203541,
+        "p90": 80.60895284494954,
+        "max": 104.31883208645158
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val0_success": {
+      "filt": {
+        "n": 164,
+        "mean": 125.96631367628989,
+        "median": 152.16109883935513,
+        "p90": 200.34333084659946,
+        "max": 246.1422353030865
+      },
+      "det": {
+        "n": 104,
+        "mean": 132.0460449539072,
+        "median": 160.61975516285344,
+        "p90": 220.8509469595286,
+        "max": 248.6045673682087
+      },
+      "n_frames": 201,
+      "n_gt_vis": 201,
+      "n_det": 192,
+      "n_est": 164,
+      "n_tp": 192,
+      "n_fp": 0,
+      "n_verified": 104,
+      "n_rejected": 88,
+      "verified_tp": 104,
+      "verified_fp": 0,
+      "det_rate": 0.9552238805970149,
+      "verified_det_rate": 0.5174129353233831,
+      "coverage": 0.8159203980099502,
+      "verify_scores_tp": {
+        "n": 192,
+        "mean": 38.69318156260931,
+        "median": 7.413967698812485,
+        "p90": 131.37625831284927,
+        "max": 247.13082103143287
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val6_failed": {
+      "filt": {
+        "n": 63,
+        "mean": 107.49669985520731,
+        "median": 165.74679484080528,
+        "p90": 192.057827315842,
+        "max": 204.9438947614688
+      },
+      "det": {
+        "n": 15,
+        "mean": 38.069491984260566,
+        "median": 18.065395875154,
+        "p90": 108.38306860710064,
+        "max": 172.08299654253463
+      },
+      "n_frames": 109,
+      "n_gt_vis": 109,
+      "n_det": 72,
+      "n_est": 63,
+      "n_tp": 72,
+      "n_fp": 0,
+      "n_verified": 15,
+      "n_rejected": 57,
+      "verified_tp": 15,
+      "verified_fp": 0,
+      "det_rate": 0.6605504587155964,
+      "verified_det_rate": 0.13761467889908258,
+      "coverage": 0.5779816513761468,
+      "verify_scores_tp": {
+        "n": 72,
+        "mean": 19.828418784402157,
+        "median": 0.5167893366888165,
+        "p90": 14.85340803861618,
+        "max": 459.156866349244
+      },
+      "verify_scores_fp": {
+        "n": 0
+      }
+    },
+    "yellow_handheld_cordless_drill_val7_failed": {
+      "filt": {
+        "n": 46,
+        "mean": 27.485383891378294,
+        "median": 19.117835151369498,
+        "p90": 26.511873453573767,
+        "max": 231.03462943896528
+      },
+      "det": {
+        "n": 21,
+        "mean": 43.04521725520616,
+        "median": 21.55834603767793,
+        "p90": 28.74828498026698,
+        "max": 468.44347071682404
+      },
+      "n_frames": 88,
+      "n_gt_vis": 46,
+      "n_det": 70,
+      "n_est": 46,
+      "n_tp": 41,
+      "n_fp": 29,
+      "n_verified": 22,
+      "n_rejected": 48,
+      "verified_tp": 21,
+      "verified_fp": 1,
+      "det_rate": 0.8913043478260869,
+      "verified_det_rate": 0.45652173913043476,
+      "coverage": 1.0,
+      "verify_scores_tp": {
+        "n": 41,
+        "mean": 13.696939282846193,
+        "median": 5.3324297070503235,
+        "p90": 30.36370857144399,
+        "max": 137.25883590228247
+      },
+      "verify_scores_fp": {
+        "n": 29,
+        "mean": 0.5934118461139161,
+        "median": 0.006164117803564295,
+        "p90": 0.10481702396646135,
+        "max": 16.152505576610565
+      }
+    }
+  }
+}
