@@ -1096,7 +1096,17 @@ def simulate_roster(cohort_name:str,method_name:str,
             with open(scene_cfg_file) as f:
                 scene_cfg = yaml.safe_load(f)
             objectives      = scene_cfg["queries"]
+            similarities    = scene_cfg.get("similarities", None)
             print(f"Objectives for {scene_name}: {objectives}")
+
+            # Compute goal positions and point cloud for early stopping
+            obj_targets, _, epcds_list, epcds_arr = bd.get_objectives(
+                simulator.gsplat, objectives, similarities, False
+            )
+            env_bounds = {}
+            if "minbound" in scene_cfg and "maxbound" in scene_cfg:
+                env_bounds["minbound"] = np.array(scene_cfg["minbound"])
+                env_bounds["maxbound"] = np.array(scene_cfg["maxbound"])
 
             for objective in objectives:
                 # Use pkl_dir if provided, otherwise fall back to scenes_cfg_dir
@@ -1121,7 +1131,15 @@ def simulate_roster(cohort_name:str,method_name:str,
                         print(f"    {k}: {type(v).__name__} (length {len(v)})")
                     else:
                         print(f"    {k}: {type(v).__name__} ({v})")
-    # print(asdghasdgh)
+
+    # === 7b) Build early-stopping data (goal positions + point-cloud tree) ===
+    from scipy.spatial import cKDTree
+    from sousvide.instruct.train_dagger import _make_terminal_fn
+    goal_lookup = {name: obj_targets[i] for i, name in enumerate(objectives)}
+    pc_tree = cKDTree(epcds_arr) if epcds_arr.shape[0] > 0 else None
+    env_min = env_bounds.get("minbound")
+    env_max = env_bounds.get("maxbound")
+
     # === 8) Initialize Drone Config & Transform ===
     # base_cfg   = generate_specifications(base_frame_config)
     transform  = Resize((720, 1280), antialias=True)
@@ -1138,7 +1156,14 @@ def simulate_roster(cohort_name:str,method_name:str,
         print(f"txui shape: {tXUi.shape}")
         t0, tf = tXUi[0, 0], tXUi[0, -1]
         x0     = tXUi[1:11, 0]
-        
+
+        # Build early-stop callback for this objective
+        obj_goal = goal_lookup.get(obj_name)
+        if obj_goal is not None:
+            early_stop_fn, term_info = _make_terminal_fn(obj_goal, pc_tree, env_min, env_max)
+        else:
+            early_stop_fn, term_info = None, {}
+
         # prepend expert to pilots
         pilot_list = ["expert"] + roster
 
@@ -1171,20 +1196,18 @@ def simulate_roster(cohort_name:str,method_name:str,
 
                 simulator.load_frame(frame)
 
-                # Simulate Trajectory
-            #FIXME
-                # if obj_name.startswith("loiter_"):
-                #     # For loiter trajectories, simulate with special loiter parameters
-                #     print(f"simulating loiter trajectory with query: null")
-                #     Tro,Xro,Uro,Iro,Tsol,Adv = simulator.simulate(
-                #         policy,perturbation["t0"],tXUi[0,-1],perturbation["x0"],np.zeros((18,1)),
-                #         query="null",clipseg=vision_processor,verbose=verbose)
-            #
-                # else:
-                # Normal simulation for non-loiter trajectories
+                # Reset terminal info for each run
+                if term_info:
+                    term_info["reason"] = None
+                    term_info["step"] = -1
+
+                # Simulate Trajectory (with early stopping on success/collision)
                 Tro,Xro,Uro,Iro,Tsol,Adv = simulator.simulate(
                     policy,perturbation["t0"],tXUi[0,-1],perturbation["x0"],np.zeros((18,1)),
-                    query=obj_name,vision_processor=vision_processor,verbose=verbose)
+                    query=obj_name,vision_processor=vision_processor,verbose=verbose,
+                    early_stop_fn=early_stop_fn)
+                stop_reason = term_info.get("reason", "timeout")
+                print(f"  -> {pilot_name}: steps={Uro.shape[1]}, stop={stop_reason}")
                 # Tro,Xro,Uro,Iro,Tsol,Adv = simulator.simulate(
                 #     policy,perturbation["t0"],tXUi[0,-1],perturbation["x0"],np.zeros((18,1)),query=obj_name,clipseg=vision_processor)
 
