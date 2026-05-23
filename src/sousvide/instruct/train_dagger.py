@@ -1104,7 +1104,7 @@ def _collect_and_evaluate(pilot, model_path, branches_dict, scene_data, round_i,
             goal_dists.append(gd)
 
             status = "OK" if s else ("COLL" if c else "MISS")
-            stop = term_info.get("reason") or "timeout"
+            stop = term_info.get("reason", "timeout")
             d0 = float(np.linalg.norm(tXUi[1:4, 0] - np.squeeze(obj_target)))
             n_ann = 0
             if is_dagger:

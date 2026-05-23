@@ -5,7 +5,13 @@ import torch
 import numpy as np
 
 import sousvide.control.policies.ComponentNetworks as cn
+from sousvide.control.policies.SousVide_v1 import SousVide_v1
+from sousvide.control.policies.hpnet import HPNet
 from sousvide.control.policies.svnet import SVNet
+from sousvide.control.policies.svnet_no_rma import SVNetNoRMA
+from sousvide.control.policies.svnet_no_pretrain import SVNetNoPreTrain
+from sousvide.control.policies.svnet_direct import SVNetDirect
+from sousvide.control.policies.AdvisorNetworks import SimpleAdvisor
 from typing import Union,Tuple,Dict,Any
 
 
