@@ -60,193 +60,6 @@ from sousvide.flight.vision_processor_base import create_vision_processor
 from sousvide.visualize.analyze_simulated_experiments import analyze_trajectory_performance, compute_aggregate_statistics, load_trajectory_analysis
 
 
-def simulate_trajectory():
-    # Load trajectory dataset from files
-    print("Review mode enabled. Loading trajectory dataset from files.")
-    trajectory_dataset = {}
-    for scene_name, course_name in flights:
-        # Generate simulator
-        simulator = Simulator(scene_name,rollout_name)
-
-        scene_cfg_file = os.path.join(scenes_cfg_dir, f"{scene_name}.yml")
-        combined_prefix = os.path.join(scenes_cfg_dir, scene_name)
-        with open(scene_cfg_file) as f:
-            scene_cfg = yaml.safe_load(f)
-        objectives      = scene_cfg["queries"]
-        print(f"Objectives for {scene_name}: {objectives}")
-
-        for objective in objectives:
-            # Use pkl_dir if provided, otherwise fall back to scenes_cfg_dir
-            pkl_base_dir = pkl_dir if pkl_dir is not None else scenes_cfg_dir
-            combined_prefix = os.path.join(pkl_base_dir, scene_name)
-            if filename is not None:
-                combined_file_path = filename
-            else:
-                combined_file_path = f"{combined_prefix}_{objective}.pkl"
-            with open(combined_file_path, "rb") as f:
-                data = pickle.load(f)
-                trajectory_dataset[objective] = data
-        
-        # Print trajectory dataset contents after loading all objectives
-        print("Trajectory dataset contents:")
-        for key, value in trajectory_dataset.items():
-            print(f"  {key}:")
-            for k, v in value.items():
-                if isinstance(v, np.ndarray):
-                    print(f"    {k}: ndarray shape {v.shape}")
-                elif isinstance(v, (list, dict)):
-                    print(f"    {k}: {type(v).__name__} (length {len(v)})")
-                else:
-                    print(f"    {k}: {type(v).__name__} ({v})")
-
-
-    # print(asdghasdgh)
-    # === 8) Initialize Drone Config & Transform ===
-    # base_cfg   = generate_specifications(base_frame_config)
-    transform  = Resize((720, 1280), antialias=True)
-
-    # === 9) Generate Drone Instances ===
-    Frames = gd.generate_frames(
-    Trep, base_frame_config, frame_set_config
-    )
-
-    # print(f"trajectory dataset: {list(trajectory_dataset.keys())}")
-    # === 10) Simulation Loop: for each objective, for each pilot ===
-    for obj_name, data in trajectory_dataset.items():
-        tXUi   = data["tXUi"]
-        print(f"txui shape: {tXUi.shape}")
-        t0, tf = tXUi[0, 0], tXUi[0, -1]
-        x0     = tXUi[1:11, 0]
-        
-        # prepend expert to pilots
-        pilot_list = ["expert"] + roster
-
-        # apply any perturbations
-        Perturbations  = gd.generate_perturbations(
-            Tsps=Trep,
-            tXUi=tXUi,
-            trajectory_set_config=trajectory_set_config
-            
-        )
-
-        for pilot_name in pilot_list:
-            print("-" * 70)
-            print(f"Simulating pilot '{pilot_name}' on objective '{obj_name}'")
-
-            traj_file = os.path.join(
-                trajectories_dir, f"sim_data_{scene_name}_{obj_name}_{pilot_name}.pt"
-            )
-            vid_file = os.path.join(
-                videos_dir, f"sim_video_{scene_name}_{obj_name}_{pilot_name}.mp4"
-            )
-
-            if pilot_name == "expert":
-                policy = VehicleRateMPC(tXUi,base_policy_name,base_frame_name,pilot_name)
-            else:
-                policy = Pilot(cohort_name,pilot_name)
-                policy.set_mode('deploy')
-
-            results = []
-            for idx,(frame,perturbation) in enumerate(zip(Frames,Perturbations)):
-
-                simulator.load_frame(frame)
-
-                # Simulate Trajectory
-            #FIXME
-                # if obj_name.startswith("loiter_"):
-                #     # For loiter trajectories, simulate with special loiter parameters
-                #     print(f"simulating loiter trajectory with query: null")
-                #     Tro,Xro,Uro,Iro,Tsol,Adv = simulator.simulate(
-                #         policy,perturbation["t0"],tXUi[0,-1],perturbation["x0"],np.zeros((18,1)),
-                #         query="null",clipseg=vision_processor,verbose=verbose)
-            #
-                # else:
-                # Normal simulation for non-loiter trajectories
-                Tro,Xro,Uro,Iro,Tsol,Adv = simulator.simulate(
-                    policy,perturbation["t0"],tXUi[0,-1],perturbation["x0"],np.zeros((18,1)),
-                    query=obj_name,vision_processor=vision_processor,verbose=verbose)
-                # Tro,Xro,Uro,Iro,Tsol,Adv = simulator.simulate(
-                #     policy,perturbation["t0"],tXUi[0,-1],perturbation["x0"],np.zeros((18,1)),query=obj_name,clipseg=vision_processor)
-
-                # Save Trajectory
-                trajectory = {
-                    "Tro":Tro,"Xro":Xro,"Uro":Uro,
-                    "Iro":Iro,  # Rendered images (rgb, depth, semantic) for critic training
-                    "tXUd":tXUi,"obj":np.zeros((18,1)),"Ndata":Uro.shape[1],"Tsol":Tsol,"Adv":Adv,
-                    "rollout_id":method_name+"_"+str(idx).zfill(5),
-                    "course":course_name,
-                    "frame":frame}
-                results.append(trajectory)
-
-                # rollout = {
-                #     "Tro": Tro, "Xro": Xro, "Uro": Uro,
-                #     "Xid": tXUi[1:11, :],
-                #     "obj": np.zeros((18, 1)),
-                #     "Ndata": Uro.shape[1],
-                #     "Tsol": Tsol, "Adv": Adv,
-                #     "rollout_id": "acados_rollout",
-                #     "course": scene_name,
-                #     "drone": drone_name,
-                #     "method": method_name,
-                #     "objective": obj_name
-                # }
-                # results.append(rollout)
-                # mpc_expert.clear_generated_code()
-
-            # semantic_imgs = Iro["semantic"]
-
-            # if visualize_rrt:
-            #     combined_file_path = os.path.join(f"{combined_prefix}_{obj_name}.pkl")#f"{combined_prefix}_{obj_name}.pkl"
-            #     with open(combined_file_path, 'rb') as f:
-            #         trajectory_data = pickle.load(f)
-            #         th.debug_figures_RRT(trajectory_data["obj_loc"],trajectory_data["positions"],trajectory_data["trajectory"],
-            #                             trajectory_data["smooth_trajectory"],trajectory_data["times"])
-
-            if vision_processor is not None:
-                imgs = {
-                    "semantic": Iro["semantic"],
-                    "rgb": Iro["rgb"],
-                    "depth": Iro["depth"]
-                }
-            else:
-                imgs = {
-                    "semantic": Iro["semantic"]
-                }
-
-            # run for each key in imgs
-            for key in imgs:
-                if use_flight_recorder:
-                    fr = rf.FlightRecorder(
-                        Xro.shape[0], Uro.shape[0],
-                        20, tXUi[0, -1],
-                        [224, 398, 3],
-                        np.zeros((18, 1)),
-                        cohort_name, scene_name, pilot_name
-                    )
-                    fr.simulation_import(
-                        imgs[key], Tro, Xro, Uro, tXUi, Tsol, Adv
-                    )
-                    fr.save()
-                else:
-                    torch.save(results, traj_file)
-
-                    # prepare and write video
-                    frames = torch.zeros(
-                        (imgs[key].shape[0], 720, 1280, 3)
-                    )
-                    imgs_t = torch.from_numpy(imgs[key])
-                    for i in range(imgs_t.shape[0] - 1):
-                        img = imgs_t[i].permute(2, 0, 1)
-                        img = transform(img)
-                        frames[i] = img.permute(1, 2, 0)
-
-                    # save video with key in filename
-                    key_vid_file = vid_file.replace('.mp4', f'_{key}.mp4')
-                    import imageio; imageio.mimwrite(key_vid_file, frames.numpy().astype("uint8"), fps=20)
-
-
-
-
 
 
 def simulate_rollouts(
@@ -802,9 +615,7 @@ def simulate_roster(cohort_name:str,method_name:str,
                     use_flight_recorder:bool=False,
                     review:bool=False,
                     filename:str=None,
-                    pkl_dir:str=None,
                     verbose:bool=False):
-                    # visualize_rrt:bool=False):
     
     # Some useful path(s)
     workspace_path = os.path.dirname(
@@ -1084,20 +895,17 @@ def simulate_roster(cohort_name:str,method_name:str,
                     # trajectory_dataset[f"loiter_{idx}"] = combined_data
 #
     else:
-        # Load trajectory dataset from files
-        print("Review mode enabled. Loading trajectory dataset from files.")
+        # Review mode: load BC training trajectories (one per object)
+        print("Review mode: loading trajectories from BC rollout data.")
         trajectory_dataset = {}
         for scene_name, course_name in flights:
-            # Generate simulator
-            simulator = Simulator(scene_name,rollout_name)
+            simulator = Simulator(scene_name, rollout_name)
 
             scene_cfg_file = os.path.join(scenes_cfg_dir, f"{scene_name}.yml")
-            combined_prefix = os.path.join(scenes_cfg_dir, scene_name)
             with open(scene_cfg_file) as f:
                 scene_cfg = yaml.safe_load(f)
-            objectives      = scene_cfg["queries"]
-            similarities    = scene_cfg.get("similarities", None)
-            print(f"Objectives for {scene_name}: {objectives}")
+            objectives   = scene_cfg["queries"]
+            similarities = scene_cfg.get("similarities", None)
 
             # Compute goal positions and point cloud for early stopping
             obj_targets, _, epcds_list, epcds_arr = bd.get_objectives(
@@ -1108,29 +916,36 @@ def simulate_roster(cohort_name:str,method_name:str,
                 env_bounds["minbound"] = np.array(scene_cfg["minbound"])
                 env_bounds["maxbound"] = np.array(scene_cfg["maxbound"])
 
-            for objective in objectives:
-                # Use pkl_dir if provided, otherwise fall back to scenes_cfg_dir
-                pkl_base_dir = pkl_dir if pkl_dir is not None else scenes_cfg_dir
-                combined_prefix = os.path.join(pkl_base_dir, scene_name)
-                if filename is not None:
-                    combined_file_path = filename
+            # Load one trajectory per object from cohort rollout_data
+            rollout_dir = os.path.join(cohort_path, "rollout_data", scene_name)
+            if not os.path.isdir(rollout_dir):
+                raise FileNotFoundError(
+                    f"No rollout_data found at {rollout_dir}. "
+                    f"Run generate-rollouts first, or use review=false to generate new RRT trajectories.")
+
+            import glob as _glob
+            obj_locs = np.array([np.squeeze(t) for t in obj_targets])
+            traj_files = sorted(_glob.glob(os.path.join(rollout_dir, "trajectories[0-9]*.pt")))
+            print(f"  [Review] Found {len(traj_files)} trajectory files in {rollout_dir}")
+            per_obj = {i: [] for i in range(len(objectives))}
+            for tf in traj_files:
+                data = torch.load(tf, map_location="cpu", weights_only=False)
+                tXUd = data.get("tXUd")
+                if tXUd is None or not hasattr(tXUd, "shape") or tXUd.shape[0] != 18:
+                    continue
+                goal = np.array(tXUd[1:4, -1])
+                dists = np.linalg.norm(obj_locs - goal, axis=1)
+                best = int(np.argmin(dists))
+                if float(dists[best]) < 5.0 and not per_obj[best]:
+                    per_obj[best].append(tXUd)
+
+            for obj_idx, objective in enumerate(objectives):
+                if per_obj[obj_idx]:
+                    tXUi = per_obj[obj_idx][0]
+                    trajectory_dataset[objective] = {"tXUi": tXUi}
+                    print(f"  [Review] '{objective}': trajectory shape {tXUi.shape}")
                 else:
-                    combined_file_path = f"{combined_prefix}_{objective}.pkl"
-                with open(combined_file_path, "rb") as f:
-                    data = pickle.load(f)
-                    trajectory_dataset[objective] = data
-            
-            # Print trajectory dataset contents after loading all objectives
-            print("Trajectory dataset contents:")
-            for key, value in trajectory_dataset.items():
-                print(f"  {key}:")
-                for k, v in value.items():
-                    if isinstance(v, np.ndarray):
-                        print(f"    {k}: ndarray shape {v.shape}")
-                    elif isinstance(v, (list, dict)):
-                        print(f"    {k}: {type(v).__name__} (length {len(v)})")
-                    else:
-                        print(f"    {k}: {type(v).__name__} ({v})")
+                    print(f"  [WARN] No trajectory matched '{objective}' in {rollout_dir}")
 
     # === 7b) Build early-stopping data (goal positions + point-cloud tree) ===
     from scipy.spatial import cKDTree
@@ -1379,31 +1194,3 @@ def simulate_roster(cohort_name:str,method_name:str,
         print(f"   └── {len(objectives_tested)} objectives: {', '.join(sorted(objectives_tested))}")
     
     print("="*80)
-
-            # if use_flight_recorder:
-            #     fr = rf.FlightRecorder(
-            #         Xro.shape[0], Uro.shape[0],
-            #         20, tXUi[0, -1],
-            #         [224, 398, 3],
-            #         np.zeros((18, 1)),
-            #         cohort_name, scene_name, pilot_name
-            #     )
-            #     fr.simulation_import(
-            #         Iro, Tro, Xro, Uro, tXUi, Tsol, Adv
-            #     )
-            #     fr.save()
-            # else:
-            #     # print(f"Simulated {len(drone_instances)} rollouts.")
-            #     torch.save(results, traj_file)
-
-            #     # prepare and write video
-            #     frames = torch.zeros(
-            #         (Iro.shape[0], 720, 1280, 3)
-            #     )
-            #     imgs_t = torch.from_numpy(Iro)
-            #     for i in range(imgs_t.shape[0] - 1):
-            #         img = imgs_t[i].permute(2, 0, 1)
-            #         img = transform(img)
-            #         frames[i] = img.permute(1, 2, 0)
-
-            #     write_video(vid_file, frames, fps=20)

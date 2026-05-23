@@ -457,6 +457,7 @@ def _get_scene(
     _SCENE_CACHE[scene_name] = dict(
         simulator=simulator,
         obj_targets=obj_targets,
+        epcds_list=epcds_list,
         epcds_arr=epcds_arr,
         queries=objectives_list,
         env_min=env_min,
@@ -961,10 +962,9 @@ def _save_benchmark_plotly(
 
         goal_loc = np.asarray(obj_target).flatten()[:3]
 
-        # Get scene config for bd helper
+        # Use cached scene data (avoids redundant bd.get_objectives calls)
         workspace = str(Path(__file__).resolve().parents[3])
         scenes_cfg_dir = os.path.join(workspace, "configs", "scenes")
-        # Find scene name from the global cache
         scene_name = None
         for key, sd in _SCENE_CACHE.items():
             if sd["simulator"] is simulator:
@@ -974,13 +974,16 @@ def _save_benchmark_plotly(
             scene_name = "flightroom_ssv_exp"
 
         scene_cfg_file = os.path.join(scenes_cfg_dir, f"{scene_name}.yml")
-        with open(scene_cfg_file) as _f:
-            sc = yaml.safe_load(_f)
-        _, _, epcds_list, epcds_arr = bd.get_objectives(
-            simulator.gsplat, sc.get("queries", []), sc.get("similarities", None), False
-        )
-        radius_info = {"r1": sc.get("r1", 1.0), "r2": sc.get("r2", SUCCESS_RADIUS)}
-        pc_tree = cKDTree(epcds_arr) if epcds_arr.shape[0] > 0 else None
+        cached = _SCENE_CACHE.get(scene_name)
+        if cached and "epcds_list" in cached:
+            epcds_list = cached["epcds_list"]
+        else:
+            with open(scene_cfg_file) as _f:
+                sc = yaml.safe_load(_f)
+            _, _, epcds_list, _ = bd.get_objectives(
+                simulator.gsplat, sc.get("queries", []), sc.get("similarities", None), False
+            )
+        radius_info = {"r1": 2.0, "r2": SUCCESS_RADIUS}
 
         fig = bd.visualize_multiple_trajectories(
             [], epcds_list, goal_loc, radius_info, scene_cfg_file, simulator
@@ -998,25 +1001,36 @@ def _save_benchmark_plotly(
 
         colors = ["red", "orange", "purple", "magenta", "brown",
                   "cyan", "pink", "olive", "teal", "navy"]
-        for run_i, (Xro, ev, tXUi) in enumerate(obj_runs):
+        for run_i, run_data in enumerate(obj_runs):
+            # Support both (Xro, ev, tXUi) and (Xro, ev, tXUi, branch_id)
+            if len(run_data) == 4:
+                Xro, ev, tXUi, br_id = run_data
+            else:
+                Xro, ev, tXUi = run_data
+                br_id = run_i
             ref_pos = tXUi[1:4, :].T
             pilot_pos = Xro[:3, :].T
             clr = colors[run_i % len(colors)]
             status = "COLL" if ev["collision"] else ("OK" if ev["success"] else "MISS")
             dev = ev.get("mean_pos_dev", float("nan"))
+            traj_label = f"br{br_id}"
 
-            # Expert (blue, thin, first run only in legend)
+            # Expert reference (blue, thin)
             fig.add_trace(go.Scatter3d(
                 x=ref_pos[:, 0], y=ref_pos[:, 1], z=ref_pos[:, 2],
                 mode="lines", line=dict(color="blue", width=3),
-                name="Expert (RRT)" if run_i == 0 else None,
+                name=f"Expert {traj_label}" if run_i == 0 else None,
                 showlegend=(run_i == 0),
+                legendgroup=f"expert_{br_id}",
+                visible=True,
             ))
-            # Pilot
+            # Pilot trajectory (toggleable per branch)
             fig.add_trace(go.Scatter3d(
                 x=pilot_pos[:, 0], y=pilot_pos[:, 1], z=pilot_pos[:, 2],
                 mode="lines", line=dict(color=clr, width=4),
-                name=f"Run {run_i} ({status}, dev={dev:.2f}m)",
+                name=f"{traj_label} ({status}, dev={dev:.2f}m)",
+                legendgroup=f"pilot_{br_id}",
+                visible=True,
             ))
             # End marker
             fig.add_trace(go.Scatter3d(
@@ -1025,9 +1039,10 @@ def _save_benchmark_plotly(
                 marker=dict(size=10, color="red" if ev["collision"] else clr,
                             symbol="x" if ev["collision"] else "circle-open"),
                 showlegend=False,
+                legendgroup=f"pilot_{br_id}",
             ))
 
-        n_ok = sum(1 for _, ev, _ in obj_runs if ev["success"])
+        n_ok = sum(1 for rd in obj_runs if (rd[1] if len(rd) == 3 else rd[1])["success"])
         fig.update_layout(
             title=f"<b>{obj_name}</b><br>"
                   f"<span style='font-size:14px'>"

@@ -519,6 +519,49 @@ def simulate(
 
 
 @app.command()
+def benchmark(
+    config_file: Path = typer.Option(..., exists=True),
+    models: str = typer.Option(..., help="Comma-separated 'Label:cohort/pilot' specs"),
+    branches: str = typer.Option("seen", help="seen | unseen | both"),
+    max_trajectories: int = typer.Option(50, help="Runs per object per model"),
+    seed: int = typer.Option(42, help="Benchmark seed"),
+    seeds: Optional[str] = typer.Option(None, help="Comma-separated seeds for multi-seed mode"),
+    save_plots: bool = typer.Option(True, help="Save plotly HTMLs"),
+    save_videos: bool = typer.Option(True, help="Save MP4 videos"),
+    save_analysis: bool = typer.Option(True, help="Save JSON results"),
+    include_expert: bool = typer.Option(False, help="Include MPC expert"),
+    overlay: bool = typer.Option(True, help="Multi-model overlay plotly"),
+    output_dir: Optional[str] = typer.Option(None, help="Output directory"),
+):
+    """Unified benchmark: evaluate one or more models on seen/unseen branches."""
+    from sousvide.instruct.benchmark import run_unified_benchmark, _parse_model_specs
+
+    cfg = common_options(config_file, False, False, None, None)
+    workspace_path = str(Path(__file__).resolve().parents[1])
+    scenes_cfg_dir = str(Path(workspace_path) / "configs" / "scenes")
+    bc_cohort = cfg.get("bc_cohort", cfg["cohort"])
+
+    model_specs = _parse_model_specs(models)
+    seed_list = [int(s) for s in seeds.split(",")] if seeds else [seed]
+
+    run_unified_benchmark(
+        flights=cfg["flights"],
+        scenes_cfg_dir=scenes_cfg_dir,
+        model_specs=model_specs,
+        bc_cohort=bc_cohort,
+        branches_mode=branches,
+        max_trajectories=max_trajectories,
+        seeds=seed_list,
+        save_plots=save_plots,
+        save_videos=save_videos,
+        save_analysis=save_analysis,
+        include_expert=include_expert,
+        overlay=overlay,
+        output_dir=output_dir,
+    )
+
+
+@app.command()
 def debug_trajectory(
     config_file: Path = typer.Option(..., exists=True),
     use_wandb: bool = typer.Option(False),

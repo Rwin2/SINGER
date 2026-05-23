@@ -1,7 +1,7 @@
 # Simulate the best HW1 Comprehensive DAgger model
 cohort: "SSV_DAGGER_HW1_COMPREHENSIVE"
 method: "rrt_6s"
-review: true
+review: false
 
 flights:
   - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
