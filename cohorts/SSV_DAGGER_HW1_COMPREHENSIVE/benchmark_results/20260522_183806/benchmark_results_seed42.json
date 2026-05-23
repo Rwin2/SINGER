@@ -1,0 +1,147 @@
+{
+  "seed": 42,
+  "branches_mode": "seen",
+  "max_trajectories": 2,
+  "models": [
+    "DAgger_HW1"
+  ],
+  "include_expert": false,
+  "results": {
+    "DAgger_HW1": {
+      "green clock": {
+        "success_rate": 1.0,
+        "collision_rate": 0.0,
+        "goal_dist": 1.8891006517082374,
+        "n_eval": 2,
+        "n_success": 2,
+        "n_collision": 0,
+        "performance_analysis": {
+          "total_trajectories": 2,
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "completion_rate": 1.0,
+          "mean_distance_to_goal": 2.5538082057418476,
+          "std_distance_to_goal": 0.24495864017229718,
+          "median_distance_to_goal": 2.5538082057418476,
+          "min_distance_to_goal": 2.3088495655695507,
+          "max_distance_to_goal": 2.798766845914145,
+          "mean_normalized_distance": 0.0,
+          "std_normalized_distance": 0.0,
+          "median_normalized_distance": 0.0,
+          "mean_yaw_error": 0.820777216666389,
+          "std_yaw_error": 0.4852804825514322,
+          "median_yaw_error": 0.820777216666389,
+          "mean_yaw_error_degrees": 47.02707043547882,
+          "std_yaw_error_degrees": 27.804523530269048,
+          "median_yaw_error_degrees": 47.02707043547882,
+          "camera_fov_success_rate": 0.5,
+          "mean_trajectory_length": 4.36440160877085,
+          "std_trajectory_length": 0.2865081717496629,
+          "median_trajectory_length": 4.36440160877085,
+          "terminal_reasons": {
+            "goal_reached": 2
+          },
+          "successful_trajectories": {
+            "count": 2,
+            "mean_distance_to_goal": 2.5538082057418476,
+            "std_distance_to_goal": 0.24495864017229718,
+            "mean_yaw_error_degrees": 47.02707043547882,
+            "std_yaw_error_degrees": 27.804523530269048,
+            "camera_fov_success_rate": 0.5
+          }
+        }
+      },
+      "green and pink leafblower": {
+        "success_rate": 1.0,
+        "collision_rate": 0.0,
+        "goal_dist": 2.283546380727402,
+        "n_eval": 2,
+        "n_success": 2,
+        "n_collision": 0,
+        "performance_analysis": {
+          "total_trajectories": 2,
+          "success_rate": 1.0,
+          "collision_rate": 0.0,
+          "completion_rate": 1.0,
+          "mean_distance_to_goal": 2.7923650307491226,
+          "std_distance_to_goal": 0.003883141922991662,
+          "median_distance_to_goal": 2.7923650307491226,
+          "min_distance_to_goal": 2.788481888826131,
+          "max_distance_to_goal": 2.7962481726721142,
+          "mean_normalized_distance": 0.0,
+          "std_normalized_distance": 0.0,
+          "median_normalized_distance": 0.0,
+          "mean_yaw_error": 0.3504280399037118,
+          "std_yaw_error": 0.0085014385991376,
+          "median_yaw_error": 0.3504280399037118,
+          "mean_yaw_error_degrees": 20.078047709524686,
+          "std_yaw_error_degrees": 0.48709655152019593,
+          "median_yaw_error_degrees": 20.078047709524686,
+          "camera_fov_success_rate": 1.0,
+          "mean_trajectory_length": 5.611531062040132,
+          "std_trajectory_length": 0.4651215548633094,
+          "median_trajectory_length": 5.611531062040132,
+          "terminal_reasons": {
+            "goal_reached": 2
+          },
+          "successful_trajectories": {
+            "count": 2,
+            "mean_distance_to_goal": 2.7923650307491226,
+            "std_distance_to_goal": 0.003883141922991662,
+            "mean_yaw_error_degrees": 20.078047709524686,
+            "std_yaw_error_degrees": 0.48709655152019593,
+            "camera_fov_success_rate": 1.0
+          }
+        }
+      },
+      "yellow handheld cordless drill on two boxes": {
+        "success_rate": 0.5,
+        "collision_rate": 0.5,
+        "goal_dist": 4.141561540031555,
+        "n_eval": 2,
+        "n_success": 1,
+        "n_collision": 1,
+        "performance_analysis": {
+          "total_trajectories": 2,
+          "success_rate": 0.5,
+          "collision_rate": 0.5,
+          "completion_rate": 0.5,
+          "mean_distance_to_goal": 4.6987912495364155,
+          "std_distance_to_goal": 1.9046418137689736,
+          "median_distance_to_goal": 4.6987912495364155,
+          "min_distance_to_goal": 2.794149435767442,
+          "max_distance_to_goal": 6.603433063305389,
+          "mean_normalized_distance": 0.3140481031510123,
+          "std_normalized_distance": 0.3140481031510123,
+          "median_normalized_distance": 0.3140481031510123,
+          "mean_yaw_error": 0.4863498588160503,
+          "std_yaw_error": 0.1534432402947764,
+          "median_yaw_error": 0.4863498588160503,
+          "mean_yaw_error_degrees": 27.865794276943134,
+          "std_yaw_error_degrees": 8.791650063702418,
+          "median_yaw_error_degrees": 27.865794276943134,
+          "camera_fov_success_rate": 1.0,
+          "mean_trajectory_length": 2.6488642510023244,
+          "std_trajectory_length": 1.1506404094943563,
+          "median_trajectory_length": 2.6488642510023244,
+          "terminal_reasons": {
+            "goal_reached": 1,
+            "collision": 1
+          },
+          "successful_trajectories": {
+            "count": 1,
+            "mean_distance_to_goal": 2.794149435767442,
+            "std_distance_to_goal": 0.0,
+            "mean_yaw_error_degrees": 19.074144213240718,
+            "std_yaw_error_degrees": 0.0,
+            "camera_fov_success_rate": 1.0
+          }
+        }
+      },
+      "__overall__": {
+        "success_rate": 0.8333333333333334,
+        "collision_rate": 0.16666666666666666
+      }
+    }
+  }
+}
