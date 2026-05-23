@@ -1,0 +1,14 @@
+# Smoke test: 1 round of DAgger on BC model
+cohort: "SSV_DAGGER_SMOKE_TEST"
+method: "rrt_6s"
+bc_cohort: "ssv_BC_CENTROID_V9"
+n_rounds: 1
+n_epochs_per_round: 5
+dagger_lr: 0.00002
+seed: 42
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"
