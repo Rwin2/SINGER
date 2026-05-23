@@ -167,7 +167,10 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval"
         if agg:
             print(f"  [{label}]     norm_dist={agg.get('mean_normalized_distance',0):.3f}"
                   f"  yaw_err={agg.get('mean_yaw_error_degrees',0):.1f}deg"
-                  f"  fov_rate={agg.get('camera_fov_success_rate',0):.0%}")
+                  f"  fov={agg.get('mean_fov_pct',0):.0%}"
+                  f"  clearance={agg.get('mean_min_clearance',0):.2f}m"
+                  f"  steps={agg.get('mean_n_steps',0):.0f}"
+                  f"  traj_len={agg.get('mean_trajectory_length',0):.1f}m")
 
         per_object[obj_name] = {
             "success_rate": sr, "collision_rate": cr, "goal_dist": gd_m,
