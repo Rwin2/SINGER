@@ -43,17 +43,18 @@ from sousvide.visualize.analyze_simulated_experiments import (
 
 
 def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval",
-                       output_dir=None, save_plots=False):
-    """Evaluate a pilot on explicit branches. Used by DAgger training for per-round eval.
+                       output_dir=None, save_plots=False, is_expert=False):
+    """Evaluate a pilot (or MPC expert) on explicit branches.
 
     Args:
-        pilot: Pilot instance (will be swapped to model_path)
-        model_path: path to model.pth to evaluate
+        pilot: Pilot instance (will be swapped to model_path). Ignored if is_expert=True.
+        model_path: path to model.pth to evaluate. Ignored if is_expert=True.
         branches_dict: {obj_name: [(branch_id, tXUi), ...]}
         scene_data: from _get_scene()
         label: label for logging
         output_dir: if set, save plotly + analysis
         save_plots: save plotly HTMLs
+        is_expert: if True, use VehicleRateMPC instead of pilot
 
     Returns:
         (per_object, diagnostics, overall_sr, overall_cr)
@@ -61,7 +62,9 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval"
     from scipy.spatial import cKDTree
     import yaml
 
-    pilot = _swap_model(pilot, model_path)
+    from figs.control.vehicle_rate_mpc import VehicleRateMPC
+    if not is_expert:
+        pilot = _swap_model(pilot, model_path)
     simulator = scene_data["simulator"]
     obj_targets = scene_data["obj_targets"]
     queries = scene_data["queries"]
@@ -99,7 +102,11 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval"
         print(f"\n  [{label}] === {obj_name} ({len(branches)} branches) ===")
 
         for bi, (br_id, tXUi) in enumerate(branches):
-            _reset_pilot(pilot)
+            if is_expert:
+                policy = VehicleRateMPC(tXUi, "vrmpc_rrt", "carl", "InstinctJester")
+            else:
+                _reset_pilot(pilot)
+                policy = pilot
             terminal_fn, term_info = _make_terminal_fn(
                 obj_target, pc_tree,
                 env_min=scene_data.get("env_min"),
@@ -108,7 +115,7 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval"
 
             t0_sim = time.time()
             result = simulator.simulate(
-                policy=pilot, t0=float(tXUi[0, 0]), tf=float(tXUi[0, -1]),
+                policy=policy, t0=float(tXUi[0, 0]), tf=float(tXUi[0, -1]),
                 x0=tXUi[1:11, 0].copy(), obj=np.zeros((18, 1)), query=obj_name,
                 vision_processor=None, verbose=False,
                 early_stop_fn=terminal_fn,

@@ -27,7 +27,6 @@ from sousvide.instruct.train_dagger import (
 )
 from sousvide.instruct.benchmark import evaluate_branches
 from sousvide.control.pilot import Pilot
-from figs.control.vehicle_rate_mpc import VehicleRateMPC
 
 # ── Config ──
 SCENE = "flightroom_ssv_exp"
@@ -84,50 +83,10 @@ def main():
     print("=" * 70, flush=True)
 
     expert_branches = {obj: [(bid, br) for bid, br in brs.items()] for obj, brs in subset.items()}
-    # Build expert eval manually since evaluate_branches expects a Pilot
-    from scipy.spatial import cKDTree
-    epcds_arr = scene_data.get("epcds_arr", np.zeros((0, 3)))
-    pc_tree = cKDTree(epcds_arr) if epcds_arr.shape[0] > 0 else None
-    simulator = scene_data["simulator"]
-    obj_targets = scene_data["obj_targets"]
-    queries = scene_data["queries"]
-    from sousvide.instruct.train_dagger import _make_terminal_fn, _evaluate_run
-
-    expert_results = {}
-    for obj_idx, obj_name in enumerate(queries):
-        if obj_name not in expert_branches:
-            continue
-        obj_target = obj_targets[obj_idx]
-        branches = expert_branches[obj_name]
-        successes = []
-        print(f"\n  [Expert] === {obj_name} ({len(branches)} branches) ===", flush=True)
-        for bi, (br_id, tXUi) in enumerate(branches):
-            expert = VehicleRateMPC(tXUi, "vrmpc_rrt", "carl", PILOT_NAME)
-            tfn, tinfo = _make_terminal_fn(obj_target, pc_tree,
-                                            env_min=scene_data.get("env_min"),
-                                            env_max=scene_data.get("env_max"))
-            t0 = time.time()
-            result = simulator.simulate(policy=expert, t0=float(tXUi[0, 0]),
-                                         tf=float(tXUi[0, -1]), x0=tXUi[1:11, 0].copy(),
-                                         obj=np.zeros((18, 1)), query=obj_name,
-                                         vision_processor=None, verbose=False,
-                                         early_stop_fn=tfn)
-            Xro = result[1]
-            ev = _evaluate_run(Xro, obj_target, epcds_arr,
-                               env_min=scene_data.get("env_min"),
-                               env_max=scene_data.get("env_max"), tXUi=tXUi, idx0=0)
-            s = float(ev["success"])
-            successes.append(s)
-            status = "OK" if s else ("COLL" if ev["collision"] else "MISS")
-            stop = tinfo.get("reason") or "timeout"
-            print(f"  [Expert] {bi+1:3d}/{len(branches)}  {status:4s}  br{br_id}"
-                  f"  goal={ev['goal_dist']:.2f}m  steps={ev['n_steps']:3d}"
-                  f"  stop={stop:<12s}  ({time.time()-t0:.0f}s)", flush=True)
-        sr = float(np.mean(successes))
-        expert_results[obj_name] = sr
-        print(f"  [Expert] --- '{obj_name[:30]}'  success={sr:.0%}", flush=True)
-
-    print(f"\n[Expert] Overall: {np.mean(list(expert_results.values())):.0%} success", flush=True)
+    expert_results, expert_diag, expert_sr, expert_cr = evaluate_branches(
+        None, None, expert_branches, scene_data,
+        label="Expert", output_dir=out_dir, save_plots=True, is_expert=True)
+    print(f"\n[Expert] Overall: {expert_sr:.0%} SR, {expert_cr:.0%} CR", flush=True)
 
     # ── Phase 2: BC baseline evaluation ──
     print("\n" + "=" * 70)
@@ -226,7 +185,7 @@ def main():
 
     # ── Final summary ──
     print(f"\n{'='*70}")
-    print(f"[FINAL] Expert: {np.mean(list(expert_results.values())):.0%}")
+    print(f"[FINAL] Expert: {expert_sr:.0%} SR, {expert_cr:.0%} CR")
     print(f"[FINAL] BC baseline: {bc_sr:.0%} SR, {bc_cr:.0%} CR")
     if round_results:
         final = round_results[-1]
@@ -236,7 +195,8 @@ def main():
     # Save summary
     summary = {
         "timestamp": ts, "branches": BRANCH_IDS, "n_rounds": N_ROUNDS,
-        "expert_sr": {k: float(v) for k, v in expert_results.items()},
+        "expert_sr": expert_sr, "expert_cr": expert_cr,
+        "expert_per_object": expert_results,
         "bc_sr": bc_sr, "bc_cr": bc_cr,
         "bc_per_object": bc_results,
         "rounds": [{k: v for k, v in rr.items() if k != "eval_diag"} for rr in round_results],
