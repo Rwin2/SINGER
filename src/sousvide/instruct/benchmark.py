@@ -42,6 +42,156 @@ from sousvide.visualize.analyze_simulated_experiments import (
 )
 
 
+def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval",
+                       output_dir=None, save_plots=False):
+    """Evaluate a pilot on explicit branches. Used by DAgger training for per-round eval.
+
+    Args:
+        pilot: Pilot instance (will be swapped to model_path)
+        model_path: path to model.pth to evaluate
+        branches_dict: {obj_name: [(branch_id, tXUi), ...]}
+        scene_data: from _get_scene()
+        label: label for logging
+        output_dir: if set, save plotly + analysis
+        save_plots: save plotly HTMLs
+
+    Returns:
+        (per_object, diagnostics, overall_sr, overall_cr)
+    """
+    from scipy.spatial import cKDTree
+    import yaml
+
+    pilot = _swap_model(pilot, model_path)
+    simulator = scene_data["simulator"]
+    obj_targets = scene_data["obj_targets"]
+    queries = scene_data["queries"]
+    epcds_arr = scene_data.get("epcds_arr", np.zeros((0, 3)))
+    pc_tree = cKDTree(epcds_arr) if epcds_arr.shape[0] > 0 else None
+
+    # Get scene radii for performance analysis
+    scenes_cfg_dir = os.path.join(WORKSPACE, "configs", "scenes")
+    scene_name = None
+    for k, v in _SCENE_CACHE.items():
+        if v["simulator"] is simulator:
+            scene_name = k
+            break
+    if scene_name:
+        with open(os.path.join(scenes_cfg_dir, f"{scene_name}.yml")) as f:
+            scene_cfg = yaml.safe_load(f)
+        scene_radii = scene_cfg.get("radii", [[2.0, 0.4]] * len(queries))
+    else:
+        scene_radii = [[2.0, 0.4]] * len(queries)
+
+    per_object = {}
+    all_diag = []
+
+    for obj_idx, obj_name in enumerate(queries):
+        if obj_name not in branches_dict:
+            continue
+        obj_target = obj_targets[obj_idx]
+        branches = branches_dict[obj_name]
+        exclusion_r = float(scene_radii[min(obj_idx, len(scene_radii)-1)][0])
+        collision_r = float(scene_radii[min(obj_idx, len(scene_radii)-1)][1])
+        successes, collisions, goal_dists = [], [], []
+        obj_runs_for_plot = []
+        perf_analyses = []
+
+        print(f"\n  [{label}] === {obj_name} ({len(branches)} branches) ===")
+
+        for bi, (br_id, tXUi) in enumerate(branches):
+            _reset_pilot(pilot)
+            terminal_fn, term_info = _make_terminal_fn(
+                obj_target, pc_tree,
+                env_min=scene_data.get("env_min"),
+                env_max=scene_data.get("env_max"),
+            )
+
+            t0_sim = time.time()
+            result = simulator.simulate(
+                policy=pilot, t0=float(tXUi[0, 0]), tf=float(tXUi[0, -1]),
+                x0=tXUi[1:11, 0].copy(), obj=np.zeros((18, 1)), query=obj_name,
+                vision_processor=None, verbose=False,
+                early_stop_fn=terminal_fn,
+            )
+            Xro = result[1]
+            sim_s = time.time() - t0_sim
+
+            ev = _evaluate_run(Xro, obj_target, epcds_arr,
+                               env_min=scene_data.get("env_min"),
+                               env_max=scene_data.get("env_max"),
+                               tXUi=tXUi, idx0=0)
+
+            s = float(ev["success"])
+            c = float(ev["collision"])
+            gd = float(ev["goal_dist"])
+            successes.append(s)
+            collisions.append(c)
+            goal_dists.append(gd)
+
+            status = "OK" if s else ("COLL" if c else "MISS")
+            stop = term_info.get("reason") or "timeout"
+            d0 = float(np.linalg.norm(tXUi[1:4, 0] - np.squeeze(obj_target)))
+
+            print(f"  [{label}] {bi+1:3d}/{len(branches)}  {status:4s}  br{br_id}"
+                  f"  d0={d0:5.1f}m  goal={gd:5.2f}m  steps={ev['n_steps']:3d}"
+                  f"  stop={stop:<12s}  ({sim_s:.0f}s)")
+
+            all_diag.append({
+                "object": obj_name, "branch_id": br_id,
+                "d0": d0, "success": bool(ev["success"]),
+                "collision": bool(ev["collision"]),
+                "goal_dist": gd, "min_goal_dist": float(ev["min_goal_dist"]),
+                "stop_reason": stop, "n_steps": ev["n_steps"],
+                "sim_time_s": round(sim_s, 1),
+            })
+
+            obj_short = obj_name.replace(" ", "_")[:30]
+            perf = analyze_trajectory_performance(
+                Xro, np.asarray(obj_target).flatten()[:3],
+                epcds_arr, exclusion_r, collision_r,
+                trajectory_name=f"{label}_{obj_short}_br{br_id}",
+            )
+            perf_analyses.append(perf)
+
+            if save_plots:
+                obj_runs_for_plot.append((Xro.copy(), ev, tXUi.copy(), br_id))
+
+        sr = float(np.mean(successes)) if successes else 0.0
+        cr = float(np.mean(collisions)) if collisions else 0.0
+        gd_m = float(np.mean(goal_dists)) if goal_dists else float("nan")
+        n_ok = int(sum(successes))
+        agg = compute_aggregate_statistics(perf_analyses) if perf_analyses else {}
+
+        print(f"  [{label}] --- '{obj_name[:30]}'  success={sr:.0%} ({n_ok}/{len(branches)})"
+              f"  collision={cr:.0%}  avg_goal={gd_m:.2f}m")
+        if agg:
+            print(f"  [{label}]     norm_dist={agg.get('mean_normalized_distance',0):.3f}"
+                  f"  yaw_err={agg.get('mean_yaw_error_degrees',0):.1f}deg"
+                  f"  fov_rate={agg.get('camera_fov_success_rate',0):.0%}")
+
+        per_object[obj_name] = {
+            "success_rate": sr, "collision_rate": cr, "goal_dist": gd_m,
+            "n_eval": len(branches), "n_success": n_ok,
+            "performance_analysis": agg,
+        }
+
+        if save_plots and obj_runs_for_plot and output_dir:
+            plots_dir = os.path.join(output_dir, "plots")
+            os.makedirs(plots_dir, exist_ok=True)
+            obj_short = obj_name.replace(" ", "_")[:30]
+            html_path = os.path.join(plots_dir, f"{label}_{obj_short}.html")
+            _save_benchmark_plotly(
+                obj_runs=obj_runs_for_plot, obj_target=obj_target,
+                simulator=simulator,
+                obj_name=f"{label} — {obj_name} ({sr:.0%} success)",
+                save_path=html_path,
+            )
+
+    overall_sr = float(np.mean([v["success_rate"] for v in per_object.values()])) if per_object else 0.0
+    overall_cr = float(np.mean([v["collision_rate"] for v in per_object.values()])) if per_object else 0.0
+    return per_object, all_diag, overall_sr, overall_cr
+
+
 def _reset_pilot(pilot):
     """Reset pilot state between benchmark runs."""
     pilot.hy_flag = False

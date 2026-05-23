@@ -1330,14 +1330,15 @@ def train_dagger_policy(
         shutil.copy2(dst_model, round_model)
         print(f"  Model saved -> {round_model}")
 
-        # Evaluate on ALL training branches
+        # Evaluate on ALL training branches (using benchmark.py)
         print(f"\n  Evaluating on ALL {n_total} training branches...")
+        from sousvide.instruct.benchmark import evaluate_branches
         eval_branches = {obj: [(bid, br) for bid, br in brs.items()]
                          for obj, brs in all_branch_data.items()}
-        _, eval_results, eval_diag, eval_sr, eval_cr = \
-            _collect_and_evaluate(pilot, model_path, eval_branches,
-                                   scene_data, round_i=r, output_dir=out_dir,
-                                   is_dagger=False)
+        eval_results, eval_diag, eval_sr, eval_cr = \
+            evaluate_branches(pilot, model_path, eval_branches,
+                              scene_data, label=f"Eval_R{r}",
+                              output_dir=out_dir, save_plots=True)
         _save_ckpt(r, "evaluated", {
             "results": eval_results, "diagnostics": eval_diag,
             "overall_sr": eval_sr, "overall_cr": eval_cr,
