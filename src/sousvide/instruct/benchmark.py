@@ -43,8 +43,13 @@ from sousvide.visualize.analyze_simulated_experiments import (
 
 
 def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval",
-                       output_dir=None, save_plots=False, is_expert=False):
+                       output_dir=None, save_plots=False, is_expert=False,
+                       collect_annotations=False):
     """Evaluate a pilot (or MPC expert) on explicit branches.
+
+    When collect_annotations=True, wraps the pilot in a RecordingPilot to capture
+    (tcr, xcr, xnn) at each step, then relabels offline with MPC expert. This
+    combines eval + DAgger collection in a single simulation pass.
 
     Args:
         pilot: Pilot instance (will be swapped to model_path). Ignored if is_expert=True.
@@ -55,17 +60,21 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval"
         output_dir: if set, save plotly + analysis
         save_plots: save plotly HTMLs
         is_expert: if True, use VehicleRateMPC instead of pilot
+        collect_annotations: if True, record pilot inputs and relabel with expert offline
 
     Returns:
         (per_object, diagnostics, overall_sr, overall_cr)
+        If collect_annotations=True, returns (per_object, diagnostics, overall_sr, overall_cr, annotations)
     """
     from scipy.spatial import cKDTree
     import yaml
 
     from figs.control.vehicle_rate_mpc import VehicleRateMPC
+    from sousvide.instruct.train_dagger import RecordingPilot, _offline_relabel
     if not is_expert:
         pilot = _swap_model(pilot, model_path)
     simulator = scene_data["simulator"]
+    all_annotations = []
     obj_targets = scene_data["obj_targets"]
     queries = scene_data["queries"]
     epcds_arr = scene_data.get("epcds_arr", np.zeros((0, 3)))
@@ -104,6 +113,10 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval"
         for bi, (br_id, tXUi) in enumerate(branches):
             if is_expert:
                 policy = VehicleRateMPC(tXUi, "vrmpc_rrt", "carl", "InstinctJester")
+            elif collect_annotations:
+                _reset_pilot(pilot)
+                recording = RecordingPilot(pilot)
+                policy = recording
             else:
                 _reset_pilot(pilot)
                 policy = pilot
@@ -163,6 +176,12 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval"
             if save_plots:
                 obj_runs_for_plot.append((Xro.copy(), ev, tXUi.copy(), br_id))
 
+            # Offline expert relabeling (no re-simulation needed)
+            if collect_annotations and not is_expert:
+                anns = _offline_relabel(recording.records, tXUi)
+                all_annotations.extend(anns)
+                print(f"    [relabel] {len(anns)} annotations from br{br_id}", flush=True)
+
         sr = float(np.mean(successes)) if successes else 0.0
         cr = float(np.mean(collisions)) if collisions else 0.0
         gd_m = float(np.mean(goal_dists)) if goal_dists else float("nan")
@@ -199,6 +218,8 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval"
 
     overall_sr = float(np.mean([v["success_rate"] for v in per_object.values()])) if per_object else 0.0
     overall_cr = float(np.mean([v["collision_rate"] for v in per_object.values()])) if per_object else 0.0
+    if collect_annotations:
+        return per_object, all_diag, overall_sr, overall_cr, all_annotations
     return per_object, all_diag, overall_sr, overall_cr
 
 

@@ -926,36 +926,52 @@ def _wandb_log_round(pilot_name, round_i, coll_sr, coll_cr, eval_sr, eval_cr,
 # DAgger Policy — pure learner rollout + expert relabeling
 # ──────────────────────────────────────────────────────────────────────────────
 
-class DAggerPolicy:
-    """Pure learner rollout with expert relabeling at each timestep.
+class RecordingPilot:
+    """Wrapper that records (tcr, xcr, xnn) at each step for offline relabeling.
 
-    The learner (pilot) controls the drone. At each step, the expert (MPC)
-    computes what it would have commanded. The expert command is recorded
-    as the annotation label, paired with the pilot's neural network input (xnn).
+    Flies as pure pilot (no expert), but captures the neural network inputs
+    so the expert can relabel offline without re-simulating.
     """
-    def __init__(self, expert: VehicleRateMPC, pilot: Pilot):
-        self.expert = expert
+    def __init__(self, pilot: Pilot):
         self.pilot = pilot
         self.hz = pilot.hz
         self.nzcr = pilot.nzcr
-        self.annotations = []
-        self._u_pilot_prev = np.zeros(4)
+        self.records = []
+        self._u_prev = np.zeros(4)
 
     def control(self, tcr, xcr, upr, obj, icr, zcr):
-        u_expert, _, _, _ = self.expert.control(tcr, xcr, upr, obj, icr, zcr)
         u_pilot, znn, adv, xnn, tsol = self.pilot.OODA(
-            self._u_pilot_prev, tcr, xcr, obj, icr, zcr)
-        self._u_pilot_prev = u_pilot.copy()
+            self._u_prev, tcr, xcr, obj, icr, zcr)
+        self._u_prev = u_pilot.copy()
         xnn_cpu = {k: v.detach().cpu() for k, v in xnn.items()} if xnn else {}
-        self.annotations.append({
-            "xnn": xnn_cpu, "x": xcr.copy(), "u": u_expert.copy(),
-            "t": tcr, "query": obj,
+        self.records.append({
+            "xnn": xnn_cpu, "x": xcr.copy(), "t": tcr, "query": obj,
         })
         return u_pilot, znn, adv, tsol
 
     def reset(self):
-        self.annotations = []
-        self._u_pilot_prev = np.zeros(4)
+        self.records = []
+        self._u_prev = np.zeros(4)
+
+
+def _offline_relabel(records, tXUi):
+    """Relabel recorded pilot states with MPC expert commands offline.
+
+    No simulation needed — just queries the MPC for each saved (tcr, xcr).
+    Returns DAgger annotations: [{xnn, x, u, t, query}, ...]
+    """
+    expert = VehicleRateMPC(tXUi, "vrmpc_rrt", "carl", "InstinctJester")
+    annotations = []
+    for rec in records:
+        u_expert, _, _, _ = expert.control(rec["t"], rec["x"])
+        annotations.append({
+            "xnn": rec["xnn"],
+            "x": rec["x"],
+            "u": u_expert.copy(),
+            "t": rec["t"],
+            "query": rec["query"],
+        })
+    return annotations
 
 
 def _reset_pilot(pilot):
@@ -1275,50 +1291,39 @@ def train_dagger_policy(
         print(f"[DAgger Round {r}/{n_rounds}]  ({len(all_annotations)} annotations so far)")
         print(f"{'='*70}")
 
-        # Step 1: Evaluate current model on ALL branches (identifies failures)
-        print(f"\n  [Step 1] Evaluating current model on ALL {n_total} branches...")
+        # Step 1+2: Evaluate + collect annotations in ONE pass
+        # RecordingPilot captures xnn at each step, then offline MPC relabeling
+        print(f"\n  [Step 1+2] Eval + collect on ALL {n_total} branches (single pass)...")
         all_br = {obj: [(bid, br) for bid, br in brs.items()]
                   for obj, brs in all_branch_data.items()}
-        eval_results, eval_diag, eval_sr, eval_cr = \
-            evaluate_branches(pilot, model_path, all_br,
-                              scene_data, label=f"R{r}",
-                              output_dir=out_dir, save_plots=(r == 1 or r == n_rounds))
-
-        # Track best model
-        if eval_sr > best_sr:
-            best_sr = eval_sr
-            best_model_path = os.path.join(model_dir, f"model_round_{r-1 if r > 1 else 0}_best.pth")
-            shutil.copy2(model_path, best_model_path)
-            print(f"  [best] New best: {best_sr:.0%} SR → {best_model_path}")
-
-        # Identify failures from eval
-        prior_failures = {}
-        for d in eval_diag:
-            if not d["success"]:
-                prior_failures.setdefault(d["object"], []).append(d["branch_id"])
-
-        _save_ckpt(r, "evaluated", {
-            "results": eval_results, "diagnostics": eval_diag,
-            "overall_sr": eval_sr, "overall_cr": eval_cr,
-        })
-
-        # Step 2: Collect DAgger annotations on selected branches
-        selected = _select_branches_for_round(
-            all_branch_data, prior_failures, rng, r, max_success_per_obj)
 
         coll_ckpt = _load_ckpt(r, "collected")
         if coll_ckpt is not None:
             new_anns = coll_ckpt["annotations"]
-            print(f"  [resume] Round {r} collection loaded ({len(new_anns)} ann)")
+            eval_results = coll_ckpt.get("results", {})
+            eval_diag = coll_ckpt.get("diagnostics", [])
+            eval_sr = coll_ckpt.get("overall_sr", 0)
+            eval_cr = coll_ckpt.get("overall_cr", 0)
+            print(f"  [resume] Round {r} loaded ({len(new_anns)} ann, {eval_sr:.0%} SR)")
         else:
-            print(f"\n  [Step 2] Collecting DAgger annotations...")
-            new_anns, _, coll_diag, _, _ = \
-                _collect_and_evaluate(pilot, model_path, selected,
-                                       scene_data, round_i=r, output_dir=out_dir,
-                                       is_dagger=True)
+            eval_results, eval_diag, eval_sr, eval_cr, new_anns = \
+                evaluate_branches(pilot, model_path, all_br,
+                                  scene_data, label=f"R{r}",
+                                  output_dir=out_dir,
+                                  save_plots=(r == 1 or r == n_rounds),
+                                  collect_annotations=True)
             _save_ckpt(r, "collected", {
-                "annotations": new_anns, "diagnostics": coll_diag,
+                "annotations": new_anns, "results": eval_results,
+                "diagnostics": eval_diag,
+                "overall_sr": eval_sr, "overall_cr": eval_cr,
             })
+
+        # Track best model
+        if eval_sr > best_sr:
+            best_sr = eval_sr
+            best_model_path = os.path.join(model_dir, f"model_best.pth")
+            shutil.copy2(model_path, best_model_path)
+            print(f"  [best] New best: {best_sr:.0%} SR → {best_model_path}")
 
         all_annotations.extend(new_anns)
         print(f"  Total annotations: {len(all_annotations)}")
