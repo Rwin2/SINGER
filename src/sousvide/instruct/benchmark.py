@@ -70,7 +70,7 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval"
     import yaml
 
     from figs.control.vehicle_rate_mpc import VehicleRateMPC
-    from sousvide.instruct.train_dagger import RecordingPilot, _offline_relabel
+    from sousvide.instruct.train_dagger import DAggerPolicy
     if not is_expert:
         pilot = _swap_model(pilot, model_path)
     simulator = scene_data["simulator"]
@@ -115,8 +115,9 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval"
                 policy = VehicleRateMPC(tXUi, "vrmpc_rrt", "carl", "InstinctJester")
             elif collect_annotations:
                 _reset_pilot(pilot)
-                recording = RecordingPilot(pilot)
-                policy = recording
+                expert = VehicleRateMPC(tXUi, "vrmpc_rrt", "carl", "InstinctJester")
+                dagger_pol = DAggerPolicy(expert, pilot)
+                policy = dagger_pol
             else:
                 _reset_pilot(pilot)
                 policy = pilot
@@ -176,11 +177,10 @@ def evaluate_branches(pilot, model_path, branches_dict, scene_data, label="Eval"
             if save_plots:
                 obj_runs_for_plot.append((Xro.copy(), ev, tXUi.copy(), br_id))
 
-            # Offline expert relabeling (no re-simulation needed)
+            # Collect inline annotations from DAggerPolicy
             if collect_annotations and not is_expert:
-                anns = _offline_relabel(recording.records, tXUi)
-                all_annotations.extend(anns)
-                print(f"    [relabel] {len(anns)} annotations from br{br_id}", flush=True)
+                all_annotations.extend(dagger_pol.annotations)
+                print(f"    [collect] {len(dagger_pol.annotations)} annotations from br{br_id}", flush=True)
 
         sr = float(np.mean(successes)) if successes else 0.0
         cr = float(np.mean(collisions)) if collisions else 0.0

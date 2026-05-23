@@ -926,52 +926,36 @@ def _wandb_log_round(pilot_name, round_i, coll_sr, coll_cr, eval_sr, eval_cr,
 # DAgger Policy — pure learner rollout + expert relabeling
 # ──────────────────────────────────────────────────────────────────────────────
 
-class RecordingPilot:
-    """Wrapper that records (tcr, xcr, xnn) at each step for offline relabeling.
+class DAggerPolicy:
+    """Pure learner rollout with inline expert relabeling at each timestep.
 
-    Flies as pure pilot (no expert), but captures the neural network inputs
-    so the expert can relabel offline without re-simulating.
+    The pilot controls the drone. At each step, the expert computes what it
+    would command at the same state. The annotation pairs the pilot's NN input
+    (xnn) with the expert's action (u_expert).
     """
-    def __init__(self, pilot: Pilot):
+    def __init__(self, expert: VehicleRateMPC, pilot: Pilot):
+        self.expert = expert
         self.pilot = pilot
         self.hz = pilot.hz
         self.nzcr = pilot.nzcr
-        self.records = []
-        self._u_prev = np.zeros(4)
+        self.annotations = []
+        self._u_pilot_prev = np.zeros(4)
 
     def control(self, tcr, xcr, upr, obj, icr, zcr):
+        u_expert, _, _, _ = self.expert.control(tcr, xcr, upr, obj, icr, zcr)
         u_pilot, znn, adv, xnn, tsol = self.pilot.OODA(
-            self._u_prev, tcr, xcr, obj, icr, zcr)
-        self._u_prev = u_pilot.copy()
+            self._u_pilot_prev, tcr, xcr, obj, icr, zcr)
+        self._u_pilot_prev = u_pilot.copy()
         xnn_cpu = {k: v.detach().cpu() for k, v in xnn.items()} if xnn else {}
-        self.records.append({
-            "xnn": xnn_cpu, "x": xcr.copy(), "t": tcr, "query": obj,
+        self.annotations.append({
+            "xnn": xnn_cpu, "x": xcr.copy(), "u": u_expert.copy(),
+            "t": tcr, "query": obj,
         })
         return u_pilot, znn, adv, tsol
 
     def reset(self):
-        self.records = []
-        self._u_prev = np.zeros(4)
-
-
-def _offline_relabel(records, tXUi):
-    """Relabel recorded pilot states with MPC expert commands offline.
-
-    No simulation needed — just queries the MPC for each saved (tcr, xcr).
-    Returns DAgger annotations: [{xnn, x, u, t, query}, ...]
-    """
-    expert = VehicleRateMPC(tXUi, "vrmpc_rrt", "carl", "InstinctJester")
-    annotations = []
-    for rec in records:
-        u_expert, _, _, _ = expert.control(rec["t"], rec["x"])
-        annotations.append({
-            "xnn": rec["xnn"],
-            "x": rec["x"],
-            "u": u_expert.copy(),
-            "t": rec["t"],
-            "query": rec["query"],
-        })
-    return annotations
+        self.annotations = []
+        self._u_pilot_prev = np.zeros(4)
 
 
 def _reset_pilot(pilot):
