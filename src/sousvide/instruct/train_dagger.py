@@ -1266,50 +1266,65 @@ def train_dagger_policy(
             model_path = os.path.join(model_dir, "model.pth")
 
     round_results = []
+    best_sr = -1.0
+    best_model_path = None
+    from sousvide.instruct.benchmark import evaluate_branches
 
     for r in range(last_completed + 1, n_rounds + 1):
         print(f"\n{'='*70}")
         print(f"[DAgger Round {r}/{n_rounds}]  ({len(all_annotations)} annotations so far)")
         print(f"{'='*70}")
 
-        # Select branches
-        if r == 1:
-            prior_failures = {}
-        else:
-            ev_ckpt = _load_ckpt(r - 1, "evaluated")
-            prior_failures = {}
-            if ev_ckpt:
-                for d in ev_ckpt.get("diagnostics", []):
-                    if not d["success"]:
-                        obj = d["object"]
-                        prior_failures.setdefault(obj, []).append(d["branch_id"])
+        # Step 1: Evaluate current model on ALL branches (identifies failures)
+        print(f"\n  [Step 1] Evaluating current model on ALL {n_total} branches...")
+        all_br = {obj: [(bid, br) for bid, br in brs.items()]
+                  for obj, brs in all_branch_data.items()}
+        eval_results, eval_diag, eval_sr, eval_cr = \
+            evaluate_branches(pilot, model_path, all_br,
+                              scene_data, label=f"R{r}",
+                              output_dir=out_dir, save_plots=(r == 1 or r == n_rounds))
 
+        # Track best model
+        if eval_sr > best_sr:
+            best_sr = eval_sr
+            best_model_path = os.path.join(model_dir, f"model_round_{r-1 if r > 1 else 0}_best.pth")
+            shutil.copy2(model_path, best_model_path)
+            print(f"  [best] New best: {best_sr:.0%} SR → {best_model_path}")
+
+        # Identify failures from eval
+        prior_failures = {}
+        for d in eval_diag:
+            if not d["success"]:
+                prior_failures.setdefault(d["object"], []).append(d["branch_id"])
+
+        _save_ckpt(r, "evaluated", {
+            "results": eval_results, "diagnostics": eval_diag,
+            "overall_sr": eval_sr, "overall_cr": eval_cr,
+        })
+
+        # Step 2: Collect DAgger annotations on selected branches
         selected = _select_branches_for_round(
             all_branch_data, prior_failures, rng, r, max_success_per_obj)
 
-        # Collect DAgger data
         coll_ckpt = _load_ckpt(r, "collected")
         if coll_ckpt is not None:
             new_anns = coll_ckpt["annotations"]
-            coll_sr = coll_ckpt["overall_sr"]
-            coll_cr = coll_ckpt["overall_cr"]
-            print(f"  [resume] Round {r} collection loaded ({len(new_anns)} ann, {coll_sr:.0%} SR)")
+            print(f"  [resume] Round {r} collection loaded ({len(new_anns)} ann)")
         else:
-            new_anns, coll_results, coll_diag, coll_sr, coll_cr = \
+            print(f"\n  [Step 2] Collecting DAgger annotations...")
+            new_anns, _, coll_diag, _, _ = \
                 _collect_and_evaluate(pilot, model_path, selected,
                                        scene_data, round_i=r, output_dir=out_dir,
                                        is_dagger=True)
             _save_ckpt(r, "collected", {
-                "annotations": new_anns, "results": coll_results,
-                "diagnostics": coll_diag,
-                "overall_sr": coll_sr, "overall_cr": coll_cr,
+                "annotations": new_anns, "diagnostics": coll_diag,
             })
 
         all_annotations.extend(new_anns)
         print(f"  Total annotations: {len(all_annotations)}")
 
-        # Retrain: reset to BC weights, train on BC + all DAgger
-        print(f"\n  Retraining Commander ({n_epochs_per_round} epochs, lr={lr})...")
+        # Step 3: Retrain — reset to BC weights, train on BC + all DAgger
+        print(f"\n  [Step 3] Retraining Commander ({n_epochs_per_round} epochs, lr={lr})...")
         agg_dir = os.path.join(cohort_path, "dagger_data", pilot_name)
         os.makedirs(agg_dir, exist_ok=True)
         agg_file = os.path.join(agg_dir, "aggregated_annotations.pt")
@@ -1330,46 +1345,35 @@ def train_dagger_policy(
         shutil.copy2(dst_model, round_model)
         print(f"  Model saved -> {round_model}")
 
-        # Evaluate on ALL training branches (using benchmark.py)
-        print(f"\n  Evaluating on ALL {n_total} training branches...")
-        from sousvide.instruct.benchmark import evaluate_branches
-        eval_branches = {obj: [(bid, br) for bid, br in brs.items()]
-                         for obj, brs in all_branch_data.items()}
-        eval_results, eval_diag, eval_sr, eval_cr = \
-            evaluate_branches(pilot, model_path, eval_branches,
-                              scene_data, label=f"Eval_R{r}",
-                              output_dir=out_dir, save_plots=True)
-        _save_ckpt(r, "evaluated", {
-            "results": eval_results, "diagnostics": eval_diag,
-            "overall_sr": eval_sr, "overall_cr": eval_cr,
-        })
-
         # Log to wandb
-        _wandb_log_round(pilot_name, r, coll_sr, coll_cr, eval_sr, eval_cr,
+        _wandb_log_round(pilot_name, r, eval_sr, eval_cr, eval_sr, eval_cr,
                           len(all_annotations), eval_results)
 
         round_results.append({
             "round": r,
             "n_new_annotations": len(new_anns),
             "n_total_annotations": len(all_annotations),
-            "collection": {"sr": coll_sr, "cr": coll_cr},
             "eval": {"sr": eval_sr, "cr": eval_cr},
             "eval_per_object": eval_results,
         })
 
         # Progress table
         print(f"\n{'='*70}")
-        print(f"[Progress] After Round {r}/{n_rounds}")
-        print(f"  {'Round':8} {'Coll SR':>8} {'Eval SR':>8} {'Eval CR':>8} {'Annotations':>12}")
-        print(f"  {'-'*50}")
+        print(f"[Progress] After Round {r}/{n_rounds}  (best so far: {best_sr:.0%})")
+        print(f"  {'Round':8} {'Eval SR':>8} {'Eval CR':>8} {'Annotations':>12}")
+        print(f"  {'-'*42}")
         for rr in round_results:
-            print(f"  R{rr['round']:<7} {rr['collection']['sr']:>7.0%}"
-                  f" {rr['eval']['sr']:>7.0%} {rr['eval']['cr']:>7.0%}"
+            print(f"  R{rr['round']:<7} {rr['eval']['sr']:>7.0%} {rr['eval']['cr']:>7.0%}"
                   f" {rr['n_total_annotations']:>12}")
+
+    # Final: set model.pth to best model
+    if best_model_path and os.path.exists(best_model_path):
+        shutil.copy2(best_model_path, os.path.join(model_dir, "model.pth"))
+        print(f"\n  model.pth = best model ({best_sr:.0%} SR)")
 
     # Final summary
     print(f"\n{'='*70}")
-    print(f"[DAgger] COMPLETE — {n_rounds} rounds")
+    print(f"[DAgger] COMPLETE — {n_rounds} rounds, best SR: {best_sr:.0%}")
     print(f"{'='*70}")
     summary = {
         "timestamp": ts, "cohort": cohort_name,
@@ -1378,6 +1382,7 @@ def train_dagger_policy(
             "lr": lr, "seed": seed, "bc_cohort": bc_cohort_name,
             "n_total_training_branches": n_total,
         },
+        "best_sr": best_sr,
         "rounds": round_results,
     }
     out_path = os.path.join(out_dir, "dagger_results.json")
