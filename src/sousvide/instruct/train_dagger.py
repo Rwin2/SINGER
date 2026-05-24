@@ -1302,17 +1302,18 @@ def train_dagger_policy(
                 "overall_sr": eval_sr, "overall_cr": eval_cr,
             })
 
-        # Track best model
+        # Track best model (for deployment only — training always uses latest)
         if eval_sr > best_sr:
             best_sr = eval_sr
-            best_model_path = os.path.join(model_dir, f"model_best.pth")
+            best_model_path = os.path.join(model_dir, "model_best.pth")
             shutil.copy2(model_path, best_model_path)
-            print(f"  [best] New best: {best_sr:.0%} SR → {best_model_path}")
+            print(f"  [best] New best: {best_sr:.0%} SR")
 
         all_annotations.extend(new_anns)
         print(f"  Total annotations: {len(all_annotations)}")
 
-        # Step 3: Retrain — reset to BC weights, train on BC + all DAgger
+        # Step 3: Retrain from BC weights on BC + ALL accumulated DAgger data
+        # (textbook DAgger: fresh model each round, trained on growing dataset)
         print(f"\n  [Step 3] Retraining Commander ({n_epochs_per_round} epochs, lr={lr})...")
         agg_dir = os.path.join(cohort_path, "dagger_data", pilot_name)
         os.makedirs(agg_dir, exist_ok=True)
@@ -1330,9 +1331,10 @@ def train_dagger_policy(
             dagger_only=False, freeze_vision=True,
         )
         model_path = dst_model
-        round_model = os.path.join(model_dir, f"model_round_{r}.pth")
-        shutil.copy2(dst_model, round_model)
-        print(f"  Model saved -> {round_model}")
+
+        # Save current iteration model (overwritten each round)
+        shutil.copy2(dst_model, os.path.join(model_dir, "model_current.pth"))
+        print(f"  Model saved -> model_current.pth")
 
         # Log to wandb
         _wandb_log_round(pilot_name, r, eval_sr, eval_cr, eval_sr, eval_cr,
@@ -1355,10 +1357,11 @@ def train_dagger_policy(
             print(f"  R{rr['round']:<7} {rr['eval']['sr']:>7.0%} {rr['eval']['cr']:>7.0%}"
                   f" {rr['n_total_annotations']:>12}")
 
-    # Final: set model.pth to best model
+    # Final: model.pth = best model for deployment
     if best_model_path and os.path.exists(best_model_path):
         shutil.copy2(best_model_path, os.path.join(model_dir, "model.pth"))
         print(f"\n  model.pth = best model ({best_sr:.0%} SR)")
+    # model_best.pth and model_current.pth also available in roster dir
 
     # Final summary
     print(f"\n{'='*70}")
