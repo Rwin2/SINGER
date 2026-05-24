@@ -1,5 +1,5 @@
-# Simulate the best HW1 Comprehensive DAgger model
-cohort: "SSV_DAGGER_HW1_COMPREHENSIVE"
+# Simulate the best DAgger model
+cohort: "SSV_DAGGER_COMPREHENSIVE"
 method: "rrt_6s"
 review: false
 

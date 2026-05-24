@@ -97,10 +97,10 @@ Deploy the trained pilot (or MPC expert) on RRT trajectories with video recordin
 
 ```bash
 # Generate fresh RRT trajectories and simulate
-$RUN simulate --config-file configs/experiment/ssv_simulate_hw1.yml
+$RUN simulate --config-file configs/experiment/ssv_simulate.yml
 
-# Config example (configs/experiment/ssv_simulate_hw1.yml):
-# cohort: "SSV_DAGGER_HW1_COMPREHENSIVE"
+# Config example (configs/experiment/ssv_simulate.yml):
+# cohort: "SSV_DAGGER_COMPREHENSIVE"
 # method: "rrt_6s"
 # review: false          # false = fresh RRT, true = reuse BC rollout trajectories
 # flights:

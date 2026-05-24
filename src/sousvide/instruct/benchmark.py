@@ -3,7 +3,7 @@ Unified benchmark for SINGER models.
 
 Replaces: benchmark_seen_unseen.py, eval_unseen_benchmark.py, eval_fair_benchmark.py,
 benchmark_consistency.py, run_canonical_benchmark.py, reproduce_benchmark.py,
-eval_expert_15branches.py, eval_expert_branch64.py, run_hw1_cross_cohort_overlay.py.
+eval_expert_15branches.py, eval_expert_branch64.py.
 
 Usage (via CLI):
     $RUN benchmark --config-file configs/experiment/ssv_dagger_centroid_v9.yml \

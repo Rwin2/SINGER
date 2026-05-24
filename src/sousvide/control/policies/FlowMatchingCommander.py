@@ -7,7 +7,7 @@ Extends CommandSV to support flow matching:
 - Inference via Euler ODE integration
 
 Inspired by:
-- CS224R HW1 flow matching implementation
+- CS224R flow matching implementation
 - π₀ (Physical Intelligence, 2024)
 - DreamZero (NVIDIA, 2026) — Gaussian timestep weighting
 
@@ -124,7 +124,7 @@ class FlowMatchingSchedule:
     """
     Conditional Optimal-Transport Flow Matching schedule for SINGER.
 
-    Adapted from CS224R HW1 FlowMatchingSchedule:
+    Adapted from CS224R FlowMatchingSchedule:
     - interpolate(): build x_t and target velocity for training
     - sample(): Euler ODE integration for inference
 
