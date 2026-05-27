@@ -78,5 +78,14 @@ __pycache__/
 tmp_*
 tmp*
 
+# cohorts (generated data, models, visualizations)
+cohorts/
+
+# diagnostic scripts and results
+scripts/diagnostic_*
+scripts/perception_debug/
+scripts/run_*.sh
+
+# solver configs
 figs_ocp_solver.json
 figs_sim_solver.json
