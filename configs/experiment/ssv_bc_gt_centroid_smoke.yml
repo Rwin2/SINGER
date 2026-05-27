@@ -11,7 +11,7 @@ Nep_dagger: 50
 lim_sv: 5
 
 flights:
-  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+  - ["flightroom_ssv_exp_smoke", "flightroom_ssv_exp"]
 
 roster:
   - "InstinctJester_gt"
