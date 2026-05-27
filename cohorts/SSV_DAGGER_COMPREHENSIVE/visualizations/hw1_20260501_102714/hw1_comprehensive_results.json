@@ -1,0 +1,420 @@
+{
+  "timestamp": "20260501_102714",
+  "config": {
+    "n_rounds": 10,
+    "n_epochs_per_round": 30,
+    "lr": 2e-05,
+    "batch_size": 64,
+    "cohort": "SSV_DAGGER_HW1_COMPREHENSIVE",
+    "max_success_per_obj": 5,
+    "seed": 42,
+    "n_total_training_branches": 250
+  },
+  "per_object_branch_counts": {
+    "green clock": 110,
+    "green and pink leafblower": 110,
+    "yellow handheld cordless drill on two boxes": 30
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "n_collect_branches": 250,
+      "n_new_annotations": 24027,
+      "n_total_annotations": 24027,
+      "collection": {
+        "sr": 0.7606060606060606,
+        "cr": 0.15656565656565657
+      },
+      "eval": {
+        "sr": 0.6999999999999998,
+        "cr": 0.11818181818181817
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.6818181818181818,
+          "collision_rate": 0.22727272727272727,
+          "goal_dist": 2.6320941439737955,
+          "n_eval": 110,
+          "n_success": 75,
+          "n_collision": 25
+        },
+        "green and pink leafblower": {
+          "success_rate": 0.7181818181818181,
+          "collision_rate": 0.02727272727272727,
+          "goal_dist": 2.442726495427535,
+          "n_eval": 110,
+          "n_success": 79,
+          "n_collision": 3
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.7,
+          "collision_rate": 0.1,
+          "goal_dist": 3.2082190374683166,
+          "n_eval": 30,
+          "n_success": 21,
+          "n_collision": 3
+        }
+      }
+    },
+    {
+      "round": 2,
+      "n_collect_branches": 90,
+      "n_new_annotations": 12224,
+      "n_total_annotations": 36251,
+      "collection": {
+        "sr": 0.207010582010582,
+        "cr": 0.30753968253968256
+      },
+      "eval": {
+        "sr": 0.9151515151515152,
+        "cr": 0.05555555555555556
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.9090909090909091,
+          "collision_rate": 0.05454545454545454,
+          "goal_dist": 2.3959122199131477,
+          "n_eval": 110,
+          "n_success": 100,
+          "n_collision": 6
+        },
+        "green and pink leafblower": {
+          "success_rate": 0.9363636363636364,
+          "collision_rate": 0.045454545454545456,
+          "goal_dist": 2.372041773477377,
+          "n_eval": 110,
+          "n_success": 103,
+          "n_collision": 5
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.9,
+          "collision_rate": 0.06666666666666667,
+          "goal_dist": 2.729381409918178,
+          "n_eval": 30,
+          "n_success": 27,
+          "n_collision": 2
+        }
+      }
+    },
+    {
+      "round": 3,
+      "n_collect_branches": 35,
+      "n_new_annotations": 3892,
+      "n_total_annotations": 40143,
+      "collection": {
+        "sr": 0.4583333333333333,
+        "cr": 0.35555555555555557
+      },
+      "eval": {
+        "sr": 0.9101010101010102,
+        "cr": 0.05757575757575758
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.9545454545454546,
+          "collision_rate": 0.045454545454545456,
+          "goal_dist": 2.4126762702696567,
+          "n_eval": 110,
+          "n_success": 105,
+          "n_collision": 5
+        },
+        "green and pink leafblower": {
+          "success_rate": 0.9090909090909091,
+          "collision_rate": 0.02727272727272727,
+          "goal_dist": 2.41713216364631,
+          "n_eval": 110,
+          "n_success": 100,
+          "n_collision": 3
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.8666666666666667,
+          "collision_rate": 0.1,
+          "goal_dist": 2.8440900730398697,
+          "n_eval": 30,
+          "n_success": 26,
+          "n_collision": 3
+        }
+      }
+    },
+    {
+      "round": 4,
+      "n_collect_branches": 34,
+      "n_new_annotations": 3576,
+      "n_total_annotations": 43719,
+      "collection": {
+        "sr": 0.46296296296296297,
+        "cr": 0.3444444444444444
+      },
+      "eval": {
+        "sr": 0.8828282828282829,
+        "cr": 0.05454545454545454
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.9545454545454546,
+          "collision_rate": 0.03636363636363636,
+          "goal_dist": 2.3821502779440427,
+          "n_eval": 110,
+          "n_success": 105,
+          "n_collision": 4
+        },
+        "green and pink leafblower": {
+          "success_rate": 0.9272727272727272,
+          "collision_rate": 0.02727272727272727,
+          "goal_dist": 2.362730870033359,
+          "n_eval": 110,
+          "n_success": 102,
+          "n_collision": 3
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.7666666666666667,
+          "collision_rate": 0.1,
+          "goal_dist": 2.8035639589311434,
+          "n_eval": 30,
+          "n_success": 23,
+          "n_collision": 3
+        }
+      }
+    },
+    {
+      "round": 5,
+      "n_collect_branches": 35,
+      "n_new_annotations": 3664,
+      "n_total_annotations": 47383,
+      "collection": {
+        "sr": 0.4337606837606838,
+        "cr": 0.2935897435897436
+      },
+      "eval": {
+        "sr": 0.9111111111111111,
+        "cr": 0.0707070707070707
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.8818181818181818,
+          "collision_rate": 0.10909090909090909,
+          "goal_dist": 2.4578504696401566,
+          "n_eval": 110,
+          "n_success": 97,
+          "n_collision": 12
+        },
+        "green and pink leafblower": {
+          "success_rate": 0.9181818181818182,
+          "collision_rate": 0.03636363636363636,
+          "goal_dist": 2.4090345891239218,
+          "n_eval": 110,
+          "n_success": 101,
+          "n_collision": 4
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.9333333333333333,
+          "collision_rate": 0.06666666666666667,
+          "goal_dist": 2.7474819178246674,
+          "n_eval": 30,
+          "n_success": 28,
+          "n_collision": 2
+        }
+      }
+    },
+    {
+      "round": 6,
+      "n_collect_branches": 39,
+      "n_new_annotations": 3927,
+      "n_total_annotations": 51310,
+      "collection": {
+        "sr": 0.44973544973544977,
+        "cr": 0.41269841269841273
+      },
+      "eval": {
+        "sr": 0.9181818181818181,
+        "cr": 0.047474747474747475
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.9181818181818182,
+          "collision_rate": 0.06363636363636363,
+          "goal_dist": 2.373485946449819,
+          "n_eval": 110,
+          "n_success": 101,
+          "n_collision": 7
+        },
+        "green and pink leafblower": {
+          "success_rate": 0.9363636363636364,
+          "collision_rate": 0.045454545454545456,
+          "goal_dist": 2.397157085064159,
+          "n_eval": 110,
+          "n_success": 103,
+          "n_collision": 5
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.9,
+          "collision_rate": 0.03333333333333333,
+          "goal_dist": 2.887916577929057,
+          "n_eval": 30,
+          "n_success": 27,
+          "n_collision": 1
+        }
+      }
+    },
+    {
+      "round": 7,
+      "n_collect_branches": 34,
+      "n_new_annotations": 3067,
+      "n_total_annotations": 54377,
+      "collection": {
+        "sr": 0.4662698412698412,
+        "cr": 0.34722222222222227
+      },
+      "eval": {
+        "sr": 0.8949494949494948,
+        "cr": 0.05656565656565656
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.9272727272727272,
+          "collision_rate": 0.06363636363636363,
+          "goal_dist": 2.3489785377131613,
+          "n_eval": 110,
+          "n_success": 102,
+          "n_collision": 7
+        },
+        "green and pink leafblower": {
+          "success_rate": 0.8909090909090909,
+          "collision_rate": 0.07272727272727272,
+          "goal_dist": 2.473158877061971,
+          "n_eval": 110,
+          "n_success": 98,
+          "n_collision": 8
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.8666666666666667,
+          "collision_rate": 0.03333333333333333,
+          "goal_dist": 2.855016212253639,
+          "n_eval": 30,
+          "n_success": 26,
+          "n_collision": 1
+        }
+      }
+    },
+    {
+      "round": 8,
+      "n_collect_branches": 39,
+      "n_new_annotations": 3677,
+      "n_total_annotations": 58054,
+      "collection": {
+        "sr": 0.4114295290765879,
+        "cr": 0.37338696162225576
+      },
+      "eval": {
+        "sr": 0.9404040404040405,
+        "cr": 0.050505050505050504
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.9545454545454546,
+          "collision_rate": 0.03636363636363636,
+          "goal_dist": 2.314828868815789,
+          "n_eval": 110,
+          "n_success": 105,
+          "n_collision": 4
+        },
+        "green and pink leafblower": {
+          "success_rate": 0.9,
+          "collision_rate": 0.08181818181818182,
+          "goal_dist": 2.469957807336603,
+          "n_eval": 110,
+          "n_success": 99,
+          "n_collision": 9
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.9666666666666667,
+          "collision_rate": 0.03333333333333333,
+          "goal_dist": 2.58698829767209,
+          "n_eval": 30,
+          "n_success": 29,
+          "n_collision": 1
+        }
+      }
+    },
+    {
+      "round": 9,
+      "n_collect_branches": 32,
+      "n_new_annotations": 2664,
+      "n_total_annotations": 60718,
+      "collection": {
+        "sr": 0.5486111111111112,
+        "cr": 0.3763888888888889
+      },
+      "eval": {
+        "sr": 0.9292929292929294,
+        "cr": 0.03333333333333333
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.9454545454545454,
+          "collision_rate": 0.03636363636363636,
+          "goal_dist": 2.3188070528033045,
+          "n_eval": 110,
+          "n_success": 104,
+          "n_collision": 4
+        },
+        "green and pink leafblower": {
+          "success_rate": 0.9090909090909091,
+          "collision_rate": 0.06363636363636363,
+          "goal_dist": 2.451172588088303,
+          "n_eval": 110,
+          "n_success": 100,
+          "n_collision": 7
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.9333333333333333,
+          "collision_rate": 0.0,
+          "goal_dist": 2.6619622991820644,
+          "n_eval": 30,
+          "n_success": 28,
+          "n_collision": 0
+        }
+      }
+    },
+    {
+      "round": 10,
+      "n_collect_branches": 33,
+      "n_new_annotations": 3385,
+      "n_total_annotations": 64103,
+      "collection": {
+        "sr": 0.5007215007215007,
+        "cr": 0.2767676767676768
+      },
+      "eval": {
+        "sr": 0.8858585858585859,
+        "cr": 0.08282828282828282
+      },
+      "eval_per_object": {
+        "green clock": {
+          "success_rate": 0.9545454545454546,
+          "collision_rate": 0.045454545454545456,
+          "goal_dist": 2.31001174957777,
+          "n_eval": 110,
+          "n_success": 105,
+          "n_collision": 5
+        },
+        "green and pink leafblower": {
+          "success_rate": 0.8363636363636363,
+          "collision_rate": 0.13636363636363635,
+          "goal_dist": 2.59603689232759,
+          "n_eval": 110,
+          "n_success": 92,
+          "n_collision": 15
+        },
+        "yellow handheld cordless drill on two boxes": {
+          "success_rate": 0.8666666666666667,
+          "collision_rate": 0.06666666666666667,
+          "goal_dist": 2.660002774369246,
+          "n_eval": 30,
+          "n_success": 26,
+          "n_collision": 2
+        }
+      }
+    }
+  ]
+}

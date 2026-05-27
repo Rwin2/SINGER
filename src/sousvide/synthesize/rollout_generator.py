@@ -293,7 +293,8 @@ def generate_rollout_data(cohort_name:str,method_name:str,
                 trajectory_set_config, loiter_set_config,
                 simulator, policy_config,
                 vision_processor,
-                cohort_path, course_name
+                cohort_path, course_name,
+                obj_centroids=obj_centroids,
             )
             # stack_id = 0
             # batch_pbar = tqdm(total=total_batches, desc="Rollout Data Batches")
@@ -492,10 +493,11 @@ def generate_rollout_data(cohort_name:str,method_name:str,
                 vision_processor=vision_processor,
                 cohort_path=cohort_path,
                 course_name=course_name,
-                validation_mode=validation_mode
+                validation_mode=validation_mode,
+                obj_centroids=obj_centroids,
                 )
 
-    else:   
+    else:
         # Generate rollouts for each course
         for scene_name,course_name in flights:
             # Load course_config
@@ -665,16 +667,21 @@ def rollout_trajectories(all_trajectories, objectives, Nro_tp,
                 simulator, policy_config,
                 vision_processor,
                 cohort_path, course_name,
-                validation_mode=False):
+                validation_mode=False,
+                obj_centroids=None):
 
     # FIX #2 & #4 : construire orig_name correctement
     # objectives est un dict {course_key: query_string}
     # les clés loiter_* doivent pointer vers la même query que leur base
     orig_name = {}
-    for course_key, query in objectives.items():
+    centroid_map = {}  # course_key -> 3D centroid (for occlusion gating)
+    for idx, (course_key, query) in enumerate(objectives.items()):
         orig_name[course_key] = query
         loiter_key = f"loiter_{course_key}"
         orig_name[loiter_key] = query   # même query pour loiter
+        if obj_centroids is not None and idx < len(obj_centroids):
+            centroid_map[course_key] = obj_centroids[idx]
+            centroid_map[loiter_key] = obj_centroids[idx]
 
     total_batches = sum(
         len(compute_batches(tXUi,
@@ -723,7 +730,8 @@ def rollout_trajectories(all_trajectories, objectives, Nro_tp,
                         Tdt_ro=Tdt_ro,
                         err_tol=err_tol,
                         vision_processor=vision_processor,
-                        validation_mode=validation_mode
+                        validation_mode=validation_mode,
+                        gt_target_3d=centroid_map.get(course),
                     )
                     save_rollouts(
                         cohort_path, course_name,
@@ -992,7 +1000,8 @@ def generate_rollouts(
         Perturbations:Dict[str,Union[float,np.ndarray]]|None=None,
         Tdt_ro:float|None=None,err_tol:float|None=None,
         vision_processor:bool=False,
-        validation_mode:bool=False
+        validation_mode:bool=False,
+        gt_target_3d=None,
         ) -> Tuple[List[Dict[str,Union[np.ndarray,np.ndarray,np.ndarray]]],List[torch.Tensor]]:
     """
     Generates rollout data for the quadcopter given a list of drones and initial states (perturbations).
@@ -1056,7 +1065,8 @@ def generate_rollouts(
                 ctl, t0, tf, x0,
                 query=objective,
                 vision_processor=vision_processor,
-                validation=validation_mode
+                validation=validation_mode,
+                gt_target_3d=gt_target_3d,
             )
 
             trajectory = {
@@ -1072,6 +1082,8 @@ def generate_rollouts(
                 "course": objective,
                 "frame": frame_config
             }
+            if "depth_at_gt" in Imgs:
+                trajectory["depth_at_gt"] = Imgs.pop("depth_at_gt")
 
             # compute frame offsets for video sequences
             if videoMode:

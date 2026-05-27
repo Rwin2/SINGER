@@ -26,6 +26,41 @@ def generate_observation_data(
 
     Pilots = [Pilot(cohort, name) for name in roster]
 
+    # If any pilot uses gt_projection centroid, load 3D object targets
+    gt_targets = {}
+    if any(p.centroid_mode == "gt_projection" for p in Pilots):
+        import yaml
+        import figs.tsampling.build_rrt_dataset as bd
+        from figs.simulator import Simulator
+        scenes_cfg_dir = os.path.join(workspace_path, "configs", "scenes")
+        # Discover scene name from rollout folder structure
+        courses = sorted(os.listdir(rollout_folder))
+        if courses:
+            # Load scene to get object targets (one-time)
+            # Scene name is inferred from the cohort's flight config
+            # For now, iterate configs to find matching scene
+            for cfg_file in os.listdir(os.path.join(workspace_path, "configs", "experiment")):
+                if not cfg_file.endswith(".yml"):
+                    continue
+                cfg = yaml.safe_load(open(os.path.join(workspace_path, "configs", "experiment", cfg_file)))
+                if cfg.get("cohort") == cohort:
+                    scene_name = cfg["flights"][0][0]
+                    scene_cfg = yaml.safe_load(open(os.path.join(scenes_cfg_dir, f"{scene_name}.yml")))
+                    queries = scene_cfg["queries"]
+                    similarities = scene_cfg.get("similarities")
+                    simulator = Simulator(scene_name, "baseline")
+                    obj_targets, _, _, _ = bd.get_objectives(
+                        simulator.gsplat, queries, similarities, False)
+                    gt_targets = {q: np.squeeze(t) for q, t in zip(queries, obj_targets)}
+                    print(f"  [GT centroid] Loaded {len(gt_targets)} object targets")
+                    for q, t in gt_targets.items():
+                        print(f"    {q}: {t}")
+                    # Store on all pilots so generate_observations can access per-trajectory
+                    for p in Pilots:
+                        p._gt_targets_map = gt_targets
+                    del simulator
+                    break
+
     print("=" * 90)
 
     for pilot in Pilots:
@@ -132,6 +167,12 @@ def generate_observations(pilot:Pilot,
         obj,Ndata = trajectory_data["obj"],trajectory_data["Ndata"]
         rollout_id,course = trajectory_data["rollout_id"],trajectory_data["course"]
         frame = trajectory_data["frame"]
+        depth_at_gt = trajectory_data.get("depth_at_gt", None)
+
+        # Set GT target per trajectory if using gt_projection mode
+        if hasattr(pilot, 'centroid_mode') and pilot.centroid_mode == "gt_projection":
+            if hasattr(pilot, '_gt_targets_map') and course in pilot._gt_targets_map:
+                pilot.set_gt_target(pilot._gt_targets_map[course])
 
         # Decompress and extract the image data
         # Imgs = du.decompress_data(image_data)["images"]
@@ -163,7 +204,8 @@ def generate_observations(pilot:Pilot,
             img_cr = Imgs[k,:,:,:]
 
             # Generate the sfti data
-            _,znn_cr,_,xnn,_ = pilot.OODA(upr,tcr,xcr,obj,img_cr,znn_cr)
+            step_depth = float(depth_at_gt[k]) if depth_at_gt is not None and k < len(depth_at_gt) else None
+            _,znn_cr,_,xnn,_ = pilot.OODA(upr,tcr,xcr,obj,img_cr,znn_cr,depth_rendered=step_depth)
             ynn = {"unn":ucr,"mfn":np.array([frame["mass"],frame["force_normalized"]]),"onn":xcr}
 
             # Store the data

@@ -154,6 +154,24 @@ class Pilot():
         # Default "v9" for backward compatibility with V9-trained models
         self.centroid_version = profile.get("centroid_version", "v9")
 
+        # GT centroid mode: "clipseg" (default, V9 behavior) or "gt_projection"
+        # When "gt_projection", _compute_centroid uses 3D projection from
+        # self._gt_obj_target instead of the CLIPSeg heatmap.
+        # Set obj target via set_gt_target() before each trajectory.
+        self.centroid_mode = profile.get("centroid_mode", "clipseg")
+        self._gt_obj_target = None
+
+        # Action chunking support (optional, enabled via pilot config)
+        self.chunk_cfg = profile.get("action_chunk", None)
+        if self.chunk_cfg is not None:
+            self.chunk_horizon = self.chunk_cfg["horizon"]
+            self.chunk_execute = self.chunk_cfg["execute_steps"]
+            self.chunk_action_dim = self.chunk_cfg["action_dim"]
+            self.chunk_buf = None   # stores (H, action_dim) numpy array
+            self.chunk_step = 0     # current step within buffer
+        else:
+            self.chunk_horizon = None
+
         # ---------------------------------------------------------------------
 
     def set_mode(self,mode:Literal['train','deploy']):
@@ -181,7 +199,8 @@ class Pilot():
                 upr:Union[np.ndarray,torch.Tensor],
                 tcr:Union[float,torch.Tensor],xcr:Union[np.ndarray,torch.Tensor],
                 obj:Union[np.ndarray,torch.Tensor],
-                icr:Union[npt.NDArray[np.uint8],None,torch.Tensor],zcr:Union[torch.Tensor,None]) -> None:
+                icr:Union[npt.NDArray[np.uint8],None,torch.Tensor],zcr:Union[torch.Tensor,None],
+                depth_rendered:float=None) -> None:
         """
         Function that performs the observation step of the OODA loop where we take in all the relevant
         flight data.
@@ -220,7 +239,7 @@ class Pilot():
         # CLIPSeg/semantic images highlight the target — centroid gives bearing/elevation/size
         # V9: 3 features (bearing, elevation, apparent_size)
         # V10+: 5 features (+ confidence, compactness)
-        centroid = self._compute_centroid(icr)
+        centroid = self._compute_centroid(icr, depth_rendered=depth_rendered)
         obj_with_centroid = obj.reshape(self.Obj.shape).clone()
         obj_with_centroid[0, 0] = centroid[0]  # bearing  [-1, 1]
         obj_with_centroid[1, 0] = centroid[1]  # elevation [-1, 1]
@@ -234,7 +253,13 @@ class Pilot():
         self.Obj.copy_(obj_with_centroid)
         self.Img.copy_(icr)
             
-    def _compute_centroid(self, icr):
+    def set_gt_target(self, obj_target_3d):
+        """Set the 3D object target for GT projection centroid mode.
+        Call this before each trajectory when centroid_mode='gt_projection'.
+        """
+        self._gt_obj_target = np.squeeze(obj_target_3d)
+
+    def _compute_centroid(self, icr, depth_rendered=None):
         """Compute target features from CLIPSeg/semantic image.
 
         The CLIPSeg heatmap highlights the target object with brighter pixels.
@@ -251,7 +276,61 @@ class Pilot():
                 apparent_size: [0, 1]   fraction of image pixels above threshold
                 confidence:    [0, 1]   peak heatmap intensity (higher = stronger detection)
                 compactness:   [0, 1]   spatial concentration of highlight (1=tight cluster, 0=diffuse)
+
+        When centroid_mode='gt_projection', ignores the image and uses 3D
+        projection from self._gt_obj_target instead. Uses occlusion gating
+        via depth_rendered (ratio-based, threshold 0.90). Returns:
+            [GT_bearing, GT_elevation, goal_in_sight, 0, 0]
+        where goal_in_sight=1 when object is visible, 0 when occluded/out.
+
+        Args:
+            depth_rendered: rendered depth at the GT pixel (float). When
+                provided and centroid_mode='gt_projection', used for
+                occlusion gating: ratio = depth_rendered / geometric_depth.
+                If ratio < 0.90, object is occluded and zeros are returned.
         """
+        OCCLUSION_THRESHOLD = 0.90
+
+        # GT projection mode: use 3D object position + drone state
+        if self.centroid_mode == "gt_projection" and self._gt_obj_target is not None:
+            FX, FY = 462.956, 463.002
+            CX, CY = 323.076, 181.184
+            IMG_W, IMG_H = 640, 360
+            T_C2B = np.array([
+                [ 0.0,  0.0, -1.0,  0.10],
+                [ 1.0,  0.0,  0.0, -0.03],
+                [ 0.0, -1.0,  0.0, -0.01],
+                [ 0.0,  0.0,  0.0,  1.00],
+            ])
+            tx = self.tx_cr.detach().cpu().numpy()
+            xcr = tx[1:]  # skip time
+            T = np.eye(4)
+            T[:3, :3] = Rotation.from_quat(xcr[6:10]).as_matrix()
+            T[:3, 3] = xcr[:3]
+            T_c2w = T @ T_C2B
+            T_w2c = np.linalg.inv(T_c2w)
+            pt = T_w2c @ np.array([*self._gt_obj_target, 1.0])
+            if pt[2] >= -0.01:  # behind camera
+                return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0],
+                                    dtype=torch.float32, device=self.device)
+            depth = -pt[2]
+            u = FX * pt[0] / depth + CX
+            v = FY * (-pt[1]) / depth + CY
+            in_frame = (0 <= u < IMG_W and 0 <= v < IMG_H)
+            if not in_frame:
+                return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0],
+                                    dtype=torch.float32, device=self.device)
+            # Occlusion gating: compare rendered depth to geometric depth
+            if depth_rendered is not None and not np.isnan(depth_rendered):
+                ratio = depth_rendered / depth if depth > 0.01 else 1.0
+                if ratio < OCCLUSION_THRESHOLD:
+                    return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0],
+                                        dtype=torch.float32, device=self.device)
+            bearing = 2.0 * (u / IMG_W) - 1.0
+            elevation = 2.0 * (v / IMG_H) - 1.0
+            return torch.tensor([bearing, elevation, 1.0, 0.0, 0.0],
+                                dtype=torch.float32, device=self.device)
+
         if icr is None:
             return torch.zeros(5, device=self.device)
 
@@ -402,6 +481,13 @@ class Pilot():
             znn:    Output from the image processing network module.
             adv:    Oracle output
         """
+        # Action chunking: if buffer has remaining actions, return next one
+        if self.chunk_horizon is not None:
+            if self.chunk_buf is not None and self.chunk_step < self.chunk_execute:
+                unn = self.chunk_buf[self.chunk_step]
+                self.chunk_step += 1
+                return unn, torch.zeros(0), None
+
         with torch.no_grad():
             inputs = self.model.get_commander_inputs(xnn)
             unn,znn = self.model(*inputs)
@@ -409,7 +495,13 @@ class Pilot():
         # Convert inputs to numpy array
         unn = unn.cpu().numpy().squeeze()
         # znn = znn.cpu().numpy().squeeze()
-        
+
+        # Action chunking: store full chunk, return first action
+        if self.chunk_horizon is not None:
+            self.chunk_buf = unn.reshape(self.chunk_horizon, self.chunk_action_dim)
+            self.chunk_step = 1  # already returning step 0
+            unn = self.chunk_buf[0]
+
         # Advisor Output (empty for now)
         adv = None
 
@@ -419,7 +511,8 @@ class Pilot():
              upr:np.ndarray,
              tcr:float,xcr:np.ndarray,
              obj:np.ndarray,
-             icr:Union[npt.NDArray[np.uint8],None],zcr:Union[torch.Tensor,None]) -> Tuple[
+             icr:Union[npt.NDArray[np.uint8],None],zcr:Union[torch.Tensor,None],
+             depth_rendered:float=None) -> Tuple[
                  np.ndarray,
                  torch.Tensor,
                  Union[np.ndarray,None],
@@ -450,7 +543,7 @@ class Pilot():
         t0 = time.time()
 
         # Perform the OODA loop
-        self.observe(upr,tcr,xcr,obj,icr,zcr)
+        self.observe(upr,tcr,xcr,obj,icr,zcr,depth_rendered=depth_rendered)
         t1 = time.time()
         self.orient()
         t2 = time.time()

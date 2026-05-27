@@ -1,0 +1,17 @@
+# Smoke test: occlusion-aware GT centroid (5 branches, fresh rollouts)
+# Generates new rollouts with depth_at_gt for occlusion gating
+cohort: "ssv_BC_GT_CENTROID_V3_SMOKE"
+method: "rrt_6s"
+
+review: false
+
+Nep_his: 10
+Nep_com: 20
+Nep_dagger: 50
+lim_sv: 5
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester_gt"

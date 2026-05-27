@@ -125,30 +125,6 @@ def _log_figures_to_wandb(prefix: str) -> None:
 # Commandes Typer
 # ──────────────────────────────────────────────────────────────────────────────
 
-@app.command()
-def train_rl(config_file: str):
-    import yaml
-    from sousvide.instruct.train_policy_unified import train_rl_policy
-
-    with open(config_file) as f:
-        cfg = yaml.safe_load(f)
-
-    cohort  = cfg["cohort"]
-    method  = cfg["method"]
-    flights = [tuple(x) for x in cfg["flights"]]
-    roster  = cfg.get("roster") or ["InstinctJester"]
-
-    train_rl_policy(
-        cohort_name=cohort,
-        roster=roster,
-        method_name=method,
-        flights=flights,
-        Neps=50,
-        train_on_failures_only=True,
-        advantage_method="monte_carlo",
-    )
-
-
 @app.command("generate-rollouts")
 def generate_rollouts(
     config_file: Path = typer.Option(..., exists=True),
@@ -244,143 +220,51 @@ def train_command(
 @app.command("dagger")
 def train_dagger(
     config_file: Path = typer.Option(..., exists=True),
-    n_iterations: int = typer.Option(10, help="Nombre d'itérations DAgger"),
-    beta_start: float = typer.Option(0.7),
-    beta_decay: float = typer.Option(0.85),
-    collision_threshold: float = typer.Option(0.15),
-    drift_threshold: float = typer.Option(2.0),
-    expert_type: str = typer.Option("mpc", help="Expert type: mpc | potential | rrt"),
-    n_rollouts_per_object: int = typer.Option(5, help="Number of different branches to fly per object per DAgger iteration"),
-    max_trajectories: int = typer.Option(10, help="Number of benchmark trajectories per evaluation"),
-    aggregate_dagger: bool = typer.Option(False, help="Cumulate all past DAgger data (True) or train only on current iter (False=online)"),
-    start_pos_noise: float = typer.Option(0.5, help="Random position noise (m) added to initial state for trajectory diversity"),
-    deviation_filter_dist: float = typer.Option(0.3, help="Keep annotations where drone drifted >this (m) from reference trajectory"),
-    close_approach_dist: float = typer.Option(5.0, help="Always keep annotations within this distance (m) of goal"),
-    run_simulate: bool = typer.Option(False, help="Run simulation + video generation after DAgger completes"),
-    plot: bool = typer.Option(False),
-    use_wandb: bool = typer.Option(True, help="Enable W&B logging (default: True)"),
+    n_rounds: int = typer.Option(10, help="Number of DAgger rounds"),
+    n_epochs: int = typer.Option(30, help="Epochs per round"),
+    lr: float = typer.Option(2e-5, help="Learning rate"),
+    seed: int = typer.Option(42, help="Random seed"),
+    max_success_per_obj: int = typer.Option(5, help="Max success branches to revisit per round"),
+    use_wandb: bool = typer.Option(True, help="Enable W&B logging"),
     wandb_project: Optional[str] = typer.Option("singer-dagger"),
     wandb_run_name: Optional[str] = typer.Option(None),
     wandb_run_id: Optional[str] = typer.Option(None),
     wandb_resume: Optional[str] = typer.Option("allow"),
 ):
+    """DAgger training: pure learner rollout + expert relabeling."""
     from sousvide.instruct.train_dagger import train_dagger_policy
-    from datetime import datetime
-
-    # Auto-generate wandb run name from cohort if not specified
-    if wandb_run_name is None:
-        _cfg_tmp = load_yaml(config_file)
-        wandb_run_name = f"dagger_{_cfg_tmp['cohort']}_{datetime.now().strftime('%m%d_%H%M')}"
 
     cfg = common_options(
-        config_file, plot, use_wandb, wandb_project, wandb_run_name,
+        config_file, False, use_wandb, wandb_project, wandb_run_name,
         wandb_run_id=wandb_run_id, wandb_resume=wandb_resume,
     )
-    init_wandb(cfg, "train_dagger")
+    init_wandb(cfg, "dagger")
 
-    # Define separate metric steps so training and DAgger don't conflict
     if use_wandb:
         try:
             wandb.define_metric("train/*", step_metric="epoch")
-            wandb.define_metric("test/*", step_metric="epoch")
             wandb.define_metric("dagger/*")
-            wandb.define_metric("benchmark/*")
         except Exception:
             pass
-
-    _n_iter = cfg.get("n_iterations", n_iterations)
-    _beta_s = cfg.get("beta_start", beta_start)
-    _beta_d = cfg.get("beta_decay", beta_decay)
-    _pat    = cfg.get("patience", 2)
-    typer.echo("=" * 70)
-    typer.echo(f"[DAgger] Démarrage  —  {_n_iter} itérations  (patience={_pat})")
-    typer.echo(f"         β initial  : {_beta_s}  |  decay : {_beta_d}")
-    typer.echo(f"         collision  : {collision_threshold} m")
-    typer.echo(f"         dérive max : {drift_threshold} m")
-    typer.echo(f"         W&B        : {'ON  → ' + cfg.get('wandb_project','') if use_wandb else 'OFF'}")
-    typer.echo("=" * 70)
 
     all_metrics = train_dagger_policy(
         cohort_name=cfg["cohort"],
         method_name=cfg["method"],
         roster=cfg.get("roster") or ["InstinctJester"],
         flights=[tuple(x) for x in cfg["flights"]],
-        n_iterations=cfg.get("n_iterations", n_iterations),
-        beta_start=cfg.get("beta_start", beta_start),
-        beta_decay=cfg.get("beta_decay", beta_decay),
-        collision_threshold=collision_threshold,
-        drift_threshold=drift_threshold,
-        Nep_per_iter=cfg.get("Nep_dagger", 50),
-        use_wandb=cfg.get("use_wandb", False),
-        wandb_project=cfg.get("wandb_project", "singer-dagger"),
-        wandb_run_name=cfg.get("wandb_run_name", "dagger"),
-        lim_sv=cfg.get("lim_sv", 10),
-        max_trajectories=cfg.get("n_benchmark", max_trajectories),
-        n_eval_per_iter=cfg.get("n_eval_per_iter", 10),
-        expert_type=cfg.get("expert_type", expert_type),
-        aggregate_dagger=cfg.get("aggregate_dagger", aggregate_dagger),
-        start_pos_noise=cfg.get("start_pos_noise", start_pos_noise),
-        n_rollouts_per_object=cfg.get("n_rollouts_per_object", n_rollouts_per_object),
-        deviation_filter_dist=cfg.get("deviation_filter_dist", deviation_filter_dist),
-        close_approach_dist=cfg.get("close_approach_dist", close_approach_dist),
-        max_annotation_goal_dist=float(cfg.get("max_annotation_goal_dist", 50.0)),
-        max_deviation_dist=float(cfg.get("max_deviation_dist", float('inf'))),
-        dagger_lr=float(cfg.get("dagger_lr", 1e-5)),
-        bc_cohort_name=cfg.get("bc_cohort", None),
-        eval_seed=cfg.get("eval_seed", None),
-        reset_to_best=cfg.get("reset_to_best", False),
-        patience=cfg.get("patience", 2),
-        dagger_only=cfg.get("dagger_only", False),
-        dagger_oversample=int(cfg.get("dagger_oversample", 1)),
-        orientation_deviation_deg=cfg.get("orientation_deviation_deg", None),
-        max_orientation_dev_deg=float(cfg.get("max_orientation_dev_deg", 180.0)),
-        # V10 enhancements (backward compatible)
-        ewc_lambda=float(cfg.get("ewc_lambda", 0.0)),
-        lr_schedule=cfg.get("lr_schedule", None),
-        lr_decay_per_iter=float(cfg.get("lr_decay_per_iter", 1.0)),
-        weight_decay=float(cfg.get("weight_decay", 0.0)),
-        # Collision-weighted loss
-        collision_weight_alpha=float(cfg.get("collision_weight_alpha", 0.0)),
-        collision_weight_threshold=float(cfg.get("collision_weight_threshold", 0.5)),
-        # Data ratio control
-        max_dagger_samples=int(cfg.get("max_dagger_samples", 0)),
+        bc_cohort_name=cfg.get("bc_cohort", cfg["cohort"]),
+        n_rounds=cfg.get("n_rounds", n_rounds),
+        n_epochs_per_round=cfg.get("n_epochs_per_round", n_epochs),
+        lr=float(cfg.get("dagger_lr", lr)),
+        seed=cfg.get("seed", seed),
+        max_success_per_obj=cfg.get("max_success_per_obj", max_success_per_obj),
     )
 
-    # ── Résumé terminal ───────────────────────────────────────────────────────
-    typer.echo("\n" + "=" * 70)
-    typer.echo("[DAgger] RÉSUMÉ FINAL")
-    typer.echo("=" * 70)
-    for pilot_name, iter_metrics in all_metrics.items():
-        typer.echo(f"\nPilot : {pilot_name}")
-        typer.echo(f"  {'Iter':>4}  {'β':>6}  {'Collisions':>10}  {'FT_Success':>10}  {'Succès':>8}")
-        typer.echo(f"  {'-'*4}  {'-'*6}  {'-'*10}  {'-'*10}  {'-'*8}")
-        for m in iter_metrics:
-            typer.echo(
-                f"  {m['iteration']:>4}  {m['beta']:>6.3f}"
-                f"  {m['collision_rate']:>10.1%}"
-                f"  {m.get('full_traj_success', float('nan')):>10.1%}"
-                f"  {m['success_rate']:>8.1%}"
-            )
-
     if cfg.get("use_wandb"):
-        if plot:
-            _log_figures_to_wandb("dagger_summary")
         try:
-            import wandb
             wandb.finish()
         except Exception:
             pass
-
-    # Auto-run simulation + video generation if requested
-    if run_simulate:
-        typer.echo("\n" + "=" * 70)
-        typer.echo("[DAgger] Running simulation to generate videos...")
-        typer.echo("=" * 70)
-        df.simulate_roster(
-            cfg["cohort"], cfg["method"], cfg["flights"], cfg["roster"],
-            review=False,
-        )
-        typer.echo("[DAgger] Simulation + video generation complete!")
 
 
 @app.command()
@@ -401,6 +285,49 @@ def simulate(
 
     if cfg.get("use_wandb"):
         _log_figures_to_wandb("simulate")
+
+
+@app.command()
+def benchmark(
+    config_file: Path = typer.Option(..., exists=True),
+    models: str = typer.Option(..., help="Comma-separated 'Label:cohort/pilot' specs"),
+    branches: str = typer.Option("seen", help="seen | unseen | both"),
+    max_trajectories: int = typer.Option(50, help="Runs per object per model"),
+    seed: int = typer.Option(42, help="Benchmark seed"),
+    seeds: Optional[str] = typer.Option(None, help="Comma-separated seeds for multi-seed mode"),
+    save_plots: bool = typer.Option(True, help="Save plotly HTMLs"),
+    save_videos: bool = typer.Option(True, help="Save MP4 videos"),
+    save_analysis: bool = typer.Option(True, help="Save JSON results"),
+    include_expert: bool = typer.Option(False, help="Include MPC expert"),
+    overlay: bool = typer.Option(True, help="Multi-model overlay plotly"),
+    output_dir: Optional[str] = typer.Option(None, help="Output directory"),
+):
+    """Unified benchmark: evaluate one or more models on seen/unseen branches."""
+    from sousvide.instruct.benchmark import run_unified_benchmark, _parse_model_specs
+
+    cfg = common_options(config_file, False, False, None, None)
+    workspace_path = str(Path(__file__).resolve().parents[1])
+    scenes_cfg_dir = str(Path(workspace_path) / "configs" / "scenes")
+    bc_cohort = cfg.get("bc_cohort", cfg["cohort"])
+
+    model_specs = _parse_model_specs(models)
+    seed_list = [int(s) for s in seeds.split(",")] if seeds else [seed]
+
+    run_unified_benchmark(
+        flights=cfg["flights"],
+        scenes_cfg_dir=scenes_cfg_dir,
+        model_specs=model_specs,
+        bc_cohort=bc_cohort,
+        branches_mode=branches,
+        max_trajectories=max_trajectories,
+        seeds=seed_list,
+        save_plots=save_plots,
+        save_videos=save_videos,
+        save_analysis=save_analysis,
+        include_expert=include_expert,
+        overlay=overlay,
+        output_dir=output_dir,
+    )
 
 
 @app.command()
@@ -508,84 +435,6 @@ def debug_trajectory(
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-@app.command("cross-benchmark")
-def cross_benchmark(
-    config_file: Path = typer.Option(..., exists=True, help="Config for scene/flight setup (e.g. ssv_dagger_potential.yml)"),
-    cohort_before:    str = typer.Option("ssv_CLIPSEG_NORMAL",  help="Cohort with BC-only model"),
-    cohort_potential: str = typer.Option("ssv_dagger_potential", help="Cohort after DAgger-potential"),
-    cohort_rrt:       str = typer.Option("ssv_dagger_rrt",       help="Cohort after DAgger-RRT"),
-    pilot_name: str        = typer.Option("InstinctJester"),
-    benchmark_seed: int    = typer.Option(123, help="Seed for start-position sampling (use != DAgger seed 42)"),
-    max_trajectories: int  = typer.Option(50,  help="Trajectories per object per model"),
-    output: Optional[str]  = typer.Option(None, help="Path to write JSON results"),
-):
-    """
-    Compare all 3 InstinctJester variants (before DAgger, after potential-field
-    DAgger, after RRT DAgger) on the SAME held-out start conditions.
-
-    Each model is evaluated on max_trajectories trajectories per object,
-    sampled from the second half of tXUi (unseen during BC training) using
-    the given benchmark_seed so conditions are identical across models.
-    """
-    from sousvide.instruct.train_dagger import run_cross_cohort_benchmark
-
-    cfg = common_options(config_file, False, False, None, None)
-    workspace_path = Path(__file__).resolve().parents[1]
-    scenes_cfg_dir = str(workspace_path / "configs" / "scenes")
-    flights        = [tuple(x) for x in cfg["flights"]]
-    cohort_base    = str(workspace_path / "cohorts")
-
-    def _model_path(cohort: str, label: str) -> str:
-        # After DAgger the final checkpoint is saved as model_after_dagger.pth;
-        # the original BC model is model.pth (the best-validation checkpoint).
-        bench_path = (
-            f"{cohort_base}/{cohort}/dagger_data/{pilot_name}/benchmark/model_after_dagger.pth"
-        )
-        if label == "before_dagger":
-            bc_path = f"{cohort_base}/{cohort}/roster/{pilot_name}/model.pth"
-            return bc_path
-        return bench_path
-
-    models = [
-        {
-            "label":      "before_dagger",
-            "cohort":     cohort_before,
-            "pilot_name": pilot_name,
-            "model_path": _model_path(cohort_before, "before_dagger"),
-        },
-        {
-            "label":      "after_potential",
-            "cohort":     cohort_potential,
-            "pilot_name": pilot_name,
-            "model_path": _model_path(cohort_potential, "after_potential"),
-        },
-        {
-            "label":      "after_rrt",
-            "cohort":     cohort_rrt,
-            "pilot_name": pilot_name,
-            "model_path": _model_path(cohort_rrt, "after_rrt"),
-        },
-    ]
-
-    typer.echo("=" * 70)
-    typer.echo("[CrossBenchmark] Models:")
-    for m in models:
-        typer.echo(f"  {m['label']:20s}  {m['model_path']}")
-    typer.echo(f"  seed={benchmark_seed}  n={max_trajectories}/obj")
-    typer.echo("=" * 70 + "\n")
-
-    out_path = output or str(
-        workspace_path / "logs" / f"cross_benchmark_seed{benchmark_seed}.json"
-    )
-
-    run_cross_cohort_benchmark(
-        models=models,
-        flights=flights,
-        scenes_cfg_dir=scenes_cfg_dir,
-        benchmark_seed=benchmark_seed,
-        max_trajectories=max_trajectories,
-        output_path=out_path,
-    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

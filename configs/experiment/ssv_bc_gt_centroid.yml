@@ -1,0 +1,21 @@
+# BC training with occlusion-aware GT centroid features
+# Pilot uses centroid_mode=gt_projection (in InstinctJester_gt.json):
+#   obj_com = [GT_bearing, GT_elevation, goal_in_sight, 0, 0]
+#   Occlusion gating: ratio = depth_rendered / gt_obj_depth < 0.90 → zeros
+# Reuses rollout data from ssv_BC_CENTROID_V9 (same expert trajectories)
+cohort: "ssv_BC_GT_CENTROID_V3"
+bc_cohort: "ssv_BC_CENTROID_V9"
+method: "rrt_6s"
+
+review: false
+
+Nep_his: 100
+Nep_com: 150
+Nep_dagger: 50
+lim_sv: 10
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester_gt"

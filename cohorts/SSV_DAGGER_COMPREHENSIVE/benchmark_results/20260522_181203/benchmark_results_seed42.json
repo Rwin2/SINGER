@@ -1,0 +1,41 @@
+{
+  "seed": 42,
+  "branches_mode": "seen",
+  "max_trajectories": 2,
+  "models": [
+    "DAgger_HW1"
+  ],
+  "include_expert": false,
+  "results": {
+    "DAgger_HW1": {
+      "green clock": {
+        "success_rate": 1.0,
+        "collision_rate": 0.0,
+        "goal_dist": 1.869636630313165,
+        "n_eval": 2,
+        "n_success": 2,
+        "n_collision": 0
+      },
+      "green and pink leafblower": {
+        "success_rate": 1.0,
+        "collision_rate": 0.0,
+        "goal_dist": 2.2851339450001795,
+        "n_eval": 2,
+        "n_success": 2,
+        "n_collision": 0
+      },
+      "yellow handheld cordless drill on two boxes": {
+        "success_rate": 0.5,
+        "collision_rate": 0.5,
+        "goal_dist": 4.146287541568309,
+        "n_eval": 2,
+        "n_success": 1,
+        "n_collision": 1
+      },
+      "__overall__": {
+        "success_rate": 0.8333333333333334,
+        "collision_rate": 0.16666666666666666
+      }
+    }
+  }
+}

@@ -241,30 +241,55 @@ def analyze_trajectory_performance(Xro, goal_location, point_cloud, exclusion_ra
     trajectory_length = 0
     for i in range(1, len(positions)):
         trajectory_length += np.linalg.norm(positions[i] - positions[i-1])
-    
+
+    # Clearance: min distance to obstacles at each timestep
+    per_step_clearance = np.array([
+        obstacle_kdtree.query(pos)[0] for pos in positions[:terminal_index+1]
+    ])
+    min_clearance = float(per_step_clearance.min()) if len(per_step_clearance) > 0 else float('inf')
+    min_clearance_step = int(np.argmin(per_step_clearance)) if len(per_step_clearance) > 0 else -1
+    mean_clearance = float(np.mean(per_step_clearance)) if len(per_step_clearance) > 0 else float('inf')
+
+    # Goal distance series (for convergence analysis)
+    goal_distance_series = goal_distances[:terminal_index+1]
+    min_goal_dist = float(np.min(goal_distance_series)) if len(goal_distance_series) > 0 else float('inf')
+    min_goal_dist_step = int(np.argmin(goal_distance_series)) if len(goal_distance_series) > 0 else -1
+
+    # FOV percentage: fraction of steps where goal was in camera FOV
+    fov_in_range = goal_in_camera_fov_series[:terminal_index+1]
+    fov_pct = float(np.mean(fov_in_range)) if len(fov_in_range) > 0 else 0.0
+
     results = {
         "success": success,
         "collision": (terminal_reason == "collision"),
         "terminal_reason": terminal_reason,
         "terminal_index": terminal_index,
+        "n_steps": terminal_index,
         "terminal_position": terminal_position,
         "terminal_yaw": terminal_yaw,
         "distance_to_goal": final_distance,
+        "min_goal_dist": min_goal_dist,
+        "min_goal_dist_step": min_goal_dist_step,
         "normalized_distance": normalized_distance,
         "yaw_error": yaw_error,
         "yaw_error_degrees": np.degrees(yaw_error),
         "goal_in_camera_fov": goal_in_camera_fov,
+        "fov_pct": fov_pct,
         "yaw_error_series": yaw_error_series,
         "yaw_error_degrees_series": np.degrees(yaw_error_series),
         "goal_in_camera_fov_series": goal_in_camera_fov_series,
         "yaw_error_mean_upto_terminal": float(np.mean(yaw_error_series[:terminal_index+1])),
         "yaw_error_max_upto_terminal": float(np.max(yaw_error_series[:terminal_index+1])),
+        "min_clearance": min_clearance,
+        "min_clearance_step": min_clearance_step,
+        "mean_clearance": mean_clearance,
         "trajectory_length": trajectory_length,
         "goal_location": goal_location,
         "exclusion_radius": exclusion_radius,
         "collision_radius": collision_radius,
-        "soft_success_radius": soft_success_radius,  # Effective success zone used for both success and normalized distance
-        "trajectory_name": trajectory_name
+        "soft_success_radius": soft_success_radius,
+        "trajectory_name": trajectory_name,
+        "start_distance": start_distance,
     }
     
     return results
@@ -324,12 +349,28 @@ def compute_aggregate_statistics(individual_results):
         
         # Camera field-of-view statistics
         "camera_fov_success_rate": np.mean(goal_in_camera_fov),
-        
+        "mean_fov_pct": np.mean([r.get("fov_pct", 0) for r in individual_results]),
+
+        # Clearance (obstacle proximity)
+        "mean_min_clearance": np.mean([r.get("min_clearance", float('inf')) for r in individual_results
+                                       if r.get("min_clearance", float('inf')) < float('inf')]) if any(r.get("min_clearance", float('inf')) < float('inf') for r in individual_results) else float('inf'),
+        "min_clearance_overall": min(r.get("min_clearance", float('inf')) for r in individual_results),
+        "mean_mean_clearance": np.mean([r.get("mean_clearance", float('inf')) for r in individual_results
+                                         if r.get("mean_clearance", float('inf')) < float('inf')]) if any(r.get("mean_clearance", float('inf')) < float('inf') for r in individual_results) else float('inf'),
+
+        # Steps
+        "mean_n_steps": np.mean([r.get("n_steps", 0) for r in individual_results]),
+        "min_n_steps": min(r.get("n_steps", 0) for r in individual_results),
+        "max_n_steps": max(r.get("n_steps", 0) for r in individual_results),
+
+        # Start distance
+        "mean_start_distance": np.mean([r.get("start_distance", 0) for r in individual_results]),
+
         # Trajectory length statistics
         "mean_trajectory_length": np.mean(trajectory_lengths),
         "std_trajectory_length": np.std(trajectory_lengths),
         "median_trajectory_length": np.median(trajectory_lengths),
-        
+
         # Terminal reasons breakdown
         "terminal_reasons": {}
     }

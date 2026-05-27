@@ -45,6 +45,9 @@
 *.jpeg
 *.gif
 
+# plotly HTML visualizations (15MB+ each)
+*.html
+
 # logs
 *.log
 logs/
@@ -71,6 +74,9 @@ __pycache__/
 
 # system
 .DS_Store
+*.pid
+tmp_*
+tmp*
 
 figs_ocp_solver.json
 figs_sim_solver.json
