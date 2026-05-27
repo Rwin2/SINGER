@@ -26,9 +26,9 @@ similarities:
   - [ 0.90, 0.025 ]  # yellow handheld cordless drill
 
 nbranches:
-  - 110
-  - 110
-  - 110
+  - 5
+  - 5
+  - 5
   # - 110
 
 hoverMode: False
