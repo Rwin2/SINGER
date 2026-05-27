@@ -140,7 +140,8 @@ def generate_rollouts(
     init_wandb(cfg, "generate_rollouts")
     rg.generate_rollout_data(
         cfg["cohort"], cfg["method"], cfg["flights"],
-        validation_mode=validation_mode
+        validation_mode=validation_mode,
+        max_branches=cfg.get("max_branches"),
     )
 
     if cfg.get("use_wandb"):

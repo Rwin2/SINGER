@@ -28,7 +28,8 @@ from figs.dynamics.model_specifications import generate_specifications
 def generate_rollout_data(cohort_name:str,method_name:str,
                           flights:List[Tuple[str,str]],
                           Nro_sv:int=50,
-                          validation_mode:bool=False):
+                          validation_mode:bool=False,
+                          max_branches:int=None):
     
     """
     Generates flight data for a given cohort. A cohort comprises a set of courses flown on a specific
@@ -128,6 +129,8 @@ def generate_rollout_data(cohort_name:str,method_name:str,
             objectives      = scene_cfg["queries"]
             radii           = scene_cfg["radii"]
             n_branches      = scene_cfg["nbranches"]
+            if max_branches is not None:
+                n_branches = [min(nb, max_branches) for nb in n_branches]
             hover_mode      = scene_cfg["hoverMode"]
             visualize_flag = scene_cfg["visualize"]
             altitudes       = scene_cfg["altitudes"]
@@ -388,10 +391,10 @@ def generate_rollout_data(cohort_name:str,method_name:str,
             radii           = scene_cfg["radii"]
             if loitering:
                 n_branches = [nb // 10 for nb in scene_cfg["nbranches"]]
-                # n_branches = [1, 1, 1]
             else:
                 n_branches = [nb // 10 for nb in scene_cfg["nbranches"]]
-                
+            if max_branches is not None:
+                n_branches = [min(nb, max_branches) for nb in n_branches]
             print(f"n_branches: {n_branches}")
             hover_mode      = scene_cfg["hoverMode"]
             visualize_flag = scene_cfg["visualize"]
