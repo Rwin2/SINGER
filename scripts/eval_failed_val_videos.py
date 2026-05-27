@@ -78,7 +78,7 @@ def _xv_to_T(xv):
 
 def _project_gt(obj_target, xcr):
     """Project ground-truth 3D target to pixel coords.
-    Returns (u, v) or None if behind camera.
+    Returns (u, v, object_depth) or None if behind camera.
     Camera convention: nerfstudio/OpenGL (forward = -Z, Y up)."""
     T_c2w = _xv_to_T(xcr) @ T_C2B
     T_w2c = np.linalg.inv(T_c2w)
@@ -88,7 +88,7 @@ def _project_gt(obj_target, xcr):
     depth = -pt[2]
     u = FX * pt[0] / depth + CX
     v = FY * (-pt[1]) / depth + CY   # flip Y: OpenGL Y-up → pixel Y-down
-    return int(round(u)), int(round(v))
+    return int(round(u)), int(round(v)), float(depth)
 
 
 # ── Confidence gate + Kalman filter ──
@@ -729,6 +729,13 @@ def main():
     env_min     = scene_data.get("env_min")
     env_max     = scene_data.get("env_max")
 
+    # Camera for live depth rendering (occlusion check)
+    import figs.utilities.trajectory_helper as th
+    _gsplat = simulator.gsplat
+    _cam_cfg = simulator.conFiG["drone"]["camera"]
+    _depth_camera = _gsplat.generate_output_camera(_cam_cfg)
+    _T_c2b_sim = np.array(simulator.conFiG["drone"]["T_c2b"])
+
     # For Plotly: get epcds_list + scene config file (not in _get_scene cache)
     import yaml
     scene_cfg_file = os.path.join(SCENES_CFG, f"{SCENE}.yml")
@@ -852,6 +859,7 @@ def main():
             has_rgb = "rgb" in Iro
             has_sem = "semantic" in Iro
             has_raw = "similarity_raw" in Iro
+            # depth_raw is rendered live per-step for occlusion check
             centroid_log = []
 
             # Kalman filter: CLIPSeg sensor + drone dynamics
@@ -896,22 +904,40 @@ def main():
                     kf_depth = kf_est[5] if kf_est is not None else None
 
                     # ── GT projection (for evaluation/display only) ──
-                    gt_px = _project_gt(obj_target, xcr)
+                    gt_proj = _project_gt(obj_target, xcr)
+                    gt_px = gt_proj[:2] if gt_proj is not None else None
+                    gt_obj_depth = gt_proj[2] if gt_proj is not None else None
                     gt_in = (gt_px is not None
                              and 0 <= gt_px[0] < frame.shape[1]
                              and 0 <= gt_px[1] < frame.shape[0])
+
+                    # ── Occlusion check using live depth rendering ──
+                    gt_occluded = False
+                    rendered_depth = None
+                    occlusion_ratio = None
+                    if gt_in and gt_obj_depth is not None:
+                        Tb2w = th.xv_to_T(xcr)
+                        T_c2w_live = Tb2w @ _T_c2b_sim
+                        live_dict = _gsplat.render_rgb(_depth_camera, T_c2w_live)
+                        depth_frame = live_dict["depth_raw"]
+                        dh, dw = depth_frame.shape[:2]
+                        du = int(round(gt_px[0] * dw / IMG_W))
+                        dv = int(round(gt_px[1] * dh / IMG_H))
+                        du = min(max(du, 0), dw - 1)
+                        dv = min(max(dv, 0), dh - 1)
+                        rendered_depth = float(depth_frame[dv, du])
+                        occlusion_ratio = rendered_depth / gt_obj_depth if gt_obj_depth > 0.01 else 1.0
+                        gt_occluded = occlusion_ratio < 0.90
+
+                    gt_visible = gt_in and not gt_occluded
 
                     # ── Dynamic GT: validate dynamics model ──
                     # Init from GT bearing + true depth (GT used ONLY at init).
                     # Then propagate with _predict_state (same as KF).
                     # DGT error = pure dynamics error (no sensor correction).
                     dgt_px = None
-                    if dgt_state is None and gt_px is not None and gt_in:
-                        # Compute true depth at init (GT-only, for validation)
-                        T_c2w = _xv_to_T(xcr) @ T_C2B
-                        T_w2c = np.linalg.inv(T_c2w)
-                        pt = T_w2c @ np.array([*np.squeeze(obj_target), 1.0])
-                        true_depth = -pt[2]
+                    if dgt_state is None and gt_px is not None and gt_visible:
+                        true_depth = gt_obj_depth
                         dgt_state = np.array([
                             2.0 * (gt_px[0] / IMG_W) - 1.0,
                             2.0 * (gt_px[1] / IMG_H) - 1.0,
@@ -928,44 +954,30 @@ def main():
                             dgt_px = (int(round(u_dgt)), int(round(v_dgt)))
                         dgt_prev_xcr = xcr.copy()
 
-                    # ── Draw: GT (green, always) ──
-                    if gt_px is not None:
+                    # ── Draw: GT only ──
+                    # Green = truly visible, yellow = in frame but occluded
+                    if gt_px is not None and gt_visible:
                         _draw_marker(frame, gt_px[0], gt_px[1],
                                      (50, 255, 50), "GT", sz=14, th=2)
+                    elif gt_px is not None and gt_in:
+                        _draw_marker(frame, gt_px[0], gt_px[1],
+                                     (0, 200, 255), "GT(occ)", sz=12, th=1)
 
-                    # ── Draw: DGT (cyan, dynamics validation) ──
+                    # DGT — still compute for log but don't draw
                     dgt_gt_dist = None
                     if dgt_px is not None:
-                        _draw_marker(frame, dgt_px[0], dgt_px[1],
-                                     (255, 200, 0), "DGT", sz=10, th=1)
                         if gt_in and gt_px is not None:
                             dgt_gt_dist = float(np.hypot(
                                 dgt_px[0] - gt_px[0],
                                 dgt_px[1] - gt_px[1]))
 
-                    # ── Draw: CSEG (magenta, only when visible) ──
-                    if cseg_visible:
-                        _draw_marker(frame, cseg["cx_px"], cseg["cy_px"],
-                                     (255, 0, 255), "CSEG", sz=14, th=2)
-
-                    # ── Draw: KF (yellow, from first sighting onward) ──
+                    # KF — still compute for log but don't draw
                     fused_u, fused_v = None, None
                     kf_sigma = None
                     if kf_est is not None and kf_ok:
                         _, _, fused_u, fused_v, kf_sigma, _ = kf_est
-                        if cseg_visible:
-                            _draw_marker(frame, fused_u, fused_v,
-                                         (0, 255, 255), "KF", sz=16, th=2)
-                        else:
-                            _draw_marker(frame, fused_u, fused_v,
-                                         (0, 180, 180),
-                                         f"KF~{kf.steps_coasting}", sz=12, th=1)
                     elif kf_est is not None and not kf_ok:
                         _, _, _, _, kf_sigma, _ = kf_est
-                        cv2.putText(frame, f"KF lost (s={kf_sigma:.3f})",
-                                    (frame.shape[1] - 180, 18),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.35,
-                                    (0, 130, 130), 1, cv2.LINE_AA)
 
                     # ── Pixel errors vs GT ──
                     cseg_gt_dist = None
@@ -980,24 +992,14 @@ def main():
                                 fused_u - gt_px[0], fused_v - gt_px[1]))
 
                     # ── HUD ──
-                    txt1 = f"step {step}/{n_frames}  goal={goal_dist:.1f}m"
-                    if cseg:
-                        txt1 += f"  cseg_conf={cseg['confidence']:.2f}"
-                    txt1 += f"  {'VISIBLE' if cseg_visible else 'occluded'}"
+                    vis_str = "VIS" if gt_visible else ("OCC" if gt_in else "OUT")
+                    txt1 = f"step {step}/{n_frames}  goal={goal_dist:.1f}m  gt={vis_str}"
+                    if occlusion_ratio is not None:
+                        txt1 += f"  ratio={occlusion_ratio:.2f}"
+                    if gt_occluded:
+                        txt1 += f"  (occluded)"
 
-                    txt2 = ""
-                    if kf_est is not None:
-                        mode = "meas" if cseg_visible and kf.initialized else f"pred(Δ{kf.steps_coasting})"
-                        depth_str = f"  d̂={kf_depth:.1f}m" if kf_depth is not None else ""
-                        txt2 = f"KF:{mode}  σ={kf_sigma:.4f}{depth_str}"
-                    if dgt_gt_dist is not None:
-                        txt2 += f"  DGT_err={dgt_gt_dist:.0f}px"
-                    parts = []
-                    if cseg_gt_dist is not None: parts.append(f"cseg={cseg_gt_dist:.0f}px")
-                    if kf_gt_dist is not None: parts.append(f"kf={kf_gt_dist:.0f}px")
-                    txt3 = "err: " + "  ".join(parts) if parts else ""
-
-                    for y_pos, txt in [(18, txt1), (34, txt2), (50, txt3)]:
+                    for y_pos, txt in [(18, txt1)]:
                         if txt:
                             cv2.putText(frame, txt, (8, y_pos),
                                         cv2.FONT_HERSHEY_SIMPLEX, 0.38,
@@ -1026,6 +1028,11 @@ def main():
                         "gt_u": gt_px[0] if gt_px else None,
                         "gt_v": gt_px[1] if gt_px else None,
                         "gt_in_frame": gt_in,
+                        "gt_occluded": gt_occluded,
+                        "gt_visible": gt_visible,
+                        "gt_obj_depth": gt_obj_depth,
+                        "rendered_depth": rendered_depth,
+                        "occlusion_ratio": occlusion_ratio,
                     })
 
             # ── Save videos into per-case subfolder ──
@@ -1033,7 +1040,7 @@ def main():
             os.makedirs(case_dir, exist_ok=True)
             prefix = f"sim_video_{SCENE}_{short}_val{val_i}"
             for ch_name in channels:
-                if ch_name == "similarity_raw":
+                if ch_name in ("similarity_raw", "depth_raw"):
                     continue  # raw float data, not a video
                 ch_data = Iro[ch_name]
                 # Ensure uint8

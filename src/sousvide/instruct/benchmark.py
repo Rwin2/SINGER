@@ -607,6 +607,8 @@ def run_unified_benchmark(
                             policy = VehicleRateMPC(tXUi, "vrmpc_rrt", "carl", "expert")
                         else:
                             _reset_pilot(pilot)
+                            if hasattr(pilot, 'centroid_mode') and pilot.centroid_mode == "gt_projection":
+                                pilot.set_gt_target(obj_target)
                             policy = pilot
 
                         t0_sim = time.time()
@@ -632,7 +634,7 @@ def run_unified_benchmark(
                         goal_dists.append(gd)
 
                         status = "OK" if s else ("COLL" if c else "MISS")
-                        stop = term_info.get("reason", "timeout")
+                        stop = term_info.get("reason", "timeout") or "timeout"
                         init_d = float(np.linalg.norm(x0[:3] - np.asarray(obj_target).flatten()[:3]))
                         fov_p = ev.get("fov_pct", float("nan"))
                         fov_str = f"{fov_p:.0%}" if not math.isnan(fov_p) else "N/A"
@@ -641,7 +643,7 @@ def run_unified_benchmark(
                         print(f"  [{label}] {run_i+1:3d}/{n_runs}  {status:4s}  {traj_id}"
                               f"  d0={init_d:5.1f}m  goal={gd:5.2f}m"
                               f"  steps={ev['n_steps']:3d}  fov={fov_str:>4s}"
-                              f"  stop={stop:<12s}  ({sim_s:.0f}s)")
+                              f"  stop={stop:<12s}  ({sim_s:.0f}s)", flush=True)
 
                         all_diag.append({
                             "seed": seed, "model": label, "object": obj_name,
