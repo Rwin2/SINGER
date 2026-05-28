@@ -612,11 +612,13 @@ def run_unified_benchmark(
                             policy = pilot
 
                         t0_sim = time.time()
+                        gt_3d = obj_target if (hasattr(policy, 'centroid_mode') and policy.centroid_mode == "gt_projection") else None
                         result = simulator.simulate(
                             policy=policy, t0=t_start, tf=t_end, x0=x0,
                             obj=np.zeros((18, 1)), query=obj_name,
                             vision_processor=None, verbose=False,
                             early_stop_fn=terminal_fn,
+                            gt_target_3d=gt_3d,
                         )
                         Tro, Xro, Uro, Iro = result[0], result[1], result[2], result[3]
                         sim_s = time.time() - t0_sim
