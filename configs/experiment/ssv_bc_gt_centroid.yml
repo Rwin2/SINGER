@@ -4,7 +4,6 @@
 #   Occlusion gating: ratio = depth_rendered / gt_obj_depth < 0.90 → zeros
 # Reuses rollout data from ssv_BC_CENTROID_V9 (same expert trajectories)
 cohort: "ssv_BC_GT_CENTROID_V3"
-bc_cohort: "ssv_BC_CENTROID_V9"
 method: "rrt_6s"
 
 review: false
