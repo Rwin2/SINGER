@@ -761,7 +761,6 @@ def _retrain_commander(
     lr: float = 1e-4,
     bc_cohort_name: str = None,
     dagger_only: bool = False,
-    oversample: int = 1,
     freeze_vision: bool = True,
 ) -> None:
     """
@@ -770,8 +769,6 @@ def _retrain_commander(
     Modes:
       - dagger_only=True:  Train ONLY on DAgger annotations (fast, focused corrections)
       - dagger_only=False: Train on BC + DAgger mixed data (slow, preserves BC distribution)
-
-    oversample: Duplicate DAgger annotations N times to increase their weight.
 
     freeze_vision: If True (default), freeze VisionMLP during retraining — only update
       CommanderSV weights. This preserves the semantic object discrimination learned
@@ -810,14 +807,7 @@ def _retrain_commander(
         print("  [retrain] No valid xnn entries in annotations — skipping.")
         return
 
-    # Oversample DAgger annotations to increase their influence
-    if oversample > 1:
-        Xnn_orig, Ynn_orig = Xnn, Ynn
-        Xnn = Xnn_orig * oversample
-        Ynn = Ynn_orig * oversample
-        print(f"  [retrain] {len(Xnn_orig)} annotations × {oversample} = {len(Xnn)} samples")
-    else:
-        print(f"  [retrain] {len(Xnn)} annotation samples")
+    print(f"  [retrain] {len(Xnn)} annotation samples")
 
     obs_data = {
         "data": [{
