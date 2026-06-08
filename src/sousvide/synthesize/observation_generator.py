@@ -38,21 +38,28 @@ def generate_observation_data(
         if courses:
             # Load scene to get object targets (one-time)
             # Scene name is inferred from the cohort's flight config
-            # For now, iterate configs to find matching scene
-            for cfg_file in os.listdir(os.path.join(workspace_path, "configs", "experiment")):
+            # Only accept configs whose scene has a matching .yml file
+            for cfg_file in sorted(os.listdir(os.path.join(workspace_path, "configs", "experiment"))):
                 if not cfg_file.endswith(".yml"):
                     continue
                 cfg = yaml.safe_load(open(os.path.join(workspace_path, "configs", "experiment", cfg_file)))
                 if cfg.get("cohort") == cohort:
                     scene_name = cfg["flights"][0][0]
-                    scene_cfg = yaml.safe_load(open(os.path.join(scenes_cfg_dir, f"{scene_name}.yml")))
+                    scene_cfg_path = os.path.join(scenes_cfg_dir, f"{scene_name}.yml")
+                    if not os.path.isfile(scene_cfg_path):
+                        print(f"  [GT centroid] SKIP config '{cfg_file}': scene '{scene_name}.yml' not found")
+                        continue
+                    scene_cfg = yaml.safe_load(open(scene_cfg_path))
                     queries = scene_cfg["queries"]
+                    if len(queries) < 2:
+                        print(f"  [GT centroid] SKIP config '{cfg_file}': only {len(queries)} query (need all objects)")
+                        continue
                     similarities = scene_cfg.get("similarities")
                     simulator = Simulator(scene_name, "baseline")
                     obj_targets, _, _, _ = bd.get_objectives(
                         simulator.gsplat, queries, similarities, False)
                     gt_targets = {q: np.squeeze(t) for q, t in zip(queries, obj_targets)}
-                    print(f"  [GT centroid] Loaded {len(gt_targets)} object targets")
+                    print(f"  [GT centroid] Loaded {len(gt_targets)} targets from '{cfg_file}' (scene={scene_name})")
                     for q, t in gt_targets.items():
                         print(f"    {q}: {t}")
                     # Store on all pilots so generate_observations can access per-trajectory
@@ -60,6 +67,9 @@ def generate_observation_data(
                         p._gt_targets_map = gt_targets
                     del simulator
                     break
+            if not gt_targets:
+                raise RuntimeError("GT centroid mode requires object targets but none were loaded! "
+                                   "Check configs/experiment/ and configs/scenes/ for matching files.")
 
     print("=" * 90)
 

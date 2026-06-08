@@ -1,0 +1,15 @@
+cohort: "ssv_BC_GT_CENTROID_V3"
+method: "rrt_6s"
+
+review: false
+
+Nep_his: 100
+Nep_com: 150
+Nep_dagger: 50
+lim_sv: 10
+
+flights:
+  - ["flightroom_ssv_exp_clock", "flightroom_ssv_exp_clock"]
+
+roster:
+  - "InstinctJester_gt"

@@ -1,0 +1,56 @@
+# IQL V2 — Correct observations + linear actor + Commander weight init
+# Trains on 147-d Commander observations (VisionMLP + HistoryEncoder features)
+# Actor matches Commander architecture: 147 -> [100,100] -> 4 (linear, dropout=0.2)
+# Initialized from DAgger Comprehensive best model (copied, not modified)
+
+cohort: "SSV_IQL_V2"
+method: "rrt_6s"
+bc_cohort: "ssv_BC_CENTROID_V9"
+
+# Source model (COPIED into new cohort, original untouched)
+source_cohort: "SSV_DAGGER_COMPREHENSIVE"
+source_pilot: "InstinctJester"
+source_model: "model_best.pth"
+
+# Data (will be filled after collection completes)
+data_dir: "cohorts/SSV_DAGGER_COMPREHENSIVE/rl_transitions/20260603_163513"
+use_expert_data: true
+use_pilot_data: true
+
+# IQL hyperparameters (D4RL antmaze config)
+gamma: 0.99
+iql_expectile: 0.9
+awac_lambda: 0.1
+iql_tau: 0.005
+batch_size: 256
+learning_rate: 3.0e-4       # critic lr
+actor_learning_rate: 1.0e-4  # actor lr
+
+# Q/V networks: 2 hidden layers x 256 (D4RL antmaze)
+q_hidden_size: 256
+q_n_layers: 2
+
+# Actor: matches Commander architecture exactly
+# Commander: SimpleMLP(147, [100,100], 4, active_end=False, dropout=0.2)
+actor_hidden_sizes: [100, 100]
+actor_dropout: 0.2
+
+# Training
+num_iql_steps: 100000
+log_freq: 1000
+checkpoint_freq: 10000
+grad_norm_clipping: 10
+
+# Reward (already in data): -1/step, +1000 success, -1000 collision, +0.5 visible
+rew_shift: 0.0
+rew_scale: 1.0
+
+# Hardware
+gpu_id: 0
+seed: 42
+
+roster:
+  - "InstinctJester"
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]

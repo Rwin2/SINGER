@@ -1,0 +1,56 @@
+# IQL V3 — Frozen hidden layers to prevent catastrophic forgetting
+# Only fine-tunes the output layer (100→4) and logstd
+# Hidden layers 0 (147→100) and 1 (100→100) frozen from Commander init
+# Fewer steps (10K) to avoid overfitting on small dataset
+
+cohort: "SSV_IQL_V3_FROZEN"
+method: "rrt_6s"
+bc_cohort: "ssv_BC_CENTROID_V9"
+
+# Source model
+source_cohort: "SSV_DAGGER_COMPREHENSIVE"
+source_pilot: "InstinctJester"
+source_model: "model_best.pth"
+
+# Data (same as V2)
+data_dir: "cohorts/SSV_DAGGER_COMPREHENSIVE/rl_transitions/20260603_163513"
+use_expert_data: true
+use_pilot_data: true
+
+# IQL hyperparameters
+gamma: 0.99
+iql_expectile: 0.9
+awac_lambda: 0.1
+iql_tau: 0.005
+batch_size: 256
+learning_rate: 3.0e-4
+actor_learning_rate: 1.0e-4
+
+# Q/V networks
+q_hidden_size: 256
+q_n_layers: 2
+
+# Actor (matches Commander)
+actor_hidden_sizes: [100, 100]
+actor_dropout: 0.2
+freeze_hidden: true
+
+# Training — much fewer steps to avoid overfitting
+num_iql_steps: 10000
+log_freq: 500
+checkpoint_freq: 2000
+grad_norm_clipping: 10
+
+# Reward
+rew_shift: 0.0
+rew_scale: 1.0
+
+# Hardware
+gpu_id: 0
+seed: 42
+
+roster:
+  - "InstinctJester"
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]

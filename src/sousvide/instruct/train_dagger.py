@@ -3,13 +3,12 @@ DAgger (Dataset Aggregation) — version optimisée.
 """
 
 import os
-import gc
 import glob
 import json
 import pickle
+import random
 import shutil
 import yaml
-import copy
 from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict
@@ -51,7 +50,6 @@ _BC_TRAJ_CACHE: Dict[str, List[np.ndarray]] = {}
 _BRANCHES_CACHE: Dict[str, List[np.ndarray]] = {}
 
 
-DUMMY_NEVER_REACHED = "DUMMY_NEVER_REACHED"
 
 def _get_scene(
     scene_name: str,
@@ -476,8 +474,6 @@ def _evaluate_run(
     }
 
 
-# ── Multi-branch cache: all parameterized branches per object ──────────────
-_BRANCHES_CACHE: Dict[str, List[np.ndarray]] = {}
 
 
 def _load_all_branches(
@@ -761,7 +757,6 @@ def _retrain_commander(
     lr: float = 1e-4,
     bc_cohort_name: str = None,
     dagger_only: bool = False,
-    oversample: int = 1,
     freeze_vision: bool = True,
 ) -> None:
     """
@@ -770,8 +765,6 @@ def _retrain_commander(
     Modes:
       - dagger_only=True:  Train ONLY on DAgger annotations (fast, focused corrections)
       - dagger_only=False: Train on BC + DAgger mixed data (slow, preserves BC distribution)
-
-    oversample: Duplicate DAgger annotations N times to increase their weight.
 
     freeze_vision: If True (default), freeze VisionMLP during retraining — only update
       CommanderSV weights. This preserves the semantic object discrimination learned
@@ -810,14 +803,7 @@ def _retrain_commander(
         print("  [retrain] No valid xnn entries in annotations — skipping.")
         return
 
-    # Oversample DAgger annotations to increase their influence
-    if oversample > 1:
-        Xnn_orig, Ynn_orig = Xnn, Ynn
-        Xnn = Xnn_orig * oversample
-        Ynn = Ynn_orig * oversample
-        print(f"  [retrain] {len(Xnn_orig)} annotations × {oversample} = {len(Xnn)} samples")
-    else:
-        print(f"  [retrain] {len(Xnn)} annotation samples")
+    print(f"  [retrain] {len(Xnn)} annotation samples")
 
     obs_data = {
         "data": [{
@@ -1184,8 +1170,6 @@ def train_dagger_policy(
 
     Crash-resilient via per-round checkpoints.
     """
-    import random
-
     workspace = str(Path(__file__).resolve().parents[3])
     scenes_cfg_dir = os.path.join(workspace, "configs", "scenes")
     cohort_path = os.path.join(workspace, "cohorts", cohort_name)

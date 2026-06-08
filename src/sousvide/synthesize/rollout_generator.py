@@ -388,10 +388,8 @@ def generate_rollout_data(cohort_name:str,method_name:str,
             radii           = scene_cfg["radii"]
             if loitering:
                 n_branches = [nb // 10 for nb in scene_cfg["nbranches"]]
-                # n_branches = [1, 1, 1]
             else:
                 n_branches = [nb // 10 for nb in scene_cfg["nbranches"]]
-                
             print(f"n_branches: {n_branches}")
             hover_mode      = scene_cfg["hoverMode"]
             visualize_flag = scene_cfg["visualize"]

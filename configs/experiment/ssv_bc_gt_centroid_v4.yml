@@ -1,0 +1,21 @@
+# GT Centroid V4 — same as V3 + centroid augmentation (domain randomization)
+# Perturbs bearing/elevation with N(0, 0.05) noise during Commander training
+# to prevent over-reliance on exact GT centroid signal.
+# Reuses V3 observation data (symlinked).
+cohort: "ssv_BC_GT_CENTROID_V4"
+method: "rrt_6s"
+
+review: false
+
+Nep_his: 100
+Nep_com: 150
+Nep_dagger: 50
+lim_sv: 10
+
+centroid_augment_sigma: 0.05
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester_gt"

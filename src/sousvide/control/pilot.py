@@ -160,6 +160,8 @@ class Pilot():
         # Set obj target via set_gt_target() before each trajectory.
         self.centroid_mode = profile.get("centroid_mode", "clipseg")
         self._gt_obj_target = None
+        self._gt_vis_count = 0
+        self._gt_step_count = 0
 
         # Action chunking support (optional, enabled via pilot config)
         self.chunk_cfg = profile.get("action_chunk", None)
@@ -292,7 +294,13 @@ class Pilot():
         OCCLUSION_THRESHOLD = 0.90
 
         # GT projection mode: use 3D object position + drone state
-        if self.centroid_mode == "gt_projection" and self._gt_obj_target is not None:
+        if self.centroid_mode == "gt_projection":
+            if self._gt_obj_target is None:
+                raise ValueError(
+                    "centroid_mode='gt_projection' but _gt_obj_target is None. "
+                    "Call set_gt_target() before generating observations. "
+                    "This likely means the experiment config did not match a valid scene."
+                )
             FX, FY = 462.956, 463.002
             CX, CY = 323.076, 181.184
             IMG_W, IMG_H = 640, 360
@@ -310,6 +318,7 @@ class Pilot():
             T_c2w = T @ T_C2B
             T_w2c = np.linalg.inv(T_c2w)
             pt = T_w2c @ np.array([*self._gt_obj_target, 1.0])
+            self._gt_step_count += 1
             if pt[2] >= -0.01:  # behind camera
                 return torch.tensor([0.0, 0.0, 0.0, 0.0, 0.0],
                                     dtype=torch.float32, device=self.device)
@@ -328,6 +337,7 @@ class Pilot():
                                         dtype=torch.float32, device=self.device)
             bearing = 2.0 * (u / IMG_W) - 1.0
             elevation = 2.0 * (v / IMG_H) - 1.0
+            self._gt_vis_count += 1
             return torch.tensor([bearing, elevation, 1.0, 0.0, 0.0],
                                 dtype=torch.float32, device=self.device)
 
