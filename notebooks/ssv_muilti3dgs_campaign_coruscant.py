@@ -102,7 +102,7 @@ def safe_to_image(fig, width=1200, height=1200, scale=1.0, min_size=200):
 
 
 def _log_figures_to_wandb(prefix: str) -> None:
-    """Utilitaire : logue toutes les figures Matplotlib et Plotly en cours vers W&B."""
+    """Log all current Matplotlib and Plotly figures to W&B."""
     logs = {}
     for i, num in enumerate(plt.get_fignums(), start=1):
         fig_mpl = plt.figure(num)
@@ -122,7 +122,7 @@ def _log_figures_to_wandb(prefix: str) -> None:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Commandes Typer
+# CLI Commands
 # ──────────────────────────────────────────────────────────────────────────────
 
 @app.command("generate-rollouts")

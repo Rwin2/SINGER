@@ -1,5 +1,5 @@
 """
-DAgger (Dataset Aggregation) — version optimisée.
+DAgger (Dataset Aggregation) training loop.
 """
 
 import os
@@ -34,7 +34,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# PERF : caches globaux — survivent entre pilots ET entre appels benchmark
+# Global caches — persist across pilots and benchmark calls
 # ──────────────────────────────────────────────────────────────────────────────
 
 # {scene_name: {"simulator": Simulator, "obj_targets": [...], "epcds_arr": ndarray}}
@@ -58,15 +58,15 @@ def _get_scene(
     rollout_name: str = "baseline",
 ) -> dict:
     """
-    Retourne (depuis cache ou en créant) :
+    Returns (from cache or by creating) :
       simulator, obj_targets, epcds_arr
-    Le gsplat n'est chargé QU'UNE SEULE FOIS par scène pour tout le run.
+    The gsplat is loaded ONLY ONCE per scene for the entire run.
     """
     if scene_name in _SCENE_CACHE:
-        print(f"  [SceneCache] ♻️  '{scene_name}' depuis cache")
+        print(f"  [SceneCache] ♻️  '{scene_name}' from cache")
         return _SCENE_CACHE[scene_name]
 
-    print(f"  [SceneCache] 🔄 Chargement gsplat '{scene_name}' rollout='{rollout_name}' frame='{frame_name}'...")
+    print(f"  [SceneCache] 🔄 Loading gsplat '{scene_name}' rollout='{rollout_name}' frame='{frame_name}'...")
     simulator = Simulator(scene_name, rollout_name)
     simulator.load_frame(frame_name)
 
@@ -89,14 +89,14 @@ def _get_scene(
         env_min=env_min,
         env_max=env_max,
     )
-    print(f"  [SceneCache] ✅ '{scene_name}' en cache — {len(obj_targets)} targets")
+    print(f"  [SceneCache] ✅ '{scene_name}' cached — {len(obj_targets)} targets")
     return _SCENE_CACHE[scene_name]
 
 
 def _get_pkl(scene_name: str, obj_name: str, scenes_cfg_dir: str) -> Optional[dict]:
     """
-    Retourne (depuis cache mémoire ou disque) le pkl RRT pour un objectif.
-    Ne relit jamais le fichier deux fois.
+    Returns (from memory cache or disk) the RRT pkl for an objective.
+    Never reads the same file twice.
     """
     key = f"{scene_name}_{obj_name}"
     if key in _PKL_CACHE:
@@ -120,7 +120,7 @@ def _get_pkl(scene_name: str, obj_name: str, scenes_cfg_dir: str) -> Optional[di
 
 
 def _preload_all_pkls(flights: List[Tuple[str, str]], scenes_cfg_dir: str) -> int:
-    """Précharge tous les pkl en mémoire. Retourne le nombre chargés."""
+    """Preload all pkl files into memory. Returns the number loaded."""
     n = 0
     for scene_name, _ in flights:
         with open(os.path.join(scenes_cfg_dir, f"{scene_name}.yml")) as f:
@@ -727,7 +727,7 @@ def _save_model_checkpoint(pilot: Pilot, dst_path: str) -> None:
     model_cpu = pilot.model.cpu()
     torch.save(model_cpu, dst_path)
     pilot.model.to(DEVICE)
-    print(f"  [ckpt] Sauvegardé → {dst_path}")
+    print(f"  [ckpt] Saved → {dst_path}")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
