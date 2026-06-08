@@ -209,7 +209,8 @@ def train_command(
     init_wandb(cfg, "train_command")
     tp.train_roster(
         cfg["cohort"], cfg["roster"], "Commander",
-        cfg["Nep_com"], lim_sv=cfg.get("lim_sv", 10)
+        cfg["Nep_com"], lim_sv=cfg.get("lim_sv", 10),
+        centroid_augment_sigma=cfg.get("centroid_augment_sigma", 0.0)
     )
     if cfg["plot"]:
         fig = pl.plot_losses(cfg["cohort"], cfg["roster"], "Commander")
@@ -431,13 +432,6 @@ def debug_trajectory(
     if cfg.get("use_wandb"):
         _log_figures_to_wandb("debug")
 
-
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-
-
-# ──────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     app()

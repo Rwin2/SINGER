@@ -12,23 +12,40 @@ from sousvide.instruct.synthesized_data import *
 from typing import List,Tuple,Literal
 from enum import Enum
 
+def _make_centroid_augment(sigma: float):
+    """Create an augmentation function that perturbs obj_com bearing/elevation."""
+    def augment(xnn):
+        xnn = {k: v.clone() if isinstance(v, torch.Tensor) else v for k, v in xnn.items()}
+        obj = xnn.get("obj_com")
+        if obj is not None and obj[2] > 0.5:  # only perturb when visible
+            noise = torch.randn(2) * sigma
+            obj = obj.clone()
+            obj[0] = torch.clamp(obj[0] + noise[0], -1.0, 1.0)
+            obj[1] = torch.clamp(obj[1] + noise[1], -1.0, 1.0)
+            xnn["obj_com"] = obj
+        return xnn
+    return augment
+
+
 def train_roster(cohort_name:str,roster:List[str],
                  mode:Literal["Parameter","Odometry","Commander"],
                  Neps:int,lim_sv:int,
                  lr:float=1e-4,batch_size:int=64,
-                 course_name:str=None):
+                 course_name:str=None,
+                 centroid_augment_sigma:float=0.0):
 
     for student_name in roster:
         # Load Student
         student = Pilot(cohort_name,student_name)
         student.set_mode('train')
 
-        train_student(cohort_name,student,mode,Neps,lim_sv,lr,batch_size,course_name=course_name)
+        train_student(cohort_name,student,mode,Neps,lim_sv,lr,batch_size,
+                      course_name=course_name,centroid_augment_sigma=centroid_augment_sigma)
 
 def train_student(cohort_name:str,student:Pilot,
                   mode:Literal["Parameter","Odometry","Commander"],
                   Neps:int,lim_sv:int,lr:float,batch_size:int,
-                  course_name:str=None):
+                  course_name:str=None,centroid_augment_sigma:float=0.0):
 
     # Pytorch Config
     use_cuda = torch.cuda.is_available()
@@ -87,6 +104,12 @@ def train_student(cohort_name:str,student:Pilot,
     # Record the start time
     start_time = time.time()
 
+    # Centroid augmentation (only for Commander training with sigma > 0)
+    augment_fn = None
+    if mode == "Commander" and centroid_augment_sigma > 0:
+        augment_fn = _make_centroid_augment(centroid_augment_sigma)
+        print(f"  [Augment] centroid perturbation σ={centroid_augment_sigma:.3f} on obj_com (train only)")
+
     # Training + Testing Loop
     with trange(Neps, desc="Training Progress") as eps:
         for ep in eps:
@@ -100,7 +123,7 @@ def train_student(cohort_name:str,student:Pilot,
             loss_log_tn =[]
             for od_train_file in od_train_files:
                 # Load Datasets
-                dataset = generate_dataset(od_train_file,student,mode,device)
+                dataset = generate_dataset(od_train_file,student,mode,device,augment_fn=augment_fn)
                 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last = False)
 
                 # Training

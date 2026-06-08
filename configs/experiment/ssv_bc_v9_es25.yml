@@ -1,0 +1,21 @@
+# Deterministic BC V9 re-trained with early stopping at 25 epochs
+# Original V9 best test MSE was at epoch 24
+cohort: "ssv_BC_CENTROID_V9_ES25"
+method: "rrt_6s"
+
+source_cohort: "ssv_BC_CENTROID_V9"
+bc_cohort: "ssv_BC_CENTROID_V9"
+
+Nep_his: 100
+Nep_com: 25
+lr: 1.0e-4
+batch_size: 64
+lim_sv: 5
+
+train_history: false
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"

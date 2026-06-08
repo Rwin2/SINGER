@@ -1,0 +1,21 @@
+# Gaussian BC V1 Early-Stopped at 20 epochs
+# Same as V1 but only 20 epochs (best test MSE was at epoch 20)
+cohort: "ssv_GAUSSIAN_BC_V1_ES20"
+method: "rrt_6s"
+
+source_cohort: "ssv_BC_CENTROID_V9"
+bc_cohort: "ssv_BC_CENTROID_V9"
+
+Nep_his: 100
+Nep_com: 20
+lr: 1.0e-4
+batch_size: 64
+lim_sv: 5
+
+train_history: false
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"

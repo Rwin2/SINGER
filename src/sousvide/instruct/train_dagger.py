@@ -3,13 +3,12 @@ DAgger (Dataset Aggregation) — version optimisée.
 """
 
 import os
-import gc
 import glob
 import json
 import pickle
+import random
 import shutil
 import yaml
-import copy
 from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict
@@ -51,7 +50,6 @@ _BC_TRAJ_CACHE: Dict[str, List[np.ndarray]] = {}
 _BRANCHES_CACHE: Dict[str, List[np.ndarray]] = {}
 
 
-DUMMY_NEVER_REACHED = "DUMMY_NEVER_REACHED"
 
 def _get_scene(
     scene_name: str,
@@ -476,8 +474,6 @@ def _evaluate_run(
     }
 
 
-# ── Multi-branch cache: all parameterized branches per object ──────────────
-_BRANCHES_CACHE: Dict[str, List[np.ndarray]] = {}
 
 
 def _load_all_branches(
@@ -1174,8 +1170,6 @@ def train_dagger_policy(
 
     Crash-resilient via per-round checkpoints.
     """
-    import random
-
     workspace = str(Path(__file__).resolve().parents[3])
     scenes_cfg_dir = os.path.join(workspace, "configs", "scenes")
     cohort_path = os.path.join(workspace, "cohorts", cohort_name)

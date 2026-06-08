@@ -233,6 +233,9 @@ def _reset_pilot(pilot):
     if hasattr(pilot, 'chunk_buf'):
         pilot.chunk_buf = None
         pilot.chunk_step = 0
+    if hasattr(pilot, '_gt_step_count'):
+        pilot._gt_step_count = 0
+        pilot._gt_vis_count = 0
 
 
 def _load_validation_branches(bc_cohort, scene_name, scenes_cfg_dir):
@@ -642,10 +645,14 @@ def run_unified_benchmark(
                         fov_str = f"{fov_p:.0%}" if not math.isnan(fov_p) else "N/A"
 
                         traj_id = f"br{branch_id}"
+                        gt_vis_str = ""
+                        if not is_expert and hasattr(pilot, '_gt_step_count') and pilot._gt_step_count > 0:
+                            gt_vis_pct = 100.0 * pilot._gt_vis_count / pilot._gt_step_count
+                            gt_vis_str = f"  vis={gt_vis_pct:4.0f}%"
                         print(f"  [{label}] {run_i+1:3d}/{n_runs}  {status:4s}  {traj_id}"
                               f"  d0={init_d:5.1f}m  goal={gd:5.2f}m"
                               f"  steps={ev['n_steps']:3d}  fov={fov_str:>4s}"
-                              f"  stop={stop:<12s}  ({sim_s:.0f}s)", flush=True)
+                              f"  stop={stop:<12s}{gt_vis_str}  ({sim_s:.0f}s)", flush=True)
 
                         all_diag.append({
                             "seed": seed, "model": label, "object": obj_name,

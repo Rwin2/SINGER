@@ -1,0 +1,27 @@
+# Gaussian BC V1 — Same as BC Centroid V9 but with NLL loss + learned logstd
+# Reuses V9 observation data (symlinked), trains from scratch
+# Commander output: deterministic mean (same architecture)
+# Loss: Gaussian NLL instead of MSE
+# Extra parameter: logstd (4-d, learned)
+cohort: "ssv_GAUSSIAN_BC_V1"
+method: "rrt_6s"
+
+# Source cohort for observations and initial model
+source_cohort: "ssv_BC_CENTROID_V9"
+bc_cohort: "ssv_BC_CENTROID_V9"
+
+# Training epochs (same as V9)
+Nep_his: 100
+Nep_com: 150
+lr: 1.0e-4
+batch_size: 64
+lim_sv: 10
+
+# Skip history — reuse the trained HistoryEncoder from V9
+train_history: false
+
+flights:
+  - ["flightroom_ssv_exp", "flightroom_ssv_exp"]
+
+roster:
+  - "InstinctJester"

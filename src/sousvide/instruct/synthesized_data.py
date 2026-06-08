@@ -2,7 +2,7 @@ import numpy as np
 import os
 import time
 import torch
-from torch import NoneType, nn
+from torch import nn
 from torch.utils.data import DataLoader,Dataset
 from tqdm.auto import trange
 from sousvide.control.pilot import Pilot
@@ -10,10 +10,12 @@ from typing import List,Tuple,Literal,Union,Dict,Callable
 from enum import Enum
 
 class ObservationData(Dataset):
-    def __init__(self, Xnn:List[Dict[str,torch.Tensor]], Ynn:List[torch.Tensor],extractor:Callable):      
+    def __init__(self, Xnn:List[Dict[str,torch.Tensor]], Ynn:List[torch.Tensor],extractor:Callable,
+                 augment_fn=None):
         self.Xnn = Xnn
         self.Ynn = Ynn
         self.extractor = extractor
+        self.augment_fn = augment_fn
 
     def __len__(self):
         return len(self.Xnn)
@@ -21,7 +23,8 @@ class ObservationData(Dataset):
     def __getitem__(self,idx):
         xnn = self.Xnn[idx]
         ynn = self.Ynn[idx]
-
+        if self.augment_fn is not None:
+            xnn = self.augment_fn(xnn)
         return self.extractor(xnn,ynn)
     
 def ensure_torch_tensor(variable):
@@ -33,12 +36,14 @@ def ensure_torch_tensor(variable):
         raise ValueError("The variable is neither a NumPy array nor a PyTorch tensor.")
 
 def generate_dataset(observation_data_path:str,student:Pilot,
-                     mode:Literal["Parameter","Odometry","Commander"],device:torch.device) -> Dataset:
+                     mode:Literal["Parameter","Odometry","Commander"],device:torch.device,
+                     augment_fn=None) -> Dataset:
     """
     Generate a Pytorch Dataset from the given list of observation data path.
 
     Args:
         observation_data_path:  Observation data path.
+        augment_fn:  Optional function applied to each xnn dict at __getitem__ time.
 
     Returns:
         dset:  The Pytorch Dataset object.
@@ -46,7 +51,7 @@ def generate_dataset(observation_data_path:str,student:Pilot,
     Xnn_ds,Ynn_ds = extract_data(observation_data_path)
     extractor = student.model.get_data[mode]
 
-    return ObservationData(Xnn_ds,Ynn_ds,extractor)
+    return ObservationData(Xnn_ds,Ynn_ds,extractor,augment_fn=augment_fn)
 
 def get_true_states(observation_data_path:str):
     """
@@ -330,56 +335,4 @@ def get_data_paths(cohort_name: str,
 
     return train_paths, test_paths, validation_paths, rollout_paths
 
-def get_data_paths_old(cohort_name:str,
-                   student_name:str,
-                   course_name:Union[str,None]=None
-                   ) -> Tuple[List[str],str]:
-    """
-    Get the paths to the observation data files for training or testing. If mode is 'train',
-    the paths are shuffled. This way, we can mix the course data a little better. However, we
-    need to keep the order constant across epochs and so we use a rng_seed to lock the randomness.
-    If mode is 'test', the first file is selected.
-
-    Args:
-        cohort_name:  The name of the cohort.
-        student_name: The name of the student.
-        course_name:  The name of the course.
-
-    Returns:
-        train_data:  The list of training data paths.
-        test_data:   The list of testing data paths.
-    """
-
-    # Some useful path(s)
-    workspace_path = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-    observation_data_path = os.path.join(
-        workspace_path,"cohorts",cohort_name,"observation_data",student_name)
-
-    # Get course paths
-    if course_name is None:
-        course_paths = [course.path for course in os.scandir(observation_data_path) if course.is_dir()]
-    else:
-        course_paths = [os.path.join(observation_data_path,course_name)]
-
-    # Split into training and testing data
-    train_data,test_data = [],[]
-    for course_path in course_paths:
-        # Get data files for the course
-        data_paths = []
-        for file in os.scandir(course_path):
-            data_paths.append(file.path)
-
-        data_paths.sort()
-
-        if len(data_paths) == 1:
-            train_data.append(data_paths[0])
-            test_data.append(data_paths[0])
-        elif len(data_paths) > 1:
-            train_data.extend(data_paths[:-1])
-            test_data.append(data_paths[-1])
-        else:
-            raise ValueError("No data found.")
-
-    return train_data,test_data
 
